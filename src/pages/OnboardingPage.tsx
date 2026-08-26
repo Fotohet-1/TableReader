@@ -29,16 +29,10 @@ export default function OnboardingPage({ onDone }: {
   };
 
   return (
-    <div className="onboard" onClick={() => { if (step < 1) setStep(1); }}>
+    <div className="onboard">
       {step === 0 && (
-        <div className="onboard-inner">
-          <p className="onboard-line">把剧本变成一场可以听的多角色围读</p>
-          <button className="primary onboard-next" onClick={() => setStep(1)}>继续</button>
-        </div>
-      )}
-      {step === 1 && (
         <div className="onboard-inner" onClick={(e) => e.stopPropagation()}>
-          <p className="onboard-title">选择声音来源</p>
+          <p className="onboard-title">请选择声音来源</p>
           <div className="onboard-cards">
             <div className={"ob-card" + (source === "qwen" ? " on" : "")} onClick={() => setSource("qwen")}>
               <h3>Qwen3 1.7B 本地</h3>
@@ -54,34 +48,34 @@ export default function OnboardingPage({ onDone }: {
           <button
             className="primary onboard-next"
             disabled={!source}
-            onClick={() => setStep(2)}
+            onClick={() => setStep(1)}
           >
             继续
           </button>
         </div>
       )}
-      {step === 2 && (
+      {step === 1 && (
         <div className="onboard-inner" onClick={(e) => e.stopPropagation()}>
           <div className="ob-ai-card">
             <p className="onboard-title">AI 加持</p>
-            <p className="onboard-line">
+            <p className="ob-ai-text">
               借助大模型，程序会更智能地拆解剧本、合并角色，并为每个角色写出符合台词气质的声音描述。
             </p>
-          </div>
-          <div className="field">
-            <label>DeepSeek Key</label>
-            <input
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="选填，不填也能使用"
-            />
-          </div>
-          {err && <div className="err">{err}</div>}
-          <div className="onboard-actions">
-            <button onClick={() => onDone(source || "qwen", "")}>暂不设置，继续</button>
-            <button className="primary" disabled={checking} onClick={checkAndContinue}>
-              {checking ? "检测中…" : "检测并继续"}
-            </button>
+            <div className="ob-key-field">
+              <label>DeepSeek Key（选填）</label>
+              <input
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder="不填也能使用"
+              />
+            </div>
+            {err && <div className="err">{err}</div>}
+            <div className="onboard-actions">
+              <button onClick={() => onDone(source || "qwen", "")}>暂不设置，继续</button>
+              <button className="primary" disabled={checking} onClick={checkAndContinue}>
+                {checking ? "检测中…" : "检测并继续"}
+              </button>
+            </div>
           </div>
         </div>
       )}

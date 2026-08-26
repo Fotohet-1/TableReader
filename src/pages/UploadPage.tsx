@@ -591,7 +591,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           <option value="qwen">Qwen3 1.7B 本地</option>
           <option value="edge">edge-tts 在线</option>
         </select>
-        <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>
+        {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
         <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
       </header>
 
