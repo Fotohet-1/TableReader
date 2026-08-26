@@ -12,6 +12,7 @@ import {
   fetchBaseVoices,
   fetchEdgeVoices,
   localSynthOne,
+  qwenCloneSynthOne,
   qwenSynthOne,
   registerRoles,
   type BaseVoiceInfo,
@@ -88,6 +89,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [descByRole, setDescByRole] = useState<Record<string, string>>({});
   const [descBusy, setDescBusy] = useState<Set<string>>(new Set());
   const [demoTextByRole, setDemoTextByRole] = useState<Record<string, string>>({});
+  const [seedByRole, setSeedByRole] = useState<Record<string, { b64: string; refText: string; url: string; descUsed: string }>>({});
   const [genderSel, setGenderSel] = useState<Record<string, Gender>>({});
   const [baseVoices, setBaseVoices] = useState<Record<string, BaseVoiceInfo>>({});
   const [edgeVoices, setEdgeVoices] = useState<Record<string, BaseVoiceInfo>>({});
@@ -145,6 +147,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setDescByRole({});
     setDescBusy(new Set());
     setDemoTextByRole({});
+    setSeedByRole({});
     setSummary(null);
     setCanEnter(false);
     setErr("");
@@ -372,6 +375,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setLikelyLines(likely);
     setForcedLines(new Set());
     setIgnoredLines(new Set());
+    setSeedByRole({});
     buildFromUnits(us, profiles, mapping);
     setPhase("scenes");
     setAiState("done");
@@ -446,9 +450,31 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     }
   };
 
-  const previewDesignVoice = async (name: string, desc: string, text?: string) => {
+  const blobToB64 = async (blob: Blob): Promise<string> => {
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)));
+    }
+    return btoa(binary);
+  };
+
+  const generateSeed = async (name: string, desc: string, text: string) => {
     const audio = previewAudioRef.current;
     if (!audio) return;
+    const existing = seedByRole[name];
+    if (existing && existing.descUsed === desc && previewRole === name) {
+      audio.pause();
+      setPreviewRole("");
+      return;
+    }
+    if (existing && existing.descUsed === desc) {
+      audio.src = existing.url;
+      setPreviewRole(name);
+      audio.play().catch(() => {});
+      return;
+    }
     if (previewRole === name) {
       audio.pause();
       setPreviewRole("");
@@ -456,24 +482,33 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     }
     setPreviewErr("");
     try {
-      const r = await qwenSynthOne(qwenUrl, text || firstLineFor(name), desc || defaultVoiceDescFor({ name }));
-      audio.src = URL.createObjectURL(r.blob);
+      const r = await qwenSynthOne(qwenUrl, text, desc || defaultVoiceDescFor({ name }));
+      const b64 = await blobToB64(r.blob);
+      const url = URL.createObjectURL(r.blob);
+      setSeedByRole((prev) => ({ ...prev, [name]: { b64, refText: text, url, descUsed: desc } }));
+      audio.src = url;
       setPreviewRole(name);
       audio.play().catch(() => {});
     } catch (e) {
-      setPreviewErr("试听失败: " + String(e));
+      setPreviewErr("音色生成失败: " + String(e));
     }
   };
 
   const confirmDesign = () => {
-    const ncv: CharacterVoice[] = profiles.map((p) => ({
-      name: p.name,
-      voiceId: p.name,
-      gender: p.gender,
-      age: p.age,
-      lines: p.lines,
-      voiceDesc: descByRole[p.name] || defaultVoiceDescFor(p)
-    }));
+    const ncv: CharacterVoice[] = profiles.map((p) => {
+      const seed = seedByRole[p.name];
+      return {
+        name: p.name,
+        voiceId: p.name,
+        gender: p.gender,
+        age: p.age,
+        lines: p.lines,
+        voiceDesc: descByRole[p.name] || defaultVoiceDescFor(p),
+        voiceMode: "clone",
+        cloneAudioB64: seed?.b64,
+        cloneRefText: seed?.refText
+      };
+    });
     setCharVoices(ncv);
     if (units) onAnalyzed({ text, units, charVoices: ncv, source });
     setPhase("voices");
@@ -550,8 +585,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       }
     }
     const descMap: Record<string, string> = {};
+    const cloneMap: Record<string, { b64: string; refText: string }> = {};
     for (const cv of fullVoices) {
       if (cv.voiceDesc) descMap[cv.name] = cv.voiceDesc;
+      if (cv.cloneAudioB64 && cv.cloneRefText) cloneMap[cv.name] = { b64: cv.cloneAudioB64, refText: cv.cloneRefText };
     }
 
     const stream = synthesizeStream(project, {
@@ -566,7 +603,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       },
       synthFn: (t, v, idx) => (
         source === "qwen"
-          ? qwenSynthOne(qwenUrl, t, descMap[v] || "")
+          ? (cloneMap[v]
+              ? qwenCloneSynthOne(qwenUrl, t, cloneMap[v].b64, cloneMap[v].refText)
+              : qwenSynthOne(qwenUrl, t, descMap[v] || ""))
           : source === "local"
           ? localSynthOne(localUrls[(idx || 0) % localUrls.length], t, v)
           : edgeSynthOne(edgeUrl, t, v)
@@ -748,9 +787,14 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                       <button disabled={descBusy.has(p.name)} onClick={() => generateDesc(p)}>
                         {descBusy.has(p.name) ? "生成中…" : "AI 生成描述"}
                       </button>
-                      <button onClick={() => previewDesignVoice(p.name, desc, demo)}>
-                        {previewRole === p.name ? "停止" : "生成试听"}
+                      <button onClick={() => generateSeed(p.name, desc, demo)}>
+                        {seedByRole[p.name] && seedByRole[p.name].descUsed === desc
+                          ? (previewRole === p.name ? "停止" : "播放试听")
+                          : "生成音色"}
                       </button>
+                      {seedByRole[p.name] && seedByRole[p.name].descUsed === desc && (
+                        <span className="cv-tag">✓ 已生成固定音色</span>
+                      )}
                     </div>
                   </div>
                 );
@@ -867,10 +911,15 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                       <button
                         className="cv-listen"
                         disabled={!cv.voiceDesc}
-                        onClick={() => previewDesignVoice(cv.name, cv.voiceDesc || "", demoTextByRole[cv.name] || firstLineFor(cv.name))}
+                        onClick={() => generateSeed(cv.name, cv.voiceDesc || "", demoTextByRole[cv.name] || firstLineFor(cv.name))}
                       >
-                        {previewRole === cv.name ? "停止" : "试听"}
+                        {seedByRole[cv.name] && seedByRole[cv.name].descUsed === cv.voiceDesc
+                          ? (previewRole === cv.name ? "停止" : "试听")
+                          : "生成音色"}
                       </button>
+                      {cv.cloneAudioB64 && (
+                        <span className="cv-tag">✓ 固定音色</span>
+                      )}
                     </div>
                   ) : (
                     <div className="cv-local-pick">

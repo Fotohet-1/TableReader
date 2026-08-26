@@ -108,6 +108,27 @@ export async function qwenSynthOne(baseUrl: string, text: string, instruct: stri
   return { blob, durationMs: wavDurationMs(buf), subtitles: [] };
 }
 
+/** Qwen3-TTS Base：用固定参考音色克隆生成，保证角色音色统一 */
+export async function qwenCloneSynthOne(
+  baseUrl: string,
+  text: string,
+  audioB64: string,
+  refText: string
+): Promise<TTSResult> {
+  const resp = await fetch(baseUrl + "/tts-clone", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, audio_b64: audioB64, ref_text: refText })
+  });
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => "");
+    throw new Error("Qwen3-TTS 克隆失败 HTTP " + resp.status + " " + t.slice(0, 120));
+  }
+  const buf = await resp.arrayBuffer();
+  const blob = new Blob([buf], { type: "audio/wav" });
+  return { blob, durationMs: wavDurationMs(buf), subtitles: [] };
+}
+
 function wavDurationMs(buf: ArrayBuffer): number {
   try {
     const view = new DataView(buf);
