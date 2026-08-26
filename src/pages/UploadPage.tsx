@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CharacterVoice, Project, Session, Unit, UnitAudio } from "../lib/types";
 import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines } from "../lib/parser";
+import { extractSceneCandidates } from "../lib/docxMeta";
 import { groupRoles } from "../lib/roles";
 import { guessGender, defaultEdgeVoiceFor, defaultBaseVoiceFor } from "../lib/voices";
 import { analyzeRolesWithLLM } from "../lib/llm";
@@ -77,6 +78,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [phase, setPhase] = useState<"upload" | "scenes" | "gender" | "voices">("upload");
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [likelyLines, setLikelyLines] = useState<string[]>([]);
+  const [structureCandidates, setStructureCandidates] = useState<string[]>([]);
   const [forcedLines, setForcedLines] = useState<Set<string>>(new Set());
   const [ignoredLines, setIgnoredLines] = useState<Set<string>>(new Set());
   const [roleBase, setRoleBase] = useState<{ profiles: Profile[]; mapping: Record<string, string> } | null>(null);
@@ -128,6 +130,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setProfiles([]);
     setGenderSel({});
     setPhase("upload");
+    setStructureCandidates([]);
     setSummary(null);
     setCanEnter(false);
     setErr("");
@@ -153,6 +156,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     });
     const parts: string[] = [];
     const segs: Array<{ episode: number; text: string }> = [];
+    const structCands: string[] = [];
     for (const { file: f, episode } of ordered) {
       try {
         if (f.name.toLowerCase().endsWith(".docx")) {
@@ -162,6 +166,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           if (!v) throw new Error(f.name + " 未提取到文本");
           parts.push(v);
           segs.push({ episode, text: v });
+          structCands.push(...(await extractSceneCandidates(buf)));
         } else if (f.name.toLowerCase().endsWith(".txt") || f.name.toLowerCase().endsWith(".md")) {
           const v = (await f.text()).trim();
           parts.push(v);
@@ -179,6 +184,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     }
     setText(v);
     setSegments(segs);
+    setStructureCandidates(Array.from(new Set(structCands)));
     setFileInfo(ordered.length + " 个文件 · 共 " + v.length + " 字");
   };
 
@@ -345,9 +351,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       profiles = [...profiles, { name: "旁白", gender: "女", age: "中年", merged: [] }];
     }
     setRoleBase({ profiles, mapping });
-    const likely = (segments && segments.length)
+    const ruleLikely = (segments && segments.length)
       ? Array.from(new Set(segments.flatMap((seg) => findLikelySceneLines(seg.text))))
       : findLikelySceneLines(text);
+    const likely = Array.from(new Set([...ruleLikely, ...structureCandidates]));
     setLikelyLines(likely);
     setForcedLines(new Set());
     setIgnoredLines(new Set());
@@ -546,13 +553,13 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           ) : (
             <textarea
               value={text}
-              onChange={(e) => { setText(e.target.value); setSegments(null); }}
+              onChange={(e) => { setText(e.target.value); setSegments(null); setStructureCandidates([]); }}
               rows={16}
               placeholder="在此粘贴剧本原文…"
             />
           )}
           <div className="row">
-            {tab === "paste" && <button onClick={() => { setText(SAMPLE); setSegments(null); }}>填入示例</button>}
+            {tab === "paste" && <button onClick={() => { setText(SAMPLE); setSegments(null); setStructureCandidates([]); }}>填入示例</button>}
             <button onClick={analyze} className="primary" disabled={aiState === "running"}>
               {aiState === "running" ? "解析中…" : "解析剧本"}
             </button>
