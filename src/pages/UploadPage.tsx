@@ -540,21 +540,27 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     });
     if (missing.length) {
       setSeedGen({ total: missing.length, done: 0 });
-      for (const p of missing) {
-        const desc = descByRole[p.name] || defaultVoiceDescFor(p);
-        const text = demoTextByRole[p.name] || firstLineFor(p.name);
-        try {
-          const r = await qwenSynthOne(qwenUrl, text, desc);
-          const b64 = await blobToB64(r.blob);
-          const url = URL.createObjectURL(r.blob);
-          seeds[p.name] = { b64, refText: text, url, descUsed: desc };
-          setSeedByRole(seeds);
-        } catch (e) {
-          setErr("音色生成失败: " + String(e) + "（" + p.name + "）");
-        } finally {
-          setSeedGen((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+      const worker = async () => {
+        while (true) {
+          const p = missing.pop();
+          if (!p) break;
+          const desc = descByRole[p.name] || defaultVoiceDescFor(p);
+          const text = demoTextByRole[p.name] || firstLineFor(p.name);
+          try {
+            const r = await qwenSynthOne(qwenUrl, text, desc);
+            const b64 = await blobToB64(r.blob);
+            const url = URL.createObjectURL(r.blob);
+            seeds[p.name] = { b64, refText: text, url, descUsed: desc };
+            setSeedByRole(seeds);
+          } catch (e) {
+            setErr("音色生成失败: " + String(e) + "（" + p.name + "）");
+          } finally {
+            setSeedGen((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+          }
         }
-      }
+      };
+      const workers = Array.from({ length: Math.min(3, missing.length) }, () => worker());
+      await Promise.all(workers);
       setSeedGen(null);
     }
     const ncv: CharacterVoice[] = profiles.map((p) => {
