@@ -51,6 +51,11 @@ def _release(pool: list, model):
             pool.append(model)
 
 
+def _release_discard(model):
+    """生成异常时丢弃实例，避免坏状态污染池。"""
+    del model
+
+
 def _model_generate(model, text: str, *, instruct=None, ref_path=None, ref_text=None) -> bytes:
     import numpy as np
     import soundfile as sf
@@ -80,7 +85,10 @@ def synth_design(text: str, instruct: str) -> bytes:
     model = _acquire(_design_pool, MODEL_DIR)
     try:
         return _model_generate(model, text, instruct=instruct)
-    finally:
+    except Exception:
+        _release_discard(model)
+        raise
+    else:
         _release(_design_pool, model)
 
 
@@ -91,8 +99,12 @@ def synth_clone(text: str, audio_b64: str, ref_text: str) -> bytes:
         with open(ref_path, "wb") as f:
             f.write(base64.b64decode(audio_b64))
         return _model_generate(model, text, ref_path=ref_path, ref_text=ref_text)
-    finally:
+    except Exception:
+        _release_discard(model)
+        raise
+    else:
         _release(_clone_pool, model)
+    finally:
         try:
             os.remove(ref_path)
         except OSError:

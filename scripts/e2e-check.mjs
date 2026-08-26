@@ -72,16 +72,16 @@ const sampleText = `1. 咖啡店 日 内
 林晚：嗯，老样子。
 （老板转身去冲咖啡）
 旁白：她不知道，这个决定会改变一切。`;
-const fileOk = await evalJs(`(() => {
+await evalJs(`(() => {
   const input = document.querySelector("input[type=file]");
   const dt = new DataTransfer();
   dt.items.add(new File([${JSON.stringify(sampleText)}], "示例剧本.txt", { type: "text/plain" }));
   input.files = dt.files;
   input.dispatchEvent(new Event("change", { bubbles: true }));
-  return dt.files.length;
+  return true;
 })()`);
-console.log("上传示例:", fileOk, "字数:", sampleText.length);
 await waitFor(`document.querySelector(".file-info") !== null`, 15000);
+console.log("上传示例: 已读取, 字数:", sampleText.length);
 
 await clickByText("解析剧本");
 await waitFor(`[...document.querySelectorAll(".card h2")].some((h) => h.textContent.includes("场标预览"))`, 30000);

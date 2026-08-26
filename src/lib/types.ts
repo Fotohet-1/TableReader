@@ -18,7 +18,6 @@ export interface CharacterVoice {
   lines?: number;
   merged?: string[];
   voiceMode?: "base" | "clone";
-  voiceBase?: string;
   cloneAudioB64?: string;
   cloneRefText?: string;
   voiceDesc?: string;

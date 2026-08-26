@@ -64,7 +64,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [aiEnabled, setAiEnabled] = useState(loadAiEnabled);
 
   const restored = lastSession && lastSession.source === source;
-  const [tab, setTab] = useState<"file" | "paste">("file");
   const [showSettings, setShowSettings] = useState(false);
   const [fileInfo, setFileInfo] = useState("");
   const [text, setText] = useState(() => (lastSession && lastSession.source === source ? lastSession.text : ""));
@@ -121,6 +120,13 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     const timer = setInterval(check, 30000);
     return () => { alive = false; clearInterval(timer); };
   }, [source, edgeUrl, qwenUrl]);
+
+  useEffect(() => {
+    if (!showSettings) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowSettings(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showSettings]);
 
   useEffect(() => {
     if (phase === "upload" && cardRef.current) {
@@ -962,7 +968,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 />
                 DeepSeek 角色分析
               </label>
+              <p className="settings-hint">Key 仅保存在本机浏览器</p>
               <div className="row">
+                <button className="settings-link" onClick={() => { setDsKey(""); saveDsKey(""); }}>清除 Key</button>
                 <button className="settings-link" onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
               </div>
             </div>
