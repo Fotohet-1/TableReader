@@ -117,6 +117,7 @@ export function parseScript(
       episodeFirstScene = true;
       const u = mk(id++, "narration", "旁白", trimmed, tStart);
       u.episode = episode;
+      u.raw = trimmed;
       units.push(u);
       continue;
     }
@@ -131,6 +132,7 @@ export function parseScript(
       const u = mk(id++, "scene", "旁白", trimmed, tStart);
       u.sceneNo = sceneNo;
       u.episode = episode;
+      u.raw = trimmed;
       u.text = prefix + "第" + cnSc + "场，" + trimmed;
       units.push(u);
       continue;
@@ -146,6 +148,7 @@ export function parseScript(
       const u = mk(id++, "scene", "旁白", trimmed, tStart);
       u.sceneNo = sceneNo;
       u.episode = episode;
+      u.raw = trimmed;
       u.text = prefix + "第" + cnSc + "场，" + trimmed;
       units.push(u);
       continue;
@@ -157,17 +160,21 @@ export function parseScript(
       const speech = dm[2].trim().replace(PAREN_RE, "").trim();
       if (speech) {
         const type: Unit["type"] = name === "旁白" ? "narration" : "dialogue";
-        units.push({ id: id++, type, character: name, text: speech, start: tStart, end: tStart + trimmed.length });
+        units.push({ id: id++, type, character: name, text: speech, raw: trimmed, start: tStart, end: tStart + trimmed.length });
       }
       continue;
     }
 
     if (PAREN_LINE_RE.test(trimmed)) {
-      units.push(mk(id++, "action", "旁白", trimmed, tStart));
+      const u = mk(id++, "action", "旁白", trimmed, tStart);
+      u.raw = trimmed;
+      units.push(u);
       continue;
     }
 
-    units.push(mk(id++, "narration", "旁白", trimmed, tStart));
+    const u = mk(id++, "narration", "旁白", trimmed, tStart);
+    u.raw = trimmed;
+    units.push(u);
   }
   return units;
 }

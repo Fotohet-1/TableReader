@@ -502,8 +502,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   }
   const enabledVoiceCount = Object.keys(edgeVoices).filter((k) => voiceTags[k]?.enabled !== false).length;
   const sceneUnits = units ? units.filter((u) => u.type === "scene") : [];
-  const sceneTexts = new Set(sceneUnits.map((u) => u.text.split("，").slice(-1)[0].trim()));
-  const unrecognizedScenes = likelyLines.filter((l) => !sceneTexts.has(l) && !ignoredLines.has(l));
+  const sceneRaws = new Set(sceneUnits.map((u) => u.raw || u.text));
+  const unrecognizedScenes = likelyLines.filter((l) => !sceneRaws.has(l) && !ignoredLines.has(l));
 
   return (
     <div className="work">
@@ -635,7 +635,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 {sceneUnits.map((u) => (
                   <div className="scene-line" key={u.id}>
                     <span className="scene-line-no">{u.sceneNo}</span>
-                    <span className="scene-line-text">{u.text.split("，").slice(-1)[0]}</span>
+                    <span className="scene-line-text">{u.raw || u.text}</span>
                   </div>
                 ))}
               </div>

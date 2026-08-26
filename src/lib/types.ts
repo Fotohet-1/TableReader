@@ -5,6 +5,7 @@ export interface Unit {
   type: "scene" | "action" | "dialogue" | "narration";
   character: string;
   text: string;
+  raw?: string;
   start: number;
   end: number;
 }
