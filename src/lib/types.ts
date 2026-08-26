@@ -24,22 +24,12 @@ export interface CharacterVoice {
   voiceDesc?: string;
 }
 
-export interface Subtitle {
-  text: string;
-  timeBegin: number;
-  timeEnd: number;
-  textBegin: number;
-  textEnd: number;
-}
-
 export interface UnitAudio {
   unitId: number;
-  blob: Blob;
   url: string;
   durationMs: number;
   startMs: number;
   endMs: number;
-  subtitles: Subtitle[];
 }
 
 export interface Project {

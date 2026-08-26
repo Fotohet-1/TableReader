@@ -1,5 +1,3 @@
-import type { Subtitle } from "./types";
-
 export interface BaseVoiceInfo {
   category: string;
   source_name: string;
@@ -8,7 +6,15 @@ export interface BaseVoiceInfo {
 export interface TTSResult {
   blob: Blob;
   durationMs: number;
-  subtitles: Subtitle[];
+}
+
+export async function checkHealth(baseUrl: string): Promise<boolean> {
+  try {
+    const resp = await fetch(baseUrl.replace(/\/+$/, "") + "/health", { method: "POST" });
+    return resp.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function fetchEdgeVoices(baseUrl: string): Promise<Record<string, BaseVoiceInfo>> {
@@ -33,7 +39,7 @@ export async function edgeSynthOne(baseUrl: string, text: string, voiceId: strin
   }
   const buf = await resp.arrayBuffer();
   const blob = new Blob([buf], { type: "audio/wav" });
-  return { blob, durationMs: wavDurationMs(buf), subtitles: [] };
+  return { blob, durationMs: wavDurationMs(buf) };
 }
 
 /** Qwen3-TTS VoiceDesign：按自然语言描述生成语音 */
@@ -49,7 +55,7 @@ export async function qwenSynthOne(baseUrl: string, text: string, instruct: stri
   }
   const buf = await resp.arrayBuffer();
   const blob = new Blob([buf], { type: "audio/wav" });
-  return { blob, durationMs: wavDurationMs(buf), subtitles: [] };
+  return { blob, durationMs: wavDurationMs(buf) };
 }
 
 /** Qwen3-TTS Base：用固定参考音色克隆生成，保证角色音色统一 */
@@ -70,7 +76,7 @@ export async function qwenCloneSynthOne(
   }
   const buf = await resp.arrayBuffer();
   const blob = new Blob([buf], { type: "audio/wav" });
-  return { blob, durationMs: wavDurationMs(buf), subtitles: [] };
+  return { blob, durationMs: wavDurationMs(buf) };
 }
 
 function wavDurationMs(buf: ArrayBuffer): number {

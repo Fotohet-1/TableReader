@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { checkDeepSeekKey } from "../lib/llm";
-
-type Source = "edge" | "qwen";
+import type { TtsSource } from "../lib/settings";
 
 export default function OnboardingPage({ onDone }: {
-  onDone: (source: Source, dsKey: string) => void;
+  onDone: (source: TtsSource, dsKey: string) => void;
 }) {
   const [step, setStep] = useState(0);
-  const [source, setSource] = useState<Source | null>(null);
+  const [source, setSource] = useState<TtsSource | null>(null);
   const [key, setKey] = useState("");
   const [checking, setChecking] = useState(false);
   const [err, setErr] = useState("");

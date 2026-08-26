@@ -7,6 +7,7 @@ import { guessGender, defaultEdgeVoiceFor, defaultVoiceDescFor } from "../lib/vo
 import { analyzeRolesWithLLM, describeRoleVoice } from "../lib/llm";
 import { synthesizeStream, type Progress, type SynthSummary } from "../lib/synth";
 import {
+  checkHealth,
   edgeSynthOne,
   fetchEdgeVoices,
   qwenCloneSynthOne,
@@ -21,12 +22,20 @@ import {
   tagLabelFor,
   type VoiceTag
 } from "../lib/voiceTags";
-
-const LS_EDGE_URL = "sr_edge_url";
-const LS_QWEN_URL = "sr_qwen_url";
-const LS_SOURCE = "sr_tts_source";
-const LS_DS_KEY = "sr_ds_key";
-const LS_AI = "sr_ai_roles";
+import {
+  clearOnboarded,
+  loadAiEnabled,
+  loadDsKey,
+  loadEdgeUrl,
+  loadQwenUrl,
+  loadSource,
+  saveAiEnabled,
+  saveDsKey,
+  saveEdgeUrl as persistEdgeUrl,
+  saveQwenUrl as persistQwenUrl,
+  saveSource,
+  type TtsSource
+} from "../lib/settings";
 
 const SAMPLE = `1. 咖啡店 日 内
 林晚 推门进来，风铃响了一声。
@@ -36,7 +45,7 @@ const SAMPLE = `1. 咖啡店 日 内
 （老板转身去冲咖啡）
 旁白：她不知道，这个决定会改变一切。`;
 
-type Source = "edge" | "qwen";
+type Source = TtsSource;
 type Gender = "男" | "女" | "未知";
 
 interface Profile {
@@ -56,14 +65,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   setProject: (p: Project) => void;
   onEnterPlayer: () => void;
 }) {
-  const [source, setSourceState] = useState<Source>(() => {
-    const v = localStorage.getItem(LS_SOURCE);
-    return v === "qwen" ? "qwen" : "edge";
-  });
-  const [edgeUrl, setEdgeUrlState] = useState(() => localStorage.getItem(LS_EDGE_URL) || "http://127.0.0.1:9882");
-  const [qwenUrl, setQwenUrlState] = useState(() => localStorage.getItem(LS_QWEN_URL) || "http://127.0.0.1:9883");
-  const [dsKey, setDsKey] = useState(() => localStorage.getItem(LS_DS_KEY) || "");
-  const [aiEnabled, setAiEnabled] = useState(() => localStorage.getItem(LS_AI) !== "0");
+  const [source, setSourceState] = useState<Source>(loadSource);
+  const [edgeUrl, setEdgeUrlState] = useState(loadEdgeUrl);
+  const [qwenUrl, setQwenUrlState] = useState(loadQwenUrl);
+  const [dsKey, setDsKey] = useState(loadDsKey);
+  const [aiEnabled, setAiEnabled] = useState(loadAiEnabled);
 
   const restored = lastSession && lastSession.source === source;
   const [tab, setTab] = useState<"file" | "paste">("file");
@@ -99,6 +105,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [voiceFilter, setVoiceFilter] = useState({ gender: "", age: "", dialect: "", special: "" });
   const [previewRole, setPreviewRole] = useState("");
   const [previewErr, setPreviewErr] = useState("");
+  const [serviceOk, setServiceOk] = useState<boolean | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const t0Ref = useRef(0);
@@ -107,18 +114,30 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     fetchEdgeVoices(edgeUrl).then(setEdgeVoices);
   }, [source, edgeUrl]);
 
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      const url = source === "qwen" ? qwenUrl : edgeUrl;
+      const ok = await checkHealth(url);
+      if (alive) setServiceOk(ok);
+    };
+    check();
+    const timer = setInterval(check, 30000);
+    return () => { alive = false; clearInterval(timer); };
+  }, [source, edgeUrl, qwenUrl]);
+
   const saveEdgeUrl = (v: string) => {
     setEdgeUrlState(v);
-    localStorage.setItem(LS_EDGE_URL, v);
+    persistEdgeUrl(v);
   };
 
   const saveQwenUrl = (v: string) => {
     setQwenUrlState(v);
-    localStorage.setItem(LS_QWEN_URL, v);
+    persistQwenUrl(v);
   };
 
   const switchSource = (s: Source) => {
-    localStorage.setItem(LS_SOURCE, s);
+    saveSource(s);
     setSourceState(s);
     setUnits(null);
     setCharVoices([]);
@@ -591,6 +610,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           <option value="qwen">Qwen3 1.7B 本地</option>
           <option value="edge">edge-tts 在线</option>
         </select>
+        <span
+          className={"svc-dot " + (serviceOk === null ? "unknown" : serviceOk ? "ok" : "down")}
+          title={source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl)}
+        />
         {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
         <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
       </header>
@@ -651,18 +674,18 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             )}
             <div className="field">
               <label>DeepSeek Key</label>
-              <input value={dsKey} onChange={(e) => { setDsKey(e.target.value); localStorage.setItem(LS_DS_KEY, e.target.value); }} placeholder="可选" />
+              <input value={dsKey} onChange={(e) => { setDsKey(e.target.value); saveDsKey(e.target.value); }} placeholder="可选" />
             </div>
             <label className="check">
               <input
                 type="checkbox"
                 checked={aiEnabled}
-                onChange={(e) => { setAiEnabled(e.target.checked); localStorage.setItem(LS_AI, e.target.checked ? "1" : "0"); }}
+                onChange={(e) => { setAiEnabled(e.target.checked); saveAiEnabled(e.target.checked); }}
               />
               DeepSeek 角色分析
             </label>
             <div className="row">
-              <button onClick={() => { localStorage.removeItem("sr_has_onboarded"); window.location.reload(); }}>重新查看引导</button>
+              <button onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
             </div>
           </section>
           )}
@@ -832,23 +855,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                     </>
                   ) : (
                     <div className="cv-qwen-pick">
-                      <input
-                        value={cv.voiceDesc || ""}
-                        placeholder="声音描述"
-                        onChange={(e) => setCharVoices((cs) => cs.map((c) => (c.name === cv.name ? { ...c, voiceDesc: e.target.value } : c)))}
-                      />
-                      <button
-                        className="cv-listen"
-                        disabled={!cv.voiceDesc}
-                        onClick={() => generateSeed(cv.name, cv.voiceDesc || "", demoTextByRole[cv.name] || firstLineFor(cv.name))}
-                      >
-                        {seedByRole[cv.name] && seedByRole[cv.name].descUsed === cv.voiceDesc
-                          ? (previewRole === cv.name ? "停止" : "试听")
-                          : "生成音色"}
-                      </button>
-                      {cv.cloneAudioB64 && (
-                        <span className="cv-tag">✓ 固定音色</span>
-                      )}
+                      <span className="cv-desc-text">{cv.voiceDesc || "未填写声音描述"}</span>
+                      <span className={"cv-tag" + (cv.cloneAudioB64 ? "" : " warn")}>
+                        {cv.cloneAudioB64 ? "✓ 固定音色" : "未生成音色"}
+                      </span>
+                      <button className="cv-listen" onClick={() => setPhase("design")}>修改声音设计</button>
                     </div>
                   )}
                 </div>

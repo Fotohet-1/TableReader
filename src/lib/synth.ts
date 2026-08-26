@@ -1,4 +1,4 @@
-import type { Project, Subtitle, UnitAudio } from "./types";
+import type { Project, UnitAudio } from "./types";
 
 export interface Progress {
   done: number;
@@ -14,7 +14,7 @@ export interface SynthSummary {
 }
 
 export interface SynthFn {
-  (text: string, voiceId: string, idx?: number): Promise<{ blob: Blob; durationMs: number; subtitles: Subtitle[] }>;
+  (text: string, voiceId: string, idx?: number): Promise<{ blob: Blob; durationMs: number }>;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -89,16 +89,14 @@ export function synthesizeStream(
         const r = await synthWithRetry(u.text, voiceId, idx);
         results[idx] = {
           unitId: u.id,
-          blob: r.blob,
           url: URL.createObjectURL(r.blob),
           durationMs: r.durationMs,
           startMs: 0,
-          endMs: 0,
-          subtitles: r.subtitles
+          endMs: 0
         };
       } catch {
         failed++;
-        results[idx] = { unitId: u.id, blob: new Blob(), url: "", durationMs: 0, startMs: 0, endMs: 0, subtitles: [] };
+        results[idx] = { unitId: u.id, url: "", durationMs: 0, startMs: 0, endMs: 0 };
       }
       doneCount++;
       flush();

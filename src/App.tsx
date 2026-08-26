@@ -4,6 +4,7 @@ import HomePage from "./pages/HomePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import UploadPage from "./pages/UploadPage";
 import PlayerPage from "./pages/PlayerPage";
+import { hasOnboarded, markOnboarded, saveDsKey, saveSource, type TtsSource } from "./lib/settings";
 
 export default function App() {
   const [view, setView] = useState<"home" | "onboard" | "work" | "player">("home");
@@ -23,12 +24,12 @@ export default function App() {
 
   const markSynthDone = useCallback(() => setSynthDone(true), []);
 
-  const enter = () => setView(localStorage.getItem("sr_has_onboarded") ? "work" : "onboard");
+  const enter = () => setView(hasOnboarded() ? "work" : "onboard");
 
-  const finishOnboard = (source: "edge" | "qwen", dsKey: string) => {
-    localStorage.setItem("sr_has_onboarded", "1");
-    localStorage.setItem("sr_tts_source", source);
-    localStorage.setItem("sr_ds_key", dsKey);
+  const finishOnboard = (source: TtsSource, dsKey: string) => {
+    markOnboarded();
+    saveSource(source);
+    saveDsKey(dsKey);
     setView("work");
   };
 
