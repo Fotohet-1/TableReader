@@ -588,29 +588,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   return (
     <div className={"work" + (phase === "upload" ? " upload-only" : "")}>
-      {phase !== "upload" && (
-      <header className="work-top">
-        <span className="work-title">剧本围读</span>
-        <span className="work-version">v1</span>
-        <span className="top-spacer" />
-        <select
-          className="source-select"
-          value={source}
-          onChange={(e) => switchSource(e.target.value as Source)}
-          title="声音来源"
-        >
-          <option value="qwen">Qwen3 1.7B 本地</option>
-          <option value="edge">edge-tts 在线</option>
-        </select>
-        <span
-          className={"svc-dot " + (serviceOk === null ? "unknown" : serviceOk ? "ok" : "down")}
-          title={source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl)}
-        />
-        {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
-        <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
-      </header>
-      )}
-
       <div className="work-grid solo">
         <section className="card">
           <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
