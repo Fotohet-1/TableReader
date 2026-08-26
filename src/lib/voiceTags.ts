@@ -48,9 +48,9 @@ export function defaultVoiceTags(): Record<string, VoiceTag> {
     "zh-HK-HiuGaaiNeural": t("女", "青年", "曉佳", "粤语"),
     "zh-HK-HiuMaanNeural": t("女", "青年", "曉曼", "粤语"),
     "zh-HK-WanLungNeural": t("男", "中年", "雲龍", "粤语"),
-    "zh-TW-HsiaoChenNeural": t("女", "青年", "曉臻", "台湾口音"),
-    "zh-TW-HsiaoYuNeural": t("女", "青年", "曉雨", "台湾口音"),
-    "zh-TW-YunJheNeural": t("男", "青年", "雲哲", "台湾口音")
+    "zh-TW-HsiaoChenNeural": t("女", "青年", "曉臻", "台湾"),
+    "zh-TW-HsiaoYuNeural": t("女", "青年", "曉雨", "台湾"),
+    "zh-TW-YunJheNeural": t("男", "青年", "雲哲", "台湾")
   };
   const out: Record<string, VoiceTag> = {};
   for (const [id, tag] of Object.entries(bases)) {
@@ -79,8 +79,15 @@ export function loadVoiceTags(): Record<string, VoiceTag> {
         // 旧格式：基础音色标签，复制到它的全部语调档
         for (const p of PITCHES) {
           const vk = k + p.suffix;
-          merged[vk] = { ...merged[vk], ...tag };
+          merged[vk] = {
+            ...merged[vk],
+            ...tag,
+            dialect: tag.dialect === "台湾口音" ? "台湾" : (tag.dialect || "")
+          };
         }
+      }
+      if (k.includes("#") && tag.dialect === "台湾口音") {
+        merged[k] = { ...merged[k], ...tag, dialect: "台湾" };
       }
     }
     return merged;

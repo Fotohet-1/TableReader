@@ -293,43 +293,47 @@ export default function VoiceLibrary({
                   const key = id + p.suffix;
                   const tag = tags[key] || { gender: "", age: "", name: baseTag.name, dialect: "", special: false, enabled: true };
                   return (
-                    <div className="lib-row" key={key}>
-                      <button
-                        className={"lib-pitch" + (playingKey === key ? " on" : "")}
-                        onClick={() => preview(id, p.suffix)}
-                      >
-                        {p.label}
-                      </button>
-                      <select value={tag.gender} onChange={(e) => updateTag(key, { gender: e.target.value })}>
-                        <option value="">性别</option>
-                        <option value="男">男</option>
-                        <option value="女">女</option>
-                      </select>
-                      <select value={tag.age} onChange={(e) => updateTag(key, { age: e.target.value })}>
-                        <option value="">年龄</option>
-                        {AGES.map((a) => <option key={a} value={a}>{a}</option>)}
-                      </select>
-                      <input
-                        value={tag.dialect}
-                        onChange={(e) => updateTag(key, { dialect: e.target.value })}
-                        placeholder="方言"
-                      />
-                      <label className="lib-special" title="特殊音色">
+                    <div className="lib-pitch-row" key={key}>
+                      <div className="lib-row">
+                        <button
+                          className={"lib-pitch" + (playingKey === key ? " on" : "")}
+                          onClick={() => preview(id, p.suffix)}
+                        >
+                          {p.label}
+                        </button>
+                        <select value={tag.gender} onChange={(e) => updateTag(key, { gender: e.target.value })}>
+                          <option value="">性别</option>
+                          <option value="男">男</option>
+                          <option value="女">女</option>
+                        </select>
+                        <select value={tag.age} onChange={(e) => updateTag(key, { age: e.target.value })}>
+                          <option value="">年龄</option>
+                          {AGES.map((a) => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                      </div>
+                      <div className="lib-row-sub">
                         <input
-                          type="checkbox"
-                          checked={!!tag.special}
-                          onChange={(e) => updateTag(key, { special: e.target.checked })}
+                          value={tag.dialect}
+                          onChange={(e) => updateTag(key, { dialect: e.target.value })}
+                          placeholder="方言"
                         />
-                        特殊
-                      </label>
-                      <label className={"lib-enabled" + (tag.enabled ? " on" : "")} title="进入分配池">
-                        <input
-                          type="checkbox"
-                          checked={!!tag.enabled}
-                          onChange={(e) => updateTag(key, { enabled: e.target.checked })}
-                        />
-                        启用
-                      </label>
+                        <label className="lib-special" title="特殊音色">
+                          <input
+                            type="checkbox"
+                            checked={!!tag.special}
+                            onChange={(e) => updateTag(key, { special: e.target.checked })}
+                          />
+                          特殊
+                        </label>
+                        <label className={"lib-enabled" + (tag.enabled ? " on" : "")} title="进入分配池">
+                          <input
+                            type="checkbox"
+                            checked={!!tag.enabled}
+                            onChange={(e) => updateTag(key, { enabled: e.target.checked })}
+                          />
+                          启用
+                        </label>
+                      </div>
                     </div>
                   );
                 })}

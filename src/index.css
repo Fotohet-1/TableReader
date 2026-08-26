@@ -252,14 +252,35 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 }
 .lib-name-inline { font-weight: 600; }
 .lib-copy { padding: 5px 8px; font-size: 11px; white-space: nowrap; }
+.lib-pitch-row {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px;
+  margin-bottom: 6px;
+}
 .lib-row {
   display: grid;
-  grid-template-columns: 58px 1fr 1fr 1fr 46px 46px;
+  grid-template-columns: 64px 1fr 1fr;
   gap: 6px;
   align-items: center;
   margin-bottom: 6px;
 }
-.lib-row select, .lib-row input {
+.lib-row select {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  font-size: 12px;
+}
+.lib-row-sub {
+  display: grid;
+  grid-template-columns: 1fr 46px 46px;
+  gap: 6px;
+  align-items: center;
+}
+.lib-row-sub input {
   width: 100%;
   min-width: 0;
   padding: 5px 6px;
