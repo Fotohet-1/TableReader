@@ -408,8 +408,27 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   flex-direction: column;
   overflow: hidden;
 }
-.settings-modal { max-width: 480px; }
-.settings-body { padding: 18px 22px; }
+.settings-modal {
+  max-width: 420px;
+  height: auto;
+  max-height: 92vh;
+}
+.settings-body {
+  padding: 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.settings-body .field { margin-bottom: 0; }
+.settings-body .field label { width: 104px; }
+.settings-body .row { margin-top: 2px; justify-content: flex-end; }
+.settings-link {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 4px 8px;
+  font-size: 12px;
+}
 .lib-top {
   display: flex;
   align-items: center;

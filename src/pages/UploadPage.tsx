@@ -873,7 +873,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 DeepSeek 角色分析
               </label>
               <div className="row">
-                <button onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
+                <button className="settings-link" onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
               </div>
             </div>
           </div>
