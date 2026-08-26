@@ -82,6 +82,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [descBusy, setDescBusy] = useState<Set<string>>(new Set());
   const [demoTextByRole, setDemoTextByRole] = useState<Record<string, string>>({});
   const [seedByRole, setSeedByRole] = useState<Record<string, { b64: string; refText: string; url: string; descUsed: string }>>({});
+  const [descGen, setDescGen] = useState<{ total: number; done: number } | null>(null);
   const [genderSel, setGenderSel] = useState<Record<string, Gender>>({});
   const [edgeVoices, setEdgeVoices] = useState<Record<string, BaseVoiceInfo>>({});
   const [aiState, setAiState] = useState<"idle" | "running" | "done">("idle");
@@ -164,6 +165,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setDescBusy(new Set());
     setDemoTextByRole({});
     setSeedByRole({});
+    setDescGen(null);
     setSummary(null);
     setCanEnter(false);
     setErr("");
@@ -416,6 +418,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       setDescByRole(descs);
       setDemoTextByRole(demos);
       setPhase("design");
+      if (aiEnabled && dsKey.trim()) generateAllDescs(confirmed);
       return;
     }
     const ncv = assignVoicesFor(confirmed);
@@ -454,6 +457,32 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         return next;
       });
     }
+  };
+
+  const generateAllDescs = async (ps: Profile[]) => {
+    if (!dsKey.trim() || !aiEnabled) return;
+    setDescGen({ total: ps.length, done: 0 });
+    for (const p of ps) {
+      setDescBusy((prev) => new Set(prev).add(p.name));
+      try {
+        const samples = (units || [])
+          .filter((u) => u.type === "dialogue" && u.character === p.name)
+          .slice(0, 3)
+          .map((u) => u.text);
+        const desc = await describeRoleVoice(dsKey.trim(), p, samples);
+        setDescByRole((prev) => ({ ...prev, [p.name]: desc }));
+      } catch {
+        setDescByRole((prev) => ({ ...prev, [p.name]: defaultVoiceDescFor(p) }));
+      } finally {
+        setDescBusy((prev) => {
+          const next = new Set(prev);
+          next.delete(p.name);
+          return next;
+        });
+        setDescGen((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+      }
+    }
+    setDescGen(null);
   };
 
   const blobToB64 = async (blob: Blob): Promise<string> => {
@@ -677,6 +706,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           {phase === "design" && units && (
             <section className="card flow-card">
               <h2>声音设计 · {profiles.length} 人</h2>
+              {descGen && <div className="prog warn">AI 正在生成声音描述… {descGen.done}/{descGen.total}</div>}
               {profiles.map((p) => {
                 const desc = descByRole[p.name] || defaultVoiceDescFor(p);
                 const demo = demoTextByRole[p.name] || firstLineFor(p.name);
