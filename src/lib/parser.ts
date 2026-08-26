@@ -11,6 +11,15 @@ const EPISODE_LINE_RE = /^第\s*([0-9]+|[一二三四五六七八九十百零两
 const EPISODE_NAME_RE = /第\s*([0-9]+|[一二三四五六七八九十百零两]+)\s*(集|话|回)/;
 const INSERT_RE = /^INSERT[：:、\s\-—]*/i;
 
+/** 动作行朗读文本：去掉符号，行中 △ 转成句号，避免 TTS 读出符号 */
+function cleanActionText(raw: string): string {
+  let t = raw.trim();
+  t = t.replace(/^[△▲]+/, "");
+  t = t.replace(/[△▲]+/g, "。");
+  t = t.replace(/。{2,}/g, "。");
+  return t.trim();
+}
+
 const CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
 const CN_UNITS = ["", "十", "百", "千"];
 
@@ -165,7 +174,7 @@ export function parseScript(
 
     // △ 开头是动作/环境描写，即使行内有冒号也不作为台词
     if (trimmed.startsWith("△")) {
-      const u = mk(id++, "action", "旁白", trimmed, tStart);
+      const u = mk(id++, "action", "旁白", cleanActionText(trimmed), tStart);
       u.raw = trimmed;
       units.push(u);
       continue;
