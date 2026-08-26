@@ -16,6 +16,14 @@ import {
   type RoleVoiceCfg
 } from "../lib/tts";
 import mammoth from "mammoth/mammoth.browser.js";
+import VoiceLibrary from "../components/VoiceLibrary";
+import {
+  baseVoiceIdOf,
+  loadVoiceTags,
+  saveVoiceTags,
+  tagLabelFor,
+  type VoiceTag
+} from "../lib/voiceTags";
 
 const LS_EDGE_URL = "sr_edge_url";
 const LS_LOCAL_URL = "sr_local_url";
@@ -79,6 +87,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [canEnter, setCanEnter] = useState(false);
   const [err, setErr] = useState("");
   const [eta, setEta] = useState(0);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [voiceTags, setVoiceTags] = useState<Record<string, VoiceTag>>(() => loadVoiceTags());
+  const [voiceFilter, setVoiceFilter] = useState({ gender: "", age: "", dialect: "" });
   const fileRef = useRef<HTMLInputElement>(null);
   const t0Ref = useRef(0);
 
@@ -325,6 +336,15 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   for (const [k, v] of Object.entries(edgeVoices)) {
     (edgeCats[v.category] = edgeCats[v.category] || []).push(k);
   }
+  const visibleEdgeKeys = Object.keys(edgeVoices).filter((key) => {
+    const tag = voiceTags[baseVoiceIdOf(key)];
+    if (!tag) return true;
+    if (voiceFilter.gender && tag.gender !== voiceFilter.gender) return false;
+    if (voiceFilter.age && tag.age !== voiceFilter.age) return false;
+    if (voiceFilter.dialect === "none" && tag.dialect) return false;
+    if (voiceFilter.dialect === "has" && !tag.dialect) return false;
+    return true;
+  });
 
   return (
     <div className="work">
@@ -336,6 +356,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           <button className={source === "local" ? "on" : ""} onClick={() => switchSource("local")}>本地 CosyVoice</button>
         </div>
         <span className="top-status">{source === "edge" ? edgeUrl : localUrl}</span>
+        <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>
       </header>
 
       <div className="work-grid">
@@ -435,6 +456,27 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             <section className="card">
               <h2>角色与音色 · {units.length} 句</h2>
               <button className="link" onClick={() => setPhase("gender")}>修改性别</button>
+              {source === "edge" && (
+                <div className="voice-filters">
+                  <select value={voiceFilter.gender} onChange={(e) => setVoiceFilter((f) => ({ ...f, gender: e.target.value }))}>
+                    <option value="">全部性别</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                  </select>
+                  <select value={voiceFilter.age} onChange={(e) => setVoiceFilter((f) => ({ ...f, age: e.target.value }))}>
+                    <option value="">全部年龄</option>
+                    <option value="少年">少年</option>
+                    <option value="青年">青年</option>
+                    <option value="中年">中年</option>
+                    <option value="老年">老年</option>
+                  </select>
+                  <select value={voiceFilter.dialect} onChange={(e) => setVoiceFilter((f) => ({ ...f, dialect: e.target.value }))}>
+                    <option value="">全部方言</option>
+                    <option value="none">无方言</option>
+                    <option value="has">有方言</option>
+                  </select>
+                </div>
+              )}
               {charVoices.map((cv) => (
                 <div className="cv-row" key={cv.name}>
                   <div className="cv-left">
@@ -445,7 +487,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                     <select value={cv.voiceId} onChange={(e) => setCharVoices((cs) => cs.map((c) => (c.name === cv.name ? { ...c, voiceId: e.target.value } : c)))}>
                       {Object.keys(edgeCats).length ? Object.entries(edgeCats).map(([cat, vids]) => (
                         <optgroup key={cat} label={cat}>
-                          {vids.map((vid) => <option key={vid} value={vid}>{edgeVoices[vid].source_name}</option>)}
+                          {vids.filter((vid) => visibleEdgeKeys.includes(vid)).map((vid) => (
+                            <option key={vid} value={vid}>{tagLabelFor(vid, edgeVoices[vid].source_name, voiceTags)}</option>
+                          ))}
                         </optgroup>
                       )) : <option value={cv.voiceId}>{cv.voiceId}</option>}
                     </select>
@@ -493,6 +537,15 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           )}
         </aside>
       </div>
+
+      {showLibrary && (
+        <VoiceLibrary
+          edgeUrl={edgeUrl}
+          voices={edgeVoices}
+          onTagsChange={(tags) => { setVoiceTags(tags); saveVoiceTags(tags); }}
+          onClose={() => setShowLibrary(false)}
+        />
+      )}
     </div>
   );
 }

@@ -157,6 +157,125 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 }
 .enter-box span { flex: 1; color: var(--accent); font-size: 13px; }
 
+/* ---------- 音色库 ---------- */
+.lib-entry { padding: 6px 14px; font-size: 13px; flex-shrink: 0; }
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 19, 26, .58);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+.modal {
+  width: 100%;
+  max-width: 1180px;
+  height: 100%;
+  max-height: 92vh;
+  background: var(--bg);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.lib-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.lib-title { font-size: 17px; font-weight: 700; }
+.lib-close { padding: 5px 12px; }
+.lib-toolbar {
+  padding: 12px 18px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.lib-preview-row { display: flex; align-items: center; gap: 8px; min-width: 280px; flex: 1; }
+.lib-preview-row input { flex: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.lib-hint { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.lib-batch { display: flex; gap: 6px; align-items: center; }
+.lib-batch span { font-size: 12px; color: var(--muted); }
+.lib-batch select, .lib-batch input, .lib-filters select {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 12px;
+}
+.lib-batch input { width: 110px; }
+.lib-batch button { padding: 6px 10px; font-size: 12px; }
+.lib-actions { display: flex; gap: 6px; }
+.lib-actions button { padding: 6px 10px; font-size: 12px; }
+.lib-filters { display: flex; gap: 6px; }
+.lib-msg { width: 100%; font-size: 12px; color: var(--accent); }
+.lib-msg.err { color: var(--danger); }
+.lib-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+.lib-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.lib-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.lib-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.lib-check { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px; cursor: pointer; min-width: 0; }
+.lib-check input { width: auto; }
+.lib-id { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.lib-fields { display: flex; gap: 8px; margin-bottom: 8px; }
+.lib-fields select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 13px;
+}
+.lib-name-input, .lib-dialect-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.lib-pitches { display: flex; flex-wrap: wrap; gap: 6px; }
+.lib-pitch {
+  padding: 5px 9px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.lib-pitch.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---------- 分配音色筛选 ---------- */
+.voice-filters { display: flex; gap: 8px; margin-bottom: 10px; }
+.voice-filters select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 13px;
+}
+
 /* ---------- 围读页 ---------- */
 .player-page { height: 100vh; display: flex; flex-direction: column; }
 .topbar {
