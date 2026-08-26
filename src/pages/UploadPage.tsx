@@ -97,7 +97,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [previewRole, setPreviewRole] = useState("");
   const [previewErr, setPreviewErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const folderRef = useRef<HTMLInputElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const t0Ref = useRef(0);
 
@@ -532,7 +531,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               <div className="upload-zone" onClick={() => fileRef.current?.click()}>
                 <div className="uz-icon">📄</div>
                 <div className="uz-main">点击选择剧本文件</div>
-                <div className="uz-sub">支持单个大文件，或整个剧本文件夹（.docx / .txt）</div>
+                <div className="uz-sub">可多选；文件夹里的文件全选后一起导入（.docx / .txt）</div>
               </div>
               <input
                 ref={fileRef}
@@ -540,17 +539,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 multiple
                 accept=".docx,.doc,.txt,.md"
                 style={{ display: "none" }}
-                onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
-              />
-              <div className="row">
-                <button onClick={() => folderRef.current?.click()}>选择文件夹</button>
-              </div>
-              <input
-                ref={folderRef}
-                type="file"
-                multiple
-                style={{ display: "none" }}
-                {...({ webkitdirectory: "" } as Record<string, string>)}
                 onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
               />
               {fileInfo && <div className="file-info">✓ {fileInfo}</div>}
