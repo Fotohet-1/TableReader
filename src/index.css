@@ -225,8 +225,10 @@ input, textarea, select { font: inherit; }
   align-items: start;
 }
 .work-grid.solo {
-  max-width: 760px;
+  max-width: 560px;
+  width: 560px;
   grid-template-columns: 1fr;
+  padding: 0;
 }
 @media (max-width: 900px) {
   .work-grid { grid-template-columns: 1fr; }
@@ -406,6 +408,8 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   flex-direction: column;
   overflow: hidden;
 }
+.settings-modal { max-width: 480px; }
+.settings-body { padding: 18px 22px; }
 .lib-top {
   display: flex;
   align-items: center;

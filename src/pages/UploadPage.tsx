@@ -587,7 +587,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const unrecognizedScenes = likelyLines.filter((l) => !sceneRaws.has(l) && !ignoredLines.has(l));
 
   return (
-    <div className={"work" + (phase === "upload" && !showSettings ? " upload-only" : "")}>
+    <div className={"work" + (phase === "upload" ? " upload-only" : "")}>
       {phase !== "upload" && (
       <header className="work-top">
         <span className="work-title">剧本围读</span>
@@ -611,7 +611,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       </header>
       )}
 
-      <div className={"work-grid" + (showSettings || phase !== "upload" ? "" : " solo")}>
+      <div className={"work-grid" + (phase !== "upload" ? "" : " solo")}>
         <section className="card">
           <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
             <div className="uz-icon">📄</div>
@@ -651,40 +651,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           </div>
         </section>
 
-        {(showSettings || phase !== "upload") && (
+        {phase !== "upload" && (
         <aside className="side">
-          {showSettings && (
-          <section className="card">
-            <h2>设置</h2>
-            {source === "edge" ? (
-              <div className="field">
-                <label>edge-tts 地址</label>
-                <input value={edgeUrl} onChange={(e) => saveEdgeUrl(e.target.value)} />
-              </div>
-            ) : (
-              <div className="field">
-                <label>Qwen3 地址</label>
-                <input value={qwenUrl} onChange={(e) => saveQwenUrl(e.target.value)} />
-              </div>
-            )}
-            <div className="field">
-              <label>DeepSeek Key</label>
-              <input value={dsKey} onChange={(e) => { setDsKey(e.target.value); saveDsKey(e.target.value); }} placeholder="可选" />
-            </div>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={aiEnabled}
-                onChange={(e) => { setAiEnabled(e.target.checked); saveAiEnabled(e.target.checked); }}
-              />
-              DeepSeek 角色分析
-            </label>
-            <div className="row">
-              <button onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
-            </div>
-          </section>
-          )}
-
           {phase === "gender" && units && (
             <section className="card">
               <h2>确认角色性别 · {profiles.length} 人</h2>
@@ -895,6 +863,44 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           onTagsChange={(tags) => { setVoiceTags(tags); saveVoiceTags(tags); }}
           onClose={() => setShowLibrary(false)}
         />
+      )}
+      {showSettings && (
+        <div className="modal-mask" onClick={() => setShowSettings(false)}>
+          <div className="modal settings-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="lib-top">
+              <span className="lib-title">设置</span>
+              <button className="lib-close" onClick={() => setShowSettings(false)} aria-label="关闭">✕</button>
+            </header>
+            <div className="settings-body">
+              {source === "edge" ? (
+                <div className="field">
+                  <label>edge-tts 地址</label>
+                  <input value={edgeUrl} onChange={(e) => saveEdgeUrl(e.target.value)} />
+                </div>
+              ) : (
+                <div className="field">
+                  <label>Qwen3 地址</label>
+                  <input value={qwenUrl} onChange={(e) => saveQwenUrl(e.target.value)} />
+                </div>
+              )}
+              <div className="field">
+                <label>DeepSeek Key</label>
+                <input value={dsKey} onChange={(e) => { setDsKey(e.target.value); saveDsKey(e.target.value); }} placeholder="可选" />
+              </div>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={aiEnabled}
+                  onChange={(e) => { setAiEnabled(e.target.checked); saveAiEnabled(e.target.checked); }}
+                />
+                DeepSeek 角色分析
+              </label>
+              <div className="row">
+                <button onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       <audio ref={previewAudioRef} onEnded={() => setPreviewRole("")} />
     </div>
