@@ -65,10 +65,23 @@ await waitFor(`document.querySelector(".home") !== null`, 10000);
 await evalJs(`document.querySelector(".home").click()`);
 await waitFor(`document.querySelector(".upload-hero") !== null`, 10000);
 
-await clickByText("或者，粘贴剧本原文");
-const sampleOk = await clickByText("填入示例");
-const textLen = await evalJs(`document.querySelector("textarea") ? document.querySelector("textarea").value.length : 0`);
-console.log("填入示例:", sampleOk, "字数:", textLen);
+const sampleText = `1. 咖啡店 日 内
+林晚 推门进来，风铃响了一声。
+林晚：一杯美式，谢谢。
+老板：今天还是老样子？
+林晚：嗯，老样子。
+（老板转身去冲咖啡）
+旁白：她不知道，这个决定会改变一切。`;
+const fileOk = await evalJs(`(() => {
+  const input = document.querySelector("input[type=file]");
+  const dt = new DataTransfer();
+  dt.items.add(new File([${JSON.stringify(sampleText)}], "示例剧本.txt", { type: "text/plain" }));
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return dt.files.length;
+})()`);
+console.log("上传示例:", fileOk, "字数:", sampleText.length);
+await waitFor(`document.querySelector(".file-info") !== null`, 15000);
 
 await clickByText("解析剧本");
 await waitFor(`[...document.querySelectorAll(".card h2")].some((h) => h.textContent.includes("场标预览"))`, 30000);

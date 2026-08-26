@@ -266,13 +266,12 @@ input, textarea, select { font: inherit; }
   margin-top: 16px;
 }
 .upload-foot .primary.big { flex: 1; }
-.paste-toggle {
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  padding: 6px 4px;
-  font-size: 13px;
-  flex-shrink: 0;
+.upload-options {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
 }
 
 textarea {

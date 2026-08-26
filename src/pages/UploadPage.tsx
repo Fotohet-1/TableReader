@@ -37,14 +37,6 @@ import {
   type TtsSource
 } from "../lib/settings";
 
-const SAMPLE = `1. 咖啡店 日 内
-林晚 推门进来，风铃响了一声。
-林晚：一杯美式，谢谢。
-老板：今天还是老样子？
-林晚：嗯，老样子。
-（老板转身去冲咖啡）
-旁白：她不知道，这个决定会改变一切。`;
-
 type Source = TtsSource;
 type Gender = "男" | "女" | "未知";
 
@@ -73,7 +65,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const restored = lastSession && lastSession.source === source;
   const [tab, setTab] = useState<"file" | "paste">("file");
-  const [pasteMode, setPasteMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [fileInfo, setFileInfo] = useState("");
   const [text, setText] = useState(() => (lastSession && lastSession.source === source ? lastSession.text : ""));
@@ -597,6 +588,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   return (
     <div className="work">
+      {phase !== "upload" && (
       <header className="work-top">
         <span className="work-title">剧本围读</span>
         <span className="work-version">v1</span>
@@ -617,23 +609,15 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
         <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
       </header>
+      )}
 
       <div className={"work-grid" + (showSettings || phase !== "upload" ? "" : " solo")}>
         <section className="card">
-          {!pasteMode ? (
-            <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
-                <div className="uz-icon">📄</div>
-                <div className="uz-main">点击选择剧本文件</div>
-                <div className="uz-sub">可多选；文件夹里的文件全选后一起导入（.docx / .txt）</div>
-            </div>
-          ) : (
-            <textarea
-              value={text}
-              onChange={(e) => { setText(e.target.value); setSegments(null); setStructureCandidates([]); }}
-              rows={16}
-              placeholder="在此粘贴剧本原文…"
-            />
-          )}
+          <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
+            <div className="uz-icon">📄</div>
+            <div className="uz-main">点击选择剧本文件</div>
+            <div className="uz-sub">可多选；文件夹里的文件全选后一起导入（.docx / .txt）</div>
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -644,15 +628,26 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           />
           {fileInfo && <div className="file-info">✓ {fileInfo}</div>}
           <div className="upload-foot">
-            <button className="paste-toggle" onClick={() => setPasteMode((v) => !v)}>
-              {pasteMode ? "← 返回选择文件" : "或者，粘贴剧本原文"}
-            </button>
-            {pasteMode && (
-              <button onClick={() => { setText(SAMPLE); setSegments(null); setStructureCandidates([]); }}>填入示例</button>
-            )}
             <button onClick={analyze} className="primary big" disabled={aiState === "running"}>
               {aiState === "running" ? "解析中…" : "解析剧本"}
             </button>
+          </div>
+          <div className="upload-options">
+            <select
+              className="source-select"
+              value={source}
+              onChange={(e) => switchSource(e.target.value as Source)}
+              title="声音来源"
+            >
+              <option value="qwen">Qwen3 1.7B</option>
+              <option value="edge">edge-tts</option>
+            </select>
+            <span
+              className={"svc-dot " + (serviceOk === null ? "unknown" : serviceOk ? "ok" : "down")}
+              title={source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl)}
+            />
+            {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
+            <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
           </div>
         </section>
 
