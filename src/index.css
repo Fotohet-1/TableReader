@@ -675,7 +675,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .scene-no { margin-right: 10px; color: var(--accent); }
 .unit-narration { color: #6b6a64; }
 .unit-dialogue { display: flex; gap: 12px; }
-.char-tag { flex-shrink: 0; font-weight: 600; min-width: 64px; font-size: 14px; }
+.char-tag { flex-shrink: 0; font-weight: 600; min-width: 64px; font-size: inherit; }
 .char-line { flex: 1; color: var(--ink); }
 .unit.active {
   background: var(--accent-soft);
