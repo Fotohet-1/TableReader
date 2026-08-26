@@ -45,6 +45,7 @@ interface Profile {
   name: string;
   gender: Gender;
   age?: string;
+  lines?: number;
   merged?: string[];
 }
 
@@ -92,6 +93,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [previewRole, setPreviewRole] = useState("");
   const [previewErr, setPreviewErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const t0Ref = useRef(0);
 
@@ -128,29 +130,38 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setErr("");
   };
 
-  const handleFile = async (f: File) => {
-    const name = f.name.toLowerCase();
+  const handleFiles = async (files: FileList | File[]) => {
     setErr("");
-    try {
-      if (name.endsWith(".docx")) {
-        const buf = await f.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer: buf });
-        const v = (result.value || "").trim();
-        if (!v) throw new Error("未从 Word 中提取到文本，请检查文件内容");
-        setText(v);
-        setFileInfo(f.name + " · 提取 " + v.length + " 字");
-      } else if (name.endsWith(".txt") || name.endsWith(".md")) {
-        const v = await f.text();
-        setText(v);
-        setFileInfo(f.name + " · " + v.length + " 字");
-      } else if (name.endsWith(".doc")) {
-        throw new Error(".doc 是老格式，浏览器无法直接解析。请在 Word 中打开后另存为 .docx 再上传");
-      } else {
-        throw new Error("请上传 .docx 或 .txt 文件");
-      }
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+    const list = Array.from(files).filter((f) => /\.(docx|txt|md)$/i.test(f.name));
+    if (!list.length) {
+      setErr("未找到支持的剧本文件（.docx / .txt / .md）");
+      return;
     }
+    const ordered = [...list].sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+    const parts: string[] = [];
+    for (const f of ordered) {
+      try {
+        if (f.name.toLowerCase().endsWith(".docx")) {
+          const buf = await f.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer: buf });
+          const v = (result.value || "").trim();
+          if (!v) throw new Error(f.name + " 未提取到文本");
+          parts.push(v);
+        } else if (f.name.toLowerCase().endsWith(".txt") || f.name.toLowerCase().endsWith(".md")) {
+          parts.push((await f.text()).trim());
+        }
+      } catch (e) {
+        setErr(f.name + " 读取失败: " + (e instanceof Error ? e.message : String(e)));
+        return;
+      }
+    }
+    const v = parts.filter(Boolean).join("\n\n").trim();
+    if (!v) {
+      setErr("所有文件都是空的，请检查内容");
+      return;
+    }
+    setText(v);
+    setFileInfo(ordered.length + " 个文件 · 共 " + v.length + " 字");
   };
 
   const assignVoicesFor = (ps: Profile[]): CharacterVoice[] => {
@@ -159,11 +170,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       used.add("zh-CN-XiaoxiaoNeural"); // 旁白固定占用晓晓原声
       return ps.map((p) => {
         if (p.name === "旁白") {
-          return { name: p.name, voiceId: "zh-CN-XiaoxiaoNeural", gender: p.gender, age: p.age };
+          return { name: p.name, voiceId: "zh-CN-XiaoxiaoNeural", gender: p.gender, age: p.age, lines: p.lines };
         }
         const voiceId = pickEdgeVoice(p, used);
         used.add(voiceId);
-        return { name: p.name, voiceId, gender: p.gender, age: p.age };
+        return { name: p.name, voiceId, gender: p.gender, age: p.age, lines: p.lines };
       });
     }
     return ps.map((p) => ({
@@ -171,6 +182,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       voiceId: p.name,
       gender: p.gender,
       age: p.age,
+      lines: p.lines,
       voiceMode: "base",
       voiceBase: defaultBaseVoiceFor(p, baseVoices)
     }));
@@ -284,6 +296,16 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         ? "旁白"
         : (mapping[u.character] || u.character) || "旁白"
     }));
+    const lines: Record<string, number> = {};
+    for (const u of us2) {
+      if (u.type === "dialogue") {
+        lines[u.character] = (lines[u.character] || 0) + 1;
+      } else if (u.character === "旁白") {
+        lines["旁白"] = (lines["旁白"] || 0) + 1;
+      }
+    }
+    for (const p of profiles) p.lines = lines[p.name] || 0;
+    profiles.sort((a, b) => (b.lines || 0) - (a.lines || 0) || a.name.localeCompare(b.name, "zh-Hans-CN"));
     setUnits(us2);
     setProfiles(profiles);
     setGenderSel(Object.fromEntries(profiles.map((p) => [p.name, p.gender])));
@@ -448,18 +470,30 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 onClick={() => fileRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files); }}
               >
                 <div className="uz-icon">📄</div>
-                <div className="uz-main">选择或拖入剧本文件</div>
-                <div className="uz-sub">支持 .docx / .txt</div>
+                <div className="uz-main">选择或拖入剧本</div>
+                <div className="uz-sub">支持单个大文件，或整个剧本文件夹（.docx / .txt）</div>
               </div>
               <input
                 ref={fileRef}
                 type="file"
+                multiple
                 accept=".docx,.doc,.txt,.md"
                 style={{ display: "none" }}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+                onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
+              />
+              <div className="row">
+                <button onClick={() => folderRef.current?.click()}>选择文件夹</button>
+              </div>
+              <input
+                ref={folderRef}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                {...({ webkitdirectory: "" } as Record<string, string>)}
+                onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
               />
               {fileInfo && <div className="file-info">✓ {fileInfo}</div>}
             </>
@@ -513,6 +547,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               {profiles.map((p) => (
                 <div className="cv-row" key={p.name}>
                   <span className="cv-name">{p.name}</span>
+                  {p.lines ? <span className="cv-tag">{p.lines} 句</span> : null}
                   {p.merged && p.merged.length > 1 && <span className="cv-merged">{p.merged.length} 种写法</span>}
                   <div className="gender-pick">
                     {(["男", "女", "未知"] as const).map((g) => (
@@ -564,7 +599,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 <div className={"cv-row" + (source === "edge" && !cv.voiceId ? " unassigned" : "")} key={cv.name}>
                   <div className="cv-left">
                     <span className="cv-name">{cv.name}</span>
-                    {cv.gender && <span className="cv-tag">{cv.gender}{cv.age ? " · " + cv.age : ""}</span>}
+                    {cv.gender && (
+                      <span className="cv-tag">
+                        {cv.gender}{cv.age ? " · " + cv.age : ""}{cv.lines ? " · " + cv.lines + " 句" : ""}
+                      </span>
+                    )}
                   </div>
                   {source === "edge" ? (
                     <>

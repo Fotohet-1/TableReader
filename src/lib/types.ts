@@ -13,6 +13,7 @@ export interface CharacterVoice {
   voiceId: string;
   gender?: string;
   age?: string;
+  lines?: number;
   merged?: string[];
   voiceMode?: "base" | "clone";
   voiceBase?: string;
