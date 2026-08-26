@@ -202,7 +202,6 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
       <audio ref={audioRef} preload="auto" />
       <header className="topbar">
         <button onClick={onBack} className="tb-btn">← 返回</button>
-        <span className="tb-title">剧本围读</span>
         <span className="tb-info">
           {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
         </span>
