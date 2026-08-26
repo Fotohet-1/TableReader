@@ -63,7 +63,7 @@ export default function OnboardingPage({ onDone }: {
             </p>
             <div className="ob-key-field">
               <label>DeepSeek API Key（选填）</label>
-              <input value={key} onChange={(e) => setKey(e.target.value)} />
+              <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-" />
             </div>
             {err && <div className="err">{err}</div>}
             <div className="onboard-actions">
