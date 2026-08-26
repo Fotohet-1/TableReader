@@ -99,6 +99,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [serviceOk, setServiceOk] = useState<boolean | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const cardTopRef = useRef(0);
+  const prevPhaseRef = useRef(phase);
   const t0Ref = useRef(0);
 
   useEffect(() => {
@@ -116,6 +119,27 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     const timer = setInterval(check, 30000);
     return () => { alive = false; clearInterval(timer); };
   }, [source, edgeUrl, qwenUrl]);
+
+  useEffect(() => {
+    if (phase === "upload" && cardRef.current) {
+      cardTopRef.current = cardRef.current.getBoundingClientRect().top;
+    }
+    if (prevPhaseRef.current === "upload" && phase !== "upload") {
+      const el = cardRef.current;
+      if (el && cardTopRef.current) {
+        const delta = cardTopRef.current - el.getBoundingClientRect().top;
+        el.style.transition = "none";
+        el.style.transform = "translateY(" + delta + "px)";
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.transition = "transform .6s cubic-bezier(.22, .8, .32, 1)";
+            el.style.transform = "none";
+          });
+        });
+      }
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
 
   const saveEdgeUrl = (v: string) => {
     setEdgeUrlState(v);
@@ -589,7 +613,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   return (
     <div className={"work" + (phase === "upload" ? " upload-only" : "")}>
       <div className="work-grid solo">
-        <section className="card">
+        <section className="card" ref={cardRef}>
           <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
             <div className="uz-icon">📄</div>
             <div className="uz-main">点击选择剧本文件</div>
@@ -631,7 +655,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         {phase !== "upload" && (
         <>
           {phase === "gender" && units && (
-            <section className="card">
+            <section className="card flow-card">
               <h2>确认角色性别 · {profiles.length} 人</h2>
               {profiles.map((p) => (
                 <div className="cv-row" key={p.name}>
@@ -650,7 +674,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           )}
 
           {phase === "design" && units && (
-            <section className="card">
+            <section className="card flow-card">
               <h2>声音设计 · {profiles.length} 人</h2>
               {profiles.map((p) => {
                 const desc = descByRole[p.name] || defaultVoiceDescFor(p);
@@ -696,7 +720,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           )}
 
           {phase === "scenes" && units && (
-            <section className="card">
+            <section className="card flow-card">
               <h2>场标预览 · {sceneUnits.length} 场</h2>
               {unrecognizedScenes.length > 0 && (
                 <div className="prog warn">疑似场标 {unrecognizedScenes.length} 行未识别</div>
@@ -721,7 +745,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           )}
 
           {units && phase === "voices" && (
-            <section className="card">
+            <section className="card flow-card">
               <h2>角色与音色 · {units.length} 句</h2>
               <button className="link" onClick={() => setPhase("gender")}>修改性别</button>
               {source === "edge" && (

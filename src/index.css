@@ -172,6 +172,12 @@ input, textarea, select { font: inherit; }
   padding-bottom: 0;
 }
 .work.upload-only .work-grid.solo { margin: 0; }
+.work:not(.upload-only) .work-grid.solo { margin-top: 64px; }
+@keyframes srFadeUp {
+  from { transform: translateY(22px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.card.flow-card { animation: srFadeUp .5s cubic-bezier(.22, .8, .32, 1); }
 .work-top {
   position: sticky;
   top: 0;
