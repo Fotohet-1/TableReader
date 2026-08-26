@@ -328,6 +328,35 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   background: var(--paper);
   font-size: 13px;
 }
+.scene-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 10px 0;
+}
+.scene-line {
+  display: flex;
+  gap: 10px;
+  padding: 5px 10px;
+  font-size: 13px;
+  border-top: 1px solid var(--line);
+}
+.scene-line:first-of-type { border-top: 0; }
+.scene-line-no { flex-shrink: 0; color: var(--accent); font-weight: 700; }
+.scene-line-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-suspect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #fdf3e3;
+  border: 1px solid #ead4ae;
+  border-radius: 8px;
+}
+.scene-suspect-text { flex: 1; min-width: 0; font-size: 13px; }
+.scene-suspect button { padding: 5px 10px; font-size: 12px; flex-shrink: 0; }
 
 /* ---------- 围读页 ---------- */
 .player-page { height: 100vh; display: flex; flex-direction: column; }

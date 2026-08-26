@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CharacterVoice, Project, Session, Unit, UnitAudio } from "../lib/types";
-import { parseScript, collectCharacters, episodeFromName } from "../lib/parser";
+import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines } from "../lib/parser";
 import { groupRoles } from "../lib/roles";
 import { guessGender, defaultEdgeVoiceFor, defaultBaseVoiceFor } from "../lib/voices";
 import { analyzeRolesWithLLM } from "../lib/llm";
@@ -74,8 +74,12 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [segments, setSegments] = useState<Array<{ episode: number; text: string }> | null>(null);
   const [units, setUnits] = useState<Unit[] | null>(() => (lastSession && lastSession.source === source ? lastSession.units : null));
   const [charVoices, setCharVoices] = useState<CharacterVoice[]>(() => (lastSession && lastSession.source === source ? lastSession.charVoices : []));
-  const [phase, setPhase] = useState<"upload" | "gender" | "voices">("upload");
+  const [phase, setPhase] = useState<"upload" | "scenes" | "gender" | "voices">("upload");
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [likelyLines, setLikelyLines] = useState<string[]>([]);
+  const [forcedLines, setForcedLines] = useState<Set<string>>(new Set());
+  const [ignoredLines, setIgnoredLines] = useState<Set<string>>(new Set());
+  const [roleBase, setRoleBase] = useState<{ profiles: Profile[]; mapping: Record<string, string> } | null>(null);
   const [genderSel, setGenderSel] = useState<Record<string, Gender>>({});
   const [baseVoices, setBaseVoices] = useState<Record<string, BaseVoiceInfo>>({});
   const [edgeVoices, setEdgeVoices] = useState<Record<string, BaseVoiceInfo>>({});
@@ -267,21 +271,47 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     }
   };
 
+  const runParse = (forced: Set<string>): Unit[] => {
+    if (segments && segments.length) {
+      let idStart = 0;
+      let us: Unit[] = [];
+      for (const seg of segments) {
+        us = us.concat(parseScript(seg.text, { episode: seg.episode, idStart, forcedSceneLines: forced }));
+        idStart = us.length;
+      }
+      return us;
+    }
+    return parseScript(text, { forcedSceneLines: forced });
+  };
+
+  const buildFromUnits = (us: Unit[], baseProfiles: Profile[], mapping: Record<string, string>) => {
+    const us2 = us.map((u) => ({
+      ...u,
+      character: u.type === "narration" || u.type === "action" || u.type === "scene"
+        ? "旁白"
+        : (mapping[u.character] || u.character) || "旁白"
+    }));
+    const lines: Record<string, number> = {};
+    for (const u of us2) {
+      if (u.type === "dialogue") {
+        lines[u.character] = (lines[u.character] || 0) + 1;
+      } else if (u.character === "旁白") {
+        lines["旁白"] = (lines["旁白"] || 0) + 1;
+      }
+    }
+    const nextProfiles = baseProfiles.map((p) => ({ ...p, lines: lines[p.name] || 0 }));
+    nextProfiles.sort((a, b) => (b.lines || 0) - (a.lines || 0) || a.name.localeCompare(b.name, "zh-Hans-CN"));
+    setUnits(us2);
+    setProfiles(nextProfiles);
+    setGenderSel(Object.fromEntries(nextProfiles.map((p) => [p.name, p.gender])));
+  };
+
   const analyze = async () => {
     if (!text.trim()) { setErr("请先上传或粘贴剧本"); return; }
     setErr("");
     setAiState("running");
     let us: Unit[];
-    if (segments && segments.length) {
-      let idStart = 0;
-      us = [];
-      for (const seg of segments) {
-        us = us.concat(parseScript(seg.text, { episode: seg.episode, idStart }));
-        idStart = us.length;
-      }
-    } else {
-      us = parseScript(text);
-    }
+    us = runParse(new Set());
     const rawNames = collectCharacters(us);
     const groups = groupRoles(rawNames);
     let profiles: Profile[] = groups.map((g) => ({
@@ -315,27 +345,33 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     } else {
       profiles = [...profiles, { name: "旁白", gender: "女", age: "中年", merged: [] }];
     }
-    const us2 = us.map((u) => ({
-      ...u,
-      character: u.type === "narration" || u.type === "action" || u.type === "scene"
-        ? "旁白"
-        : (mapping[u.character] || u.character) || "旁白"
-    }));
-    const lines: Record<string, number> = {};
-    for (const u of us2) {
-      if (u.type === "dialogue") {
-        lines[u.character] = (lines[u.character] || 0) + 1;
-      } else if (u.character === "旁白") {
-        lines["旁白"] = (lines["旁白"] || 0) + 1;
-      }
-    }
-    for (const p of profiles) p.lines = lines[p.name] || 0;
-    profiles.sort((a, b) => (b.lines || 0) - (a.lines || 0) || a.name.localeCompare(b.name, "zh-Hans-CN"));
-    setUnits(us2);
-    setProfiles(profiles);
-    setGenderSel(Object.fromEntries(profiles.map((p) => [p.name, p.gender])));
-    setPhase("gender");
+    setRoleBase({ profiles, mapping });
+    const likely = (segments && segments.length)
+      ? Array.from(new Set(segments.flatMap((seg) => findLikelySceneLines(seg.text))))
+      : findLikelySceneLines(text);
+    setLikelyLines(likely);
+    setForcedLines(new Set());
+    setIgnoredLines(new Set());
+    buildFromUnits(us, profiles, mapping);
+    setPhase("scenes");
     setAiState("done");
+  };
+
+  const toggleForcedScene = (line: string) => {
+    const next = new Set(forcedLines);
+    if (next.has(line)) next.delete(line);
+    else next.add(line);
+    setForcedLines(next);
+    if (roleBase) buildFromUnits(runParse(next), roleBase.profiles, roleBase.mapping);
+  };
+
+  const toggleIgnoredLine = (line: string) => {
+    setIgnoredLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(line)) next.delete(line);
+      else next.add(line);
+      return next;
+    });
   };
 
   const confirmGender = () => {
@@ -465,6 +501,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     if (cv.voiceId) voiceCounts[cv.voiceId] = (voiceCounts[cv.voiceId] || 0) + 1;
   }
   const enabledVoiceCount = Object.keys(edgeVoices).filter((k) => voiceTags[k]?.enabled !== false).length;
+  const sceneUnits = units ? units.filter((u) => u.type === "scene") : [];
+  const sceneTexts = new Set(sceneUnits.map((u) => u.text.split("，").slice(-1)[0].trim()));
+  const unrecognizedScenes = likelyLines.filter((l) => !sceneTexts.has(l) && !ignoredLines.has(l));
 
   return (
     <div className="work">
@@ -576,6 +615,31 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 </div>
               ))}
               <button onClick={confirmGender} className="primary big">确认并分配音色</button>
+            </section>
+          )}
+
+          {phase === "scenes" && units && (
+            <section className="card">
+              <h2>场标预览 · {sceneUnits.length} 场</h2>
+              {unrecognizedScenes.length > 0 && (
+                <div className="prog warn">疑似场标 {unrecognizedScenes.length} 行未识别</div>
+              )}
+              {unrecognizedScenes.map((l) => (
+                <div className="scene-suspect" key={l}>
+                  <span className="scene-suspect-text">{l}</span>
+                  <button onClick={() => toggleForcedScene(l)}>设为场标</button>
+                  <button onClick={() => toggleIgnoredLine(l)}>忽略</button>
+                </div>
+              ))}
+              <div className="scene-list">
+                {sceneUnits.map((u) => (
+                  <div className="scene-line" key={u.id}>
+                    <span className="scene-line-no">{u.sceneNo}</span>
+                    <span className="scene-line-text">{u.text.split("，").slice(-1)[0]}</span>
+                  </div>
+                ))}
+              </div>
+              <button className="primary big" onClick={() => setPhase("gender")}>确认场标，进入角色确认</button>
             </section>
           )}
 

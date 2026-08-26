@@ -1,8 +1,9 @@
 import type { Unit } from "./types";
 
 const SCENE_RE = /^(内景|外景|内景\/外景)\s*[^\n]{0,40}$/;
-const SCENE_NO_RE = /^(\d+[.、．]?\s*|第\s*\d+\s*场[：:、\s]*)/;
-const SCENE_RE2 = /^[^\n：]{1,26}(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)\s*(?:内|外)$/;
+const SCENE_NO_RE = /^(\d+[A-Za-z]?[.、．]?\s*|第\s*\d+\s*场[：:、\s]*)/;
+const SCENE_RE2 = /^[^\n：△]{1,40}(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)\s*(?:内|外|内\/外|外\/内)(?:\s*[（(][^）)]*[)）])?$/;
+const SCENE_EMPTY_RE = /^[^\n：△]{0,24}空镜$/;
 const DIALOGUE_RE = /^([^：\n]{1,14}?)[:：](.*)$/;
 const PAREN_LINE_RE = /^[（(][\s\S]*[)）]$/;
 const PAREN_RE = /[（(][^（）()]*[)）]/g;
@@ -88,7 +89,10 @@ function mk(id: number, type: Unit["type"], character: string, text: string, sta
   return { id, type, character, text, start, end: start + text.length };
 }
 
-export function parseScript(text: string, opts?: { episode?: number; idStart?: number }): Unit[] {
+export function parseScript(
+  text: string,
+  opts?: { episode?: number; idStart?: number; forcedSceneLines?: Set<string> }
+): Unit[] {
   const clean = text.replace(/\r/g, "");
   const lines = clean.split("\n");
   const units: Unit[] = [];
@@ -117,13 +121,26 @@ export function parseScript(text: string, opts?: { episode?: number; idStart?: n
       continue;
     }
 
-    if (SCENE_RE.test(trimmed) || SCENE_RE2.test(trimmed)) {
+    if (SCENE_RE.test(trimmed) || SCENE_RE2.test(trimmed) || SCENE_EMPTY_RE.test(trimmed)) {
       sceneCounter++;
-      const noMatch = trimmed.match(SCENE_NO_RE);
-      const sceneNo = noMatch ? noMatch[0].trim() : "第" + sceneCounter + "场";
-      const sceneNum = noMatch ? parseInt((noMatch[0].match(/\d+/) || ["0"])[0], 10) : sceneCounter;
+      const sceneNo = "第" + sceneCounter + "场";
       const cnEp = toChineseNumber(episode);
-      const cnSc = toChineseNumber(sceneNum);
+      const cnSc = toChineseNumber(sceneCounter);
+      const prefix = episodeFirstScene ? "第" + cnEp + "集，" : "";
+      episodeFirstScene = false;
+      const u = mk(id++, "scene", "旁白", trimmed, tStart);
+      u.sceneNo = sceneNo;
+      u.episode = episode;
+      u.text = prefix + "第" + cnSc + "场，" + trimmed;
+      units.push(u);
+      continue;
+    }
+
+    if (opts?.forcedSceneLines?.has(trimmed)) {
+      sceneCounter++;
+      const sceneNo = "第" + sceneCounter + "场";
+      const cnEp = toChineseNumber(episode);
+      const cnSc = toChineseNumber(sceneCounter);
       const prefix = episodeFirstScene ? "第" + cnEp + "集，" : "";
       episodeFirstScene = false;
       const u = mk(id++, "scene", "旁白", trimmed, tStart);
@@ -153,6 +170,36 @@ export function parseScript(text: string, opts?: { episode?: number; idStart?: n
     units.push(mk(id++, "narration", "旁白", trimmed, tStart));
   }
   return units;
+}
+
+/** 找出疑似场标但可能未被规则识别的短行（含时间+内外，或空镜） */
+export function findLikelySceneLines(text: string): string[] {
+  const out: string[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.startsWith("△") || trimmed.includes("：")) continue;
+    if (SCENE_EMPTY_RE.test(trimmed)) {
+      out.push(trimmed);
+      continue;
+    }
+    if (/^[^\n：△]{1,40}(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)\s*(?:内|外|内\/外|外\/内)(?:\s*[（(][^）)]*[)）])?$/.test(trimmed)) {
+      out.push(trimmed);
+      continue;
+    }
+    // 规则外的疑似写法：独立时间行、内外在前、含空镜的短行
+    if (/^(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)\s*(?:内|外|内\/外|外\/内)$/.test(trimmed)) {
+      out.push(trimmed);
+      continue;
+    }
+    if (/^(?:内|外|内\/外|外\/内)\s*(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)/.test(trimmed)) {
+      out.push(trimmed);
+      continue;
+    }
+    if (trimmed.includes("空镜") && trimmed.length <= 30) {
+      out.push(trimmed);
+    }
+  }
+  return out;
 }
 
 export function collectCharacters(units: Unit[]): string[] {
