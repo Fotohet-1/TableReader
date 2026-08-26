@@ -10,8 +10,8 @@
 - docx 上传时还会读取 Word 段落结构（加粗 + 前空行）作为疑似场标的补充信号，规则没认出的场标更容易被找出来
 - 闪回镜头、“27A.”这类字母续拍段单独算场；INSERT 开头的插叙行不单独算场，按旁白并入当前场
 - 角色写法归并（熊黑严肃 → 熊黑），规则预判性别，可选 DeepSeek 精修；角色按台词句数降序排列，每行显示句数
-- 两种 TTS：edge-tts 快速模式、本地 CosyVoice（支持上传音频克隆专属音色）
-- 本地 Qwen3 1.7B：VoiceDesign 用自然语言描述“设计”一次种子音色，之后用 Base 克隆固定，保证角色音色全剧统一；确认性别年龄后进入“声音设计”步骤，AI 生成描述、试听、人工调整
+- 两条 TTS 路线：edge-tts 在线快速模式、本地 Qwen3 1.7B
+- Qwen3 1.7B：VoiceDesign 用自然语言描述“设计”一次种子音色，之后用 Base 克隆固定，保证角色音色全剧统一；确认性别年龄后进入“声音设计”步骤，AI 生成描述、试听、人工调整
 - 音色库：14 个中文基础音色 × 5 档语调 = 70 个独立音色位，每个档位可单独打性别、年龄、方言标签，支持试听、批量、导出/导入
 - 围读播放：当前句高亮、自动滚动、0.5x-3x 倍速、±5s/±10s 跳转、进度条拖动
 
@@ -27,7 +27,6 @@ npm run dev
 TTS 是本地 HTTP 服务，需要先启动其中一个：
 
 - edge-tts（推荐，快）：`/Users/hetan/Documents/剧本围读/edge-tts-tool/start.sh`，地址 `http://127.0.0.1:9882`
-- 本地 CosyVoice（离线、可克隆）：`/Users/hetan/Documents/剧本围读/screenplay-reader-v8/local-tts/server_cosyvoice.py`，地址 `http://127.0.0.1:9880`
 - 本地 Qwen3 1.7B VoiceDesign（自然语言生成音色）：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/.venv/bin/python scripts/server_qwen_tts.py`，地址 `http://127.0.0.1:9883`
 
 服务地址和 DeepSeek Key 都只存在浏览器 localStorage，不会上传。

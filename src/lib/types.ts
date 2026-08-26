@@ -52,5 +52,5 @@ export interface Session {
   text: string;
   units: Unit[];
   charVoices: CharacterVoice[];
-  source: "edge" | "local" | "qwen";
+  source: "edge" | "qwen";
 }

@@ -32,6 +32,8 @@ await new Promise((r) => { ws.onopen = r; });
 await send("Page.enable");
 await send("Runtime.enable");
 await send("Page.navigate", { url: PAGE_URL });
+await evalJs(`localStorage.setItem("sr_tts_source", "edge")`);
+await send("Page.navigate", { url: PAGE_URL });
 await new Promise((r) => setTimeout(r, 2500));
 
 async function evalJs(expression) {
@@ -65,6 +67,8 @@ const textLen = await evalJs(`document.querySelector("textarea") ? document.quer
 console.log("填入示例:", sampleOk, "字数:", textLen);
 
 await clickByText("解析剧本");
+await waitFor(`[...document.querySelectorAll(".card h2")].some((h) => h.textContent.includes("场标预览"))`, 30000);
+await clickByText("确认场标，进入角色确认");
 await waitFor(`document.querySelector(".cv-row .cv-name") !== null`, 30000);
 const roles = await evalJs(`[...document.querySelectorAll(".cv-row .cv-name")].map((e) => e.textContent)`);
 console.log("解析角色:", roles.join("、"));

@@ -3,20 +3,15 @@ import type { CharacterVoice, Project, Session, Unit, UnitAudio } from "../lib/t
 import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines } from "../lib/parser";
 import { extractSceneCandidates } from "../lib/docxMeta";
 import { groupRoles } from "../lib/roles";
-import { guessGender, defaultEdgeVoiceFor, defaultBaseVoiceFor, defaultVoiceDescFor } from "../lib/voices";
+import { guessGender, defaultEdgeVoiceFor, defaultVoiceDescFor } from "../lib/voices";
 import { analyzeRolesWithLLM, describeRoleVoice } from "../lib/llm";
 import { synthesizeStream, type Progress, type SynthSummary } from "../lib/synth";
 import {
-  checkHealth,
   edgeSynthOne,
-  fetchBaseVoices,
   fetchEdgeVoices,
-  localSynthOne,
   qwenCloneSynthOne,
   qwenSynthOne,
-  registerRoles,
-  type BaseVoiceInfo,
-  type RoleVoiceCfg
+  type BaseVoiceInfo
 } from "../lib/tts";
 import mammoth from "mammoth/mammoth.browser.js";
 import VoiceLibrary from "../components/VoiceLibrary";
@@ -28,7 +23,6 @@ import {
 } from "../lib/voiceTags";
 
 const LS_EDGE_URL = "sr_edge_url";
-const LS_LOCAL_URL = "sr_local_url";
 const LS_QWEN_URL = "sr_qwen_url";
 const LS_SOURCE = "sr_tts_source";
 const LS_DS_KEY = "sr_ds_key";
@@ -42,7 +36,7 @@ const SAMPLE = `1. 咖啡店 日 内
 （老板转身去冲咖啡）
 旁白：她不知道，这个决定会改变一切。`;
 
-type Source = "edge" | "local" | "qwen";
+type Source = "edge" | "qwen";
 type Gender = "男" | "女" | "未知";
 
 interface Profile {
@@ -64,10 +58,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 }) {
   const [source, setSourceState] = useState<Source>(() => {
     const v = localStorage.getItem(LS_SOURCE);
-    return v === "local" ? "local" : v === "qwen" ? "qwen" : "edge";
+    return v === "qwen" ? "qwen" : "edge";
   });
   const [edgeUrl, setEdgeUrlState] = useState(() => localStorage.getItem(LS_EDGE_URL) || "http://127.0.0.1:9882");
-  const [localUrl, setLocalUrlState] = useState(() => localStorage.getItem(LS_LOCAL_URL) || "http://127.0.0.1:9880");
   const [qwenUrl, setQwenUrlState] = useState(() => localStorage.getItem(LS_QWEN_URL) || "http://127.0.0.1:9883");
   const [dsKey, setDsKey] = useState(() => localStorage.getItem(LS_DS_KEY) || "");
   const [aiEnabled, setAiEnabled] = useState(() => localStorage.getItem(LS_AI) !== "0");
@@ -91,9 +84,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [demoTextByRole, setDemoTextByRole] = useState<Record<string, string>>({});
   const [seedByRole, setSeedByRole] = useState<Record<string, { b64: string; refText: string; url: string; descUsed: string }>>({});
   const [genderSel, setGenderSel] = useState<Record<string, Gender>>({});
-  const [baseVoices, setBaseVoices] = useState<Record<string, BaseVoiceInfo>>({});
   const [edgeVoices, setEdgeVoices] = useState<Record<string, BaseVoiceInfo>>({});
-  const [localUrls, setLocalUrls] = useState<string[]>([localUrl]);
   const [aiState, setAiState] = useState<"idle" | "running" | "done">("idle");
   const [syncing, setSyncing] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -111,23 +102,12 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const t0Ref = useRef(0);
 
   useEffect(() => {
-    if (source === "local") {
-      fetchBaseVoices(localUrl).then(setBaseVoices);
-      const u2 = localUrl.replace(/:\d+$/, ":9881");
-      checkHealth(u2).then((ok) => setLocalUrls(ok ? [localUrl, u2] : [localUrl]));
-    } else {
-      fetchEdgeVoices(edgeUrl).then(setEdgeVoices);
-    }
-  }, [source, localUrl, edgeUrl]);
+    fetchEdgeVoices(edgeUrl).then(setEdgeVoices);
+  }, [source, edgeUrl]);
 
   const saveEdgeUrl = (v: string) => {
     setEdgeUrlState(v);
     localStorage.setItem(LS_EDGE_URL, v);
-  };
-
-  const saveLocalUrl = (v: string) => {
-    setLocalUrlState(v);
-    localStorage.setItem(LS_LOCAL_URL, v);
   };
 
   const saveQwenUrl = (v: string) => {
@@ -206,27 +186,16 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   };
 
   const assignVoicesFor = (ps: Profile[]): CharacterVoice[] => {
-    if (source === "edge") {
-      const used = new Set<string>();
-      used.add("zh-CN-XiaoxiaoNeural"); // 旁白固定占用晓晓原声
-      return ps.map((p) => {
-        if (p.name === "旁白") {
-          return { name: p.name, voiceId: "zh-CN-XiaoxiaoNeural", gender: p.gender, age: p.age, lines: p.lines };
-        }
-        const voiceId = pickEdgeVoice(p, used);
-        used.add(voiceId);
-        return { name: p.name, voiceId, gender: p.gender, age: p.age, lines: p.lines };
-      });
-    }
-    return ps.map((p) => ({
-      name: p.name,
-      voiceId: p.name,
-      gender: p.gender,
-      age: p.age,
-      lines: p.lines,
-      voiceMode: "base",
-      voiceBase: defaultBaseVoiceFor(p, baseVoices)
-    }));
+    const used = new Set<string>();
+    used.add("zh-CN-XiaoxiaoNeural"); // 旁白固定占用晓晓原声
+    return ps.map((p) => {
+      if (p.name === "旁白") {
+        return { name: p.name, voiceId: "zh-CN-XiaoxiaoNeural", gender: p.gender, age: p.age, lines: p.lines };
+      }
+      const voiceId = pickEdgeVoice(p, used);
+      used.add(voiceId);
+      return { name: p.name, voiceId, gender: p.gender, age: p.age, lines: p.lines };
+    });
   };
 
   const pickEdgeVoice = (p: { name?: string; gender?: string; age?: string }, used: Set<string>): string => {
@@ -514,27 +483,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setPhase("voices");
   };
 
-  const uploadClone = (cv: CharacterVoice) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "audio/wav,audio/mpeg,.wav,.mp3";
-    input.onchange = async () => {
-      const f = input.files?.[0];
-      if (!f) return;
-      const refText = window.prompt("这段音频说的是什么？");
-      if (refText == null || !refText.trim()) { alert("请填写转写文本"); return; }
-      const buf = await f.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i += 0x8000) {
-        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)));
-      }
-      const b64 = btoa(binary);
-      setCharVoices((cs) => cs.map((c) => (c.name === cv.name ? { ...c, voiceMode: "clone", cloneAudioB64: b64, cloneRefText: refText.trim() } : c)));
-    };
-    input.click();
-  };
-
   const start = async () => {
     if (!units || !charVoices.length) return;
     resetItems();
@@ -551,9 +499,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     const defaults: CharacterVoice[] = missing.map((n) => (
       source === "edge"
         ? { name: n, voiceId: "" }
-        : source === "qwen"
-          ? { name: n, voiceId: n, voiceDesc: defaultVoiceDescFor({ name: n }) }
-          : { name: n, voiceId: n, voiceMode: "base", voiceBase: defaultBaseVoiceFor({ name: n }, baseVoices) }
+        : { name: n, voiceId: n, voiceDesc: defaultVoiceDescFor({ name: n }) }
     ));
     const fullVoices = [...charVoices, ...defaults];
     if (source === "edge") {
@@ -569,21 +515,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     const project: Project = { scriptText: text, units, voices: fullVoices };
     setProject(project);
 
-    if (source === "local") {
-      try {
-        const roles: Record<string, RoleVoiceCfg> = {};
-        for (const cv of fullVoices) {
-          roles[cv.name] = cv.voiceMode === "clone"
-            ? { mode: "clone", audioB64: cv.cloneAudioB64, refText: cv.cloneRefText }
-            : { mode: "base", value: cv.voiceBase };
-        }
-        for (const u of localUrls) await registerRoles(u, roles);
-      } catch (e) {
-        setErr("角色音色注册失败: " + String(e));
-        setSyncing(false);
-        return;
-      }
-    }
     const descMap: Record<string, string> = {};
     const cloneMap: Record<string, { b64: string; refText: string }> = {};
     for (const cv of fullVoices) {
@@ -606,8 +537,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           ? (cloneMap[v]
               ? qwenCloneSynthOne(qwenUrl, t, cloneMap[v].b64, cloneMap[v].refText)
               : qwenSynthOne(qwenUrl, t, descMap[v] || ""))
-          : source === "local"
-          ? localSynthOne(localUrls[(idx || 0) % localUrls.length], t, v)
           : edgeSynthOne(edgeUrl, t, v)
       )
     });
@@ -619,10 +548,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     });
   };
 
-  const cats: Record<string, string[]> = {};
-  for (const [k, v] of Object.entries(baseVoices)) {
-    (cats[v.category] = cats[v.category] || []).push(k);
-  }
   const edgeCats: Record<string, string[]> = {};
   for (const [k, v] of Object.entries(edgeVoices)) {
     (edgeCats[v.category] = edgeCats[v.category] || []).push(k);
@@ -656,10 +581,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         <span className="work-version">v1</span>
         <div className="src-switch">
           <button className={source === "edge" ? "on" : ""} onClick={() => switchSource("edge")}>edge-tts</button>
-          <button className={source === "local" ? "on" : ""} onClick={() => switchSource("local")}>本地 CosyVoice</button>
           <button className={source === "qwen" ? "on" : ""} onClick={() => switchSource("qwen")}>Qwen3 1.7B</button>
         </div>
-        <span className="top-status">{source === "edge" ? edgeUrl : localUrl}</span>
+        <span className="top-status">{source === "edge" ? edgeUrl : qwenUrl}</span>
         <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>
       </header>
 
@@ -713,15 +637,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 <label>edge-tts 地址</label>
                 <input value={edgeUrl} onChange={(e) => saveEdgeUrl(e.target.value)} />
               </div>
-            ) : source === "qwen" ? (
+            ) : (
               <div className="field">
                 <label>Qwen3 地址</label>
                 <input value={qwenUrl} onChange={(e) => saveQwenUrl(e.target.value)} />
-              </div>
-            ) : (
-              <div className="field">
-                <label>本地服务地址</label>
-                <input value={localUrl} onChange={(e) => saveLocalUrl(e.target.value)} />
               </div>
             )}
             <div className="field">
@@ -901,7 +820,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                         {previewRole === cv.name ? "停止" : "试听"}
                       </button>
                     </>
-                  ) : source === "qwen" ? (
+                  ) : (
                     <div className="cv-qwen-pick">
                       <input
                         value={cv.voiceDesc || ""}
@@ -920,21 +839,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                       {cv.cloneAudioB64 && (
                         <span className="cv-tag">✓ 固定音色</span>
                       )}
-                    </div>
-                  ) : (
-                    <div className="cv-local-pick">
-                      {cv.voiceMode === "clone" ? (
-                        <span className="cv-clone-tag">🎙️ 专属音色{cv.voiceBase ? "（" + cv.voiceBase + "）" : ""}</span>
-                      ) : (
-                        <select value={cv.voiceBase || ""} onChange={(e) => setCharVoices((cs) => cs.map((c) => (c.name === cv.name ? { ...c, voiceBase: e.target.value } : c)))}>
-                          {Object.keys(cats).map((cat) => (
-                            <optgroup key={cat} label={cat}>
-                              {cats[cat].map((v) => <option key={v} value={v}>{v}（{baseVoices[v].source_name}）</option>)}
-                            </optgroup>
-                          ))}
-                        </select>
-                      )}
-                      <button className="cv-upload" onClick={() => uploadClone(cv)}>上传专属音色</button>
                     </div>
                   )}
                 </div>
