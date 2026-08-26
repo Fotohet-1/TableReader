@@ -10,6 +10,7 @@ import { edgeSynthOne, type BaseVoiceInfo } from "../lib/tts";
 
 const PREVIEW_TEXT = "夜色渐深，街角的咖啡店还亮着灯。";
 const AGES = ["少年", "青年", "中年", "老年"];
+const LS_LOCKED = "sr_voice_lib_locked";
 
 export default function VoiceLibrary({
   edgeUrl,
@@ -34,6 +35,8 @@ export default function VoiceLibrary({
   const [playingKey, setPlayingKey] = useState("");
   const [previewErr, setPreviewErr] = useState("");
   const [importMsg, setImportMsg] = useState("");
+  const [locked, setLocked] = useState(() => localStorage.getItem(LS_LOCKED) === "1");
+  const [savedFlash, setSavedFlash] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +172,20 @@ export default function VoiceLibrary({
     URL.revokeObjectURL(url);
   };
 
+  const saveNow = () => {
+    saveVoiceTags(tags);
+    setSavedFlash(true);
+    window.setTimeout(() => setSavedFlash(false), 1600);
+  };
+
+  const toggleLock = () => {
+    setLocked((v) => {
+      const next = !v;
+      localStorage.setItem(LS_LOCKED, next ? "1" : "0");
+      return next;
+    });
+  };
+
   const importJson = async (f: File) => {
     try {
       const text = await f.text();
@@ -212,35 +229,38 @@ export default function VoiceLibrary({
           </div>
           <div className="lib-batch">
             <span>批量</span>
-            <select value={batchGender} onChange={(e) => setBatchGender(e.target.value)}>
+            <select disabled={locked} value={batchGender} onChange={(e) => setBatchGender(e.target.value)}>
               <option value="">性别不变</option>
               <option value="男">男</option>
               <option value="女">女</option>
             </select>
-            <select value={batchAge} onChange={(e) => setBatchAge(e.target.value)}>
+            <select disabled={locked} value={batchAge} onChange={(e) => setBatchAge(e.target.value)}>
               <option value="">年龄不变</option>
               {AGES.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
-            <input value={batchDialect} onChange={(e) => setBatchDialect(e.target.value)} placeholder="方言（留空清除）" />
-            <select value={batchSpecial} onChange={(e) => setBatchSpecial(e.target.value)}>
+            <input disabled={locked} value={batchDialect} onChange={(e) => setBatchDialect(e.target.value)} placeholder="方言（留空清除）" />
+            <select disabled={locked} value={batchSpecial} onChange={(e) => setBatchSpecial(e.target.value)}>
               <option value="">特殊不变</option>
               <option value="normal">通用</option>
               <option value="special">特殊</option>
             </select>
-            <select value={batchEnabled} onChange={(e) => setBatchEnabled(e.target.value)}>
+            <select disabled={locked} value={batchEnabled} onChange={(e) => setBatchEnabled(e.target.value)}>
               <option value="">启用不变</option>
               <option value="on">启用</option>
               <option value="off">停用</option>
             </select>
-            <button onClick={applyBatch} disabled={!selected.size}>应用到选中 {selected.size ? "(" + selected.size + ")" : ""}</button>
+            <button onClick={applyBatch} disabled={locked || !selected.size}>应用到选中 {selected.size ? "(" + selected.size + ")" : ""}</button>
           </div>
           <div className="lib-actions">
-            <button onClick={() => setSelected(new Set())}>取消选择</button>
+            <button disabled={locked} onClick={() => setSelected(new Set())}>取消选择</button>
+            <button className="primary" onClick={saveNow}>{savedFlash ? "已保存" : "保存"}</button>
+            <button onClick={toggleLock}>{locked ? "解锁" : "锁定"}</button>
             <button onClick={exportJson}>导出 JSON</button>
-            <button onClick={() => importRef.current?.click()}>导入 JSON</button>
+            <button disabled={locked} onClick={() => importRef.current?.click()}>导入 JSON</button>
             <input
               ref={importRef}
               type="file"
+              disabled={locked}
               accept="application/json,.json"
               style={{ display: "none" }}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = ""; }}
@@ -278,16 +298,17 @@ export default function VoiceLibrary({
               <div key={id} className={"lib-card" + (isSel ? " selected" : "")}>
                 <div className="lib-card-head">
                   <label className="lib-check">
-                    <input type="checkbox" checked={isSel} onChange={() => toggleSelect(id)} />
+                    <input type="checkbox" disabled={locked} checked={isSel} onChange={() => toggleSelect(id)} />
                   </label>
                   <input
                     className="lib-name-input lib-name-inline"
+                    disabled={locked}
                     value={baseTag.name}
                     onChange={(e) => updateAllName(id, e.target.value)}
                     placeholder="音色名"
                   />
-                  <button className="lib-copy" onClick={() => copyBaseToVariants(id)}>复制原声到整组</button>
-                  <button className="lib-copy" onClick={() => enableOnlyOriginal(id)}>只开原声</button>
+                  <button className="lib-copy" disabled={locked} onClick={() => copyBaseToVariants(id)}>复制原声到整组</button>
+                  <button className="lib-copy" disabled={locked} onClick={() => enableOnlyOriginal(id)}>只开原声</button>
                 </div>
                 {PITCHES.map((p) => {
                   const key = id + p.suffix;
@@ -301,18 +322,19 @@ export default function VoiceLibrary({
                         >
                           {p.label}
                         </button>
-                        <select value={tag.gender} onChange={(e) => updateTag(key, { gender: e.target.value })}>
+                        <select disabled={locked} value={tag.gender} onChange={(e) => updateTag(key, { gender: e.target.value })}>
                           <option value="">性别</option>
                           <option value="男">男</option>
                           <option value="女">女</option>
                         </select>
-                        <select value={tag.age} onChange={(e) => updateTag(key, { age: e.target.value })}>
+                        <select disabled={locked} value={tag.age} onChange={(e) => updateTag(key, { age: e.target.value })}>
                           <option value="">年龄</option>
                           {AGES.map((a) => <option key={a} value={a}>{a}</option>)}
                         </select>
                       </div>
                       <div className="lib-row-sub">
                         <input
+                          disabled={locked}
                           value={tag.dialect}
                           onChange={(e) => updateTag(key, { dialect: e.target.value })}
                           placeholder="方言"
@@ -320,6 +342,7 @@ export default function VoiceLibrary({
                         <label className="lib-special" title="特殊音色">
                           <input
                             type="checkbox"
+                            disabled={locked}
                             checked={!!tag.special}
                             onChange={(e) => updateTag(key, { special: e.target.checked })}
                           />
@@ -328,6 +351,7 @@ export default function VoiceLibrary({
                         <label className={"lib-enabled" + (tag.enabled ? " on" : "")} title="进入分配池">
                           <input
                             type="checkbox"
+                            disabled={locked}
                             checked={!!tag.enabled}
                             onChange={(e) => updateTag(key, { enabled: e.target.checked })}
                           />

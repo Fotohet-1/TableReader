@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CharacterVoice, Project, Session, Unit, UnitAudio } from "../lib/types";
-import { parseScript, collectCharacters } from "../lib/parser";
+import { parseScript, collectCharacters, episodeFromName } from "../lib/parser";
 import { groupRoles } from "../lib/roles";
 import { guessGender, defaultEdgeVoiceFor, defaultBaseVoiceFor } from "../lib/voices";
 import { analyzeRolesWithLLM } from "../lib/llm";
@@ -70,8 +70,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const restored = lastSession && lastSession.source === source;
   const [tab, setTab] = useState<"file" | "paste">("file");
   const [fileInfo, setFileInfo] = useState("");
-  const [dragOver, setDragOver] = useState(false);
   const [text, setText] = useState(() => (lastSession && lastSession.source === source ? lastSession.text : ""));
+  const [segments, setSegments] = useState<Array<{ episode: number; text: string }> | null>(null);
   const [units, setUnits] = useState<Unit[] | null>(() => (lastSession && lastSession.source === source ? lastSession.units : null));
   const [charVoices, setCharVoices] = useState<CharacterVoice[]>(() => (lastSession && lastSession.source === source ? lastSession.charVoices : []));
   const [phase, setPhase] = useState<"upload" | "gender" | "voices">("upload");
@@ -137,9 +137,20 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       setErr("未找到支持的剧本文件（.docx / .txt / .md）");
       return;
     }
-    const ordered = [...list].sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+    const candidates = list.map((f) => ({ file: f, ep: episodeFromName(f.name) }));
+    candidates.sort(
+      (a, b) => (a.ep ?? Number.MAX_SAFE_INTEGER) - (b.ep ?? Number.MAX_SAFE_INTEGER)
+        || a.file.name.localeCompare(b.file.name, "zh-Hans-CN")
+    );
+    let lastEp = 0;
+    const ordered = candidates.map((c) => {
+      const episode = c.ep ?? lastEp + 1;
+      lastEp = episode;
+      return { file: c.file, episode };
+    });
     const parts: string[] = [];
-    for (const f of ordered) {
+    const segs: Array<{ episode: number; text: string }> = [];
+    for (const { file: f, episode } of ordered) {
       try {
         if (f.name.toLowerCase().endsWith(".docx")) {
           const buf = await f.arrayBuffer();
@@ -147,8 +158,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           const v = (result.value || "").trim();
           if (!v) throw new Error(f.name + " 未提取到文本");
           parts.push(v);
+          segs.push({ episode, text: v });
         } else if (f.name.toLowerCase().endsWith(".txt") || f.name.toLowerCase().endsWith(".md")) {
-          parts.push((await f.text()).trim());
+          const v = (await f.text()).trim();
+          parts.push(v);
+          segs.push({ episode, text: v });
         }
       } catch (e) {
         setErr(f.name + " 读取失败: " + (e instanceof Error ? e.message : String(e)));
@@ -161,6 +175,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       return;
     }
     setText(v);
+    setSegments(segs);
     setFileInfo(ordered.length + " 个文件 · 共 " + v.length + " 字");
   };
 
@@ -256,7 +271,17 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     if (!text.trim()) { setErr("请先上传或粘贴剧本"); return; }
     setErr("");
     setAiState("running");
-    const us = parseScript(text);
+    let us: Unit[];
+    if (segments && segments.length) {
+      let idStart = 0;
+      us = [];
+      for (const seg of segments) {
+        us = us.concat(parseScript(seg.text, { episode: seg.episode, idStart }));
+        idStart = us.length;
+      }
+    } else {
+      us = parseScript(text);
+    }
     const rawNames = collectCharacters(us);
     const groups = groupRoles(rawNames);
     let profiles: Profile[] = groups.map((g) => ({
@@ -465,15 +490,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           </div>
           {tab === "file" ? (
             <>
-              <div
-                className={"upload-zone" + (dragOver ? " drag" : "")}
-                onClick={() => fileRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files); }}
-              >
+              <div className="upload-zone" onClick={() => fileRef.current?.click()}>
                 <div className="uz-icon">📄</div>
-                <div className="uz-main">选择或拖入剧本</div>
+                <div className="uz-main">点击选择剧本文件</div>
                 <div className="uz-sub">支持单个大文件，或整个剧本文件夹（.docx / .txt）</div>
               </div>
               <input
@@ -500,13 +519,13 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           ) : (
             <textarea
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => { setText(e.target.value); setSegments(null); }}
               rows={16}
               placeholder="在此粘贴剧本原文…"
             />
           )}
           <div className="row">
-            {tab === "paste" && <button onClick={() => setText(SAMPLE)}>填入示例</button>}
+            {tab === "paste" && <button onClick={() => { setText(SAMPLE); setSegments(null); }}>填入示例</button>}
             <button onClick={analyze} className="primary" disabled={aiState === "running"}>
               {aiState === "running" ? "解析中…" : "解析剧本"}
             </button>

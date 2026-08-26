@@ -1,6 +1,7 @@
 export interface Unit {
   id: number;
   sceneNo?: string;
+  episode?: number;
   type: "scene" | "action" | "dialogue" | "narration";
   character: string;
   text: string;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Project, Unit, UnitAudio } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
+import { toChineseNumber } from "../lib/parser";
 
 const PALETTE = ["#d1495b", "#3d5a80", "#2a9d8f", "#e07a3f", "#9b5de5", "#f15bb5", "#00bbf9", "#7c3f58"];
 const DIALOGUE_RE = /^([\u4e00-\u9fa5A-Za-z0-9·．. ]{1,12})[:：](.*)$/;
@@ -165,9 +166,12 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     const original = project.scriptText.slice(u.start, u.end);
     const color = u.type === "dialogue" ? colorFor(u.character) : "#8a8578";
     if (u.type === "scene") {
+      const m = (u.sceneNo || "").match(/\d+/);
+      const sceneLabel = (u.episode ? "第" + toChineseNumber(u.episode) + "集 · " : "")
+        + (m ? "第" + toChineseNumber(parseInt(m[0], 10)) + "场" : u.sceneNo);
       return (
         <div key={u.id} ref={setLineRef(u.id)} className={"unit unit-scene" + (isActive ? " active" : "")}>
-          {u.sceneNo && <span className="scene-no">{u.sceneNo}</span>}
+          {sceneLabel && <span className="scene-no">{sceneLabel}</span>}
           {original}
         </div>
       );
