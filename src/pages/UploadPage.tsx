@@ -611,7 +611,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       </header>
       )}
 
-      <div className={"work-grid" + (phase !== "upload" ? "" : " solo")}>
+      <div className="work-grid solo">
         <section className="card">
           <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
             <div className="uz-icon">📄</div>
@@ -652,7 +652,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         </section>
 
         {phase !== "upload" && (
-        <aside className="side">
+        <>
           {phase === "gender" && units && (
             <section className="card">
               <h2>确认角色性别 · {profiles.length} 人</h2>
@@ -852,7 +852,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               {previewErr && <div className="err">{previewErr}</div>}
             </section>
           )}
-        </aside>
+        </>
         )}
       </div>
 
