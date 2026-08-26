@@ -24,9 +24,15 @@ input, textarea, select { font: inherit; }
 .app { min-height: 100vh; }
 
 /* ---------- 首页 ---------- */
+@font-face {
+  font-family: "TsangerJinKai02";
+  src: url("https://cdn.jsdelivr.net/gh/AlfredoSequeworthy/TsangerJinKai02@main/TsangerJinKai02-W04.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
 .home {
   height: 100vh;
-  background: radial-gradient(ellipse 70% 55% at 50% -8%, #23304d 0%, #121722 68%);
+  background: #f5f4ed;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -34,24 +40,37 @@ input, textarea, select { font: inherit; }
   cursor: pointer;
   overflow: hidden;
 }
+.home::before {
+  content: "";
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 1px;
+  background: #1b365d;
+  opacity: .35;
+}
 .home-inner { text-align: center; z-index: 2; animation: homeFade .8s ease; }
 .home-eyebrow {
   display: inline-block;
-  font-size: 12px;
-  color: #8fa0bd;
-  border: 1px solid rgba(143,160,189,.35);
+  font-size: 11px;
+  color: #6b6a64;
+  border: 1px solid #d8d5c8;
   border-radius: 999px;
-  padding: 5px 14px;
+  padding: 5px 15px;
+  font-family: "PingFang SC", system-ui, -apple-system, sans-serif;
 }
 .home-title {
   margin-top: 26px;
-  font-size: 52px;
-  color: #f2f5fa;
+  font-size: 58px;
+  color: #1b365d;
   font-weight: 700;
+  font-family: "TsangerJinKai02", "Songti SC", "STSong", "SimSun", Georgia, serif;
 }
 .home-desc {
   margin-top: 16px;
-  color: #a9b5c8;
+  color: #504e49;
   font-size: 15px;
 }
 .home-hint {
@@ -60,7 +79,7 @@ input, textarea, select { font: inherit; }
   left: 0;
   right: 0;
   text-align: center;
-  color: #68748a;
+  color: #6b6a64;
   font-size: 12px;
   z-index: 2;
   animation: homePulse 2.4s ease-in-out infinite;
