@@ -740,7 +740,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             <section className="card flow-card">
               <h2>声音设计 · {profiles.length} 人</h2>
               {descGen && <div className="prog warn">AI 正在生成声音描述… {descGen.done}/{descGen.total}</div>}
-              {seedGen && <div className="prog warn">正在生成固定音色… {seedGen.done}/{seedGen.total}</div>}
               {profiles.map((p) => {
                 const desc = descByRole[p.name] || defaultVoiceDescFor(p);
                 const demo = demoTextByRole[p.name] || firstLineFor(p.name);
@@ -781,7 +780,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 );
               })}
               <button className="primary big" disabled={!!seedGen} onClick={confirmDesign}>
-                {seedGen ? "生成固定音色中…" : "确认描述，进入角色与音色"}
+                {seedGen ? "生成固定音色中… " + seedGen.done + "/" + seedGen.total : "确认描述，进入角色与音色"}
               </button>
             </section>
           )}
