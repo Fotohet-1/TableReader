@@ -405,6 +405,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const confirmGender = () => {
     const confirmed = profiles.map((p) => ({ ...p, gender: genderSel[p.name] || p.gender }));
+    setProfiles(confirmed);
     if (source === "qwen") {
       const descs: Record<string, string> = {};
       const demos: Record<string, string> = {};
