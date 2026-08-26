@@ -92,6 +92,22 @@ export async function localSynthOne(baseUrl: string, text: string, voiceId: stri
   return { blob, durationMs: wavDurationMs(buf), subtitles: [] };
 }
 
+/** Qwen3-TTS VoiceDesign：按自然语言描述生成语音 */
+export async function qwenSynthOne(baseUrl: string, text: string, instruct: string): Promise<TTSResult> {
+  const resp = await fetch(baseUrl + "/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, instruct })
+  });
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => "");
+    throw new Error("Qwen3-TTS 失败 HTTP " + resp.status + " " + t.slice(0, 120));
+  }
+  const buf = await resp.arrayBuffer();
+  const blob = new Blob([buf], { type: "audio/wav" });
+  return { blob, durationMs: wavDurationMs(buf), subtitles: [] };
+}
+
 function wavDurationMs(buf: ArrayBuffer): number {
   try {
     const view = new DataView(buf);

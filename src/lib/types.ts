@@ -21,6 +21,7 @@ export interface CharacterVoice {
   voiceBase?: string;
   cloneAudioB64?: string;
   cloneRefText?: string;
+  voiceDesc?: string;
 }
 
 export interface Subtitle {
@@ -51,5 +52,5 @@ export interface Session {
   text: string;
   units: Unit[];
   charVoices: CharacterVoice[];
-  source: "edge" | "local";
+  source: "edge" | "local" | "qwen";
 }

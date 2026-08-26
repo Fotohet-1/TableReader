@@ -143,6 +143,38 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .cv-clone-tag { font-size: 12px; color: var(--accent); flex-shrink: 0; }
 .cv-listen { padding: 6px 10px; font-size: 12px; flex-shrink: 0; }
 .prog.warn { color: #9a5b13; background: #fdf3e3; padding: 8px 10px; border-radius: 6px; }
+.cv-qwen-pick { flex: 1; display: flex; gap: 8px; align-items: center; min-width: 0; }
+.cv-qwen-pick input { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-size: 13px; }
+
+/* ---------- 声音设计 ---------- */
+.design-row {
+  border-top: 1px solid var(--line);
+  padding: 10px 0;
+}
+.design-row:first-of-type { border-top: 0; }
+.design-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.design-desc {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.design-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.design-actions input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 12px;
+}
+.design-actions button { padding: 6px 10px; font-size: 12px; flex-shrink: 0; }
 
 .gender-pick { display: flex; gap: 6px; margin-left: auto; }
 .gender-pick button { padding: 5px 12px; font-size: 13px; }

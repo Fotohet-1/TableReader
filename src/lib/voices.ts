@@ -42,3 +42,16 @@ export function defaultBaseVoiceFor(
   const first = Object.keys(voices).find((k) => voices[k].category === cat);
   return first || "女中年1";
 }
+
+/** 无 DeepSeek Key 时的规则声音描述模板 */
+export function defaultVoiceDescFor(p: { name: string; gender?: string; age?: string }): string {
+  const g = p.gender === "男" ? "男声" : "女声";
+  const age = p.age && p.age !== "未知" ? p.age : "中年";
+  const tone =
+    age === "少年" ? "声音清亮明亮" :
+    age === "老年" ? "声音沉稳、略沙哑" :
+    age === "青年" ? "声音自然清晰" :
+    "声音沉稳克制";
+  const mood = p.name === "旁白" ? "语气冷静，带叙述感" : "语气自然生活化";
+  return `${age}${g}，${tone}，${mood}`;
+}

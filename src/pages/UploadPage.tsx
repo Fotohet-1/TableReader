@@ -3,8 +3,8 @@ import type { CharacterVoice, Project, Session, Unit, UnitAudio } from "../lib/t
 import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines } from "../lib/parser";
 import { extractSceneCandidates } from "../lib/docxMeta";
 import { groupRoles } from "../lib/roles";
-import { guessGender, defaultEdgeVoiceFor, defaultBaseVoiceFor } from "../lib/voices";
-import { analyzeRolesWithLLM } from "../lib/llm";
+import { guessGender, defaultEdgeVoiceFor, defaultBaseVoiceFor, defaultVoiceDescFor } from "../lib/voices";
+import { analyzeRolesWithLLM, describeRoleVoice } from "../lib/llm";
 import { synthesizeStream, type Progress, type SynthSummary } from "../lib/synth";
 import {
   checkHealth,
@@ -12,6 +12,7 @@ import {
   fetchBaseVoices,
   fetchEdgeVoices,
   localSynthOne,
+  qwenSynthOne,
   registerRoles,
   type BaseVoiceInfo,
   type RoleVoiceCfg
@@ -27,6 +28,7 @@ import {
 
 const LS_EDGE_URL = "sr_edge_url";
 const LS_LOCAL_URL = "sr_local_url";
+const LS_QWEN_URL = "sr_qwen_url";
 const LS_SOURCE = "sr_tts_source";
 const LS_DS_KEY = "sr_ds_key";
 const LS_AI = "sr_ai_roles";
@@ -39,7 +41,7 @@ const SAMPLE = `1. 咖啡店 日 内
 （老板转身去冲咖啡）
 旁白：她不知道，这个决定会改变一切。`;
 
-type Source = "edge" | "local";
+type Source = "edge" | "local" | "qwen";
 type Gender = "男" | "女" | "未知";
 
 interface Profile {
@@ -61,10 +63,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 }) {
   const [source, setSourceState] = useState<Source>(() => {
     const v = localStorage.getItem(LS_SOURCE);
-    return v === "local" ? "local" : "edge";
+    return v === "local" ? "local" : v === "qwen" ? "qwen" : "edge";
   });
   const [edgeUrl, setEdgeUrlState] = useState(() => localStorage.getItem(LS_EDGE_URL) || "http://127.0.0.1:9882");
   const [localUrl, setLocalUrlState] = useState(() => localStorage.getItem(LS_LOCAL_URL) || "http://127.0.0.1:9880");
+  const [qwenUrl, setQwenUrlState] = useState(() => localStorage.getItem(LS_QWEN_URL) || "http://127.0.0.1:9883");
   const [dsKey, setDsKey] = useState(() => localStorage.getItem(LS_DS_KEY) || "");
   const [aiEnabled, setAiEnabled] = useState(() => localStorage.getItem(LS_AI) !== "0");
 
@@ -75,13 +78,16 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [segments, setSegments] = useState<Array<{ episode: number; text: string }> | null>(null);
   const [units, setUnits] = useState<Unit[] | null>(() => (lastSession && lastSession.source === source ? lastSession.units : null));
   const [charVoices, setCharVoices] = useState<CharacterVoice[]>(() => (lastSession && lastSession.source === source ? lastSession.charVoices : []));
-  const [phase, setPhase] = useState<"upload" | "scenes" | "gender" | "voices">("upload");
+  const [phase, setPhase] = useState<"upload" | "scenes" | "gender" | "design" | "voices">("upload");
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [likelyLines, setLikelyLines] = useState<string[]>([]);
   const [structureCandidates, setStructureCandidates] = useState<string[]>([]);
   const [forcedLines, setForcedLines] = useState<Set<string>>(new Set());
   const [ignoredLines, setIgnoredLines] = useState<Set<string>>(new Set());
   const [roleBase, setRoleBase] = useState<{ profiles: Profile[]; mapping: Record<string, string> } | null>(null);
+  const [descByRole, setDescByRole] = useState<Record<string, string>>({});
+  const [descBusy, setDescBusy] = useState<Set<string>>(new Set());
+  const [demoTextByRole, setDemoTextByRole] = useState<Record<string, string>>({});
   const [genderSel, setGenderSel] = useState<Record<string, Gender>>({});
   const [baseVoices, setBaseVoices] = useState<Record<string, BaseVoiceInfo>>({});
   const [edgeVoices, setEdgeVoices] = useState<Record<string, BaseVoiceInfo>>({});
@@ -122,6 +128,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     localStorage.setItem(LS_LOCAL_URL, v);
   };
 
+  const saveQwenUrl = (v: string) => {
+    setQwenUrlState(v);
+    localStorage.setItem(LS_QWEN_URL, v);
+  };
+
   const switchSource = (s: Source) => {
     localStorage.setItem(LS_SOURCE, s);
     setSourceState(s);
@@ -131,6 +142,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setGenderSel({});
     setPhase("upload");
     setStructureCandidates([]);
+    setDescByRole({});
+    setDescBusy(new Set());
+    setDemoTextByRole({});
     setSummary(null);
     setCanEnter(false);
     setErr("");
@@ -382,7 +396,84 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const confirmGender = () => {
     const confirmed = profiles.map((p) => ({ ...p, gender: genderSel[p.name] || p.gender }));
+    if (source === "qwen") {
+      const descs: Record<string, string> = {};
+      const demos: Record<string, string> = {};
+      for (const p of confirmed) {
+        descs[p.name] = defaultVoiceDescFor(p);
+        demos[p.name] = firstLineFor(p.name);
+      }
+      setDescByRole(descs);
+      setDemoTextByRole(demos);
+      setPhase("design");
+      return;
+    }
     const ncv = assignVoicesFor(confirmed);
+    setCharVoices(ncv);
+    if (units) onAnalyzed({ text, units, charVoices: ncv, source });
+    setPhase("voices");
+  };
+
+  const firstLineFor = (name: string): string => {
+    const u = units?.find((x) => x.type === "dialogue" && x.character === name);
+    return u ? u.text : "夜色渐深，街角的咖啡店还亮着灯。";
+  };
+
+  const generateDesc = async (p: Profile) => {
+    const fallback = defaultVoiceDescFor(p);
+    if (!dsKey.trim()) {
+      setDescByRole((prev) => ({ ...prev, [p.name]: fallback }));
+      return;
+    }
+    setDescBusy((prev) => new Set(prev).add(p.name));
+    setErr("");
+    try {
+      const samples = (units || [])
+        .filter((u) => u.type === "dialogue" && u.character === p.name)
+        .slice(0, 3)
+        .map((u) => u.text);
+      const desc = await describeRoleVoice(dsKey.trim(), p, samples);
+      setDescByRole((prev) => ({ ...prev, [p.name]: desc }));
+    } catch {
+      setErr("描述生成失败，已使用规则描述");
+      setDescByRole((prev) => ({ ...prev, [p.name]: fallback }));
+    } finally {
+      setDescBusy((prev) => {
+        const next = new Set(prev);
+        next.delete(p.name);
+        return next;
+      });
+    }
+  };
+
+  const previewDesignVoice = async (name: string, desc: string, text?: string) => {
+    const audio = previewAudioRef.current;
+    if (!audio) return;
+    if (previewRole === name) {
+      audio.pause();
+      setPreviewRole("");
+      return;
+    }
+    setPreviewErr("");
+    try {
+      const r = await qwenSynthOne(qwenUrl, text || firstLineFor(name), desc || defaultVoiceDescFor({ name }));
+      audio.src = URL.createObjectURL(r.blob);
+      setPreviewRole(name);
+      audio.play().catch(() => {});
+    } catch (e) {
+      setPreviewErr("试听失败: " + String(e));
+    }
+  };
+
+  const confirmDesign = () => {
+    const ncv: CharacterVoice[] = profiles.map((p) => ({
+      name: p.name,
+      voiceId: p.name,
+      gender: p.gender,
+      age: p.age,
+      lines: p.lines,
+      voiceDesc: descByRole[p.name] || defaultVoiceDescFor(p)
+    }));
     setCharVoices(ncv);
     if (units) onAnalyzed({ text, units, charVoices: ncv, source });
     setPhase("voices");
@@ -425,7 +516,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     const defaults: CharacterVoice[] = missing.map((n) => (
       source === "edge"
         ? { name: n, voiceId: "" }
-        : { name: n, voiceId: n, voiceMode: "base", voiceBase: defaultBaseVoiceFor({ name: n }, baseVoices) }
+        : source === "qwen"
+          ? { name: n, voiceId: n, voiceDesc: defaultVoiceDescFor({ name: n }) }
+          : { name: n, voiceId: n, voiceMode: "base", voiceBase: defaultBaseVoiceFor({ name: n }, baseVoices) }
     ));
     const fullVoices = [...charVoices, ...defaults];
     if (source === "edge") {
@@ -456,6 +549,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         return;
       }
     }
+    const descMap: Record<string, string> = {};
+    for (const cv of fullVoices) {
+      if (cv.voiceDesc) descMap[cv.name] = cv.voiceDesc;
+    }
 
     const stream = synthesizeStream(project, {
       firstBatchSize: 25,
@@ -468,7 +565,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         }
       },
       synthFn: (t, v, idx) => (
-        source === "local"
+        source === "qwen"
+          ? qwenSynthOne(qwenUrl, t, descMap[v] || "")
+          : source === "local"
           ? localSynthOne(localUrls[(idx || 0) % localUrls.length], t, v)
           : edgeSynthOne(edgeUrl, t, v)
       )
@@ -519,6 +618,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
         <div className="src-switch">
           <button className={source === "edge" ? "on" : ""} onClick={() => switchSource("edge")}>edge-tts</button>
           <button className={source === "local" ? "on" : ""} onClick={() => switchSource("local")}>本地 CosyVoice</button>
+          <button className={source === "qwen" ? "on" : ""} onClick={() => switchSource("qwen")}>Qwen3 1.7B</button>
         </div>
         <span className="top-status">{source === "edge" ? edgeUrl : localUrl}</span>
         <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>
@@ -574,6 +674,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 <label>edge-tts 地址</label>
                 <input value={edgeUrl} onChange={(e) => saveEdgeUrl(e.target.value)} />
               </div>
+            ) : source === "qwen" ? (
+              <div className="field">
+                <label>Qwen3 地址</label>
+                <input value={qwenUrl} onChange={(e) => saveQwenUrl(e.target.value)} />
+              </div>
             ) : (
               <div className="field">
                 <label>本地服务地址</label>
@@ -610,6 +715,47 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 </div>
               ))}
               <button onClick={confirmGender} className="primary big">确认并分配音色</button>
+            </section>
+          )}
+
+          {phase === "design" && units && (
+            <section className="card">
+              <h2>声音设计 · {profiles.length} 人</h2>
+              {profiles.map((p) => {
+                const desc = descByRole[p.name] || defaultVoiceDescFor(p);
+                const demo = demoTextByRole[p.name] || firstLineFor(p.name);
+                return (
+                  <div className="design-row" key={p.name}>
+                    <div className="design-head">
+                      <span className="cv-name">{p.name}</span>
+                      {p.gender && (
+                        <span className="cv-tag">
+                          {p.gender}{p.age ? " · " + p.age : ""}{p.lines ? " · " + p.lines + " 句" : ""}
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      className="design-desc"
+                      rows={2}
+                      value={desc}
+                      onChange={(e) => setDescByRole((prev) => ({ ...prev, [p.name]: e.target.value }))}
+                    />
+                    <div className="design-actions">
+                      <input
+                        value={demo}
+                        onChange={(e) => setDemoTextByRole((prev) => ({ ...prev, [p.name]: e.target.value }))}
+                      />
+                      <button disabled={descBusy.has(p.name)} onClick={() => generateDesc(p)}>
+                        {descBusy.has(p.name) ? "生成中…" : "AI 生成描述"}
+                      </button>
+                      <button onClick={() => previewDesignVoice(p.name, desc, demo)}>
+                        {previewRole === p.name ? "停止" : "生成试听"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              <button className="primary big" onClick={confirmDesign}>确认描述，进入角色与音色</button>
             </section>
           )}
 
@@ -711,6 +857,21 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                         {previewRole === cv.name ? "停止" : "试听"}
                       </button>
                     </>
+                  ) : source === "qwen" ? (
+                    <div className="cv-qwen-pick">
+                      <input
+                        value={cv.voiceDesc || ""}
+                        placeholder="声音描述"
+                        onChange={(e) => setCharVoices((cs) => cs.map((c) => (c.name === cv.name ? { ...c, voiceDesc: e.target.value } : c)))}
+                      />
+                      <button
+                        className="cv-listen"
+                        disabled={!cv.voiceDesc}
+                        onClick={() => previewDesignVoice(cv.name, cv.voiceDesc || "", demoTextByRole[cv.name] || firstLineFor(cv.name))}
+                      >
+                        {previewRole === cv.name ? "停止" : "试听"}
+                      </button>
+                    </div>
                   ) : (
                     <div className="cv-local-pick">
                       {cv.voiceMode === "clone" ? (
