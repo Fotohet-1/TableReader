@@ -28,6 +28,7 @@ export default function VoiceLibrary({
   const [batchAge, setBatchAge] = useState("");
   const [batchDialect, setBatchDialect] = useState("");
   const [batchSpecial, setBatchSpecial] = useState("");
+  const [batchEnabled, setBatchEnabled] = useState("");
   const [filter, setFilter] = useState({ gender: "", age: "", dialect: "", special: "" });
   const [previewText, setPreviewText] = useState(PREVIEW_TEXT);
   const [playingKey, setPlayingKey] = useState("");
@@ -44,7 +45,7 @@ export default function VoiceLibrary({
     setTags((prev) => {
       const next = {
         ...prev,
-        [id]: { ...(prev[id] || { gender: "", age: "", name: "", dialect: "", special: false }), ...patch }
+        [id]: { ...(prev[id] || { gender: "", age: "", name: "", dialect: "", special: false, enabled: true }), ...patch }
       };
       saveVoiceTags(next);
       onTagsChange(next);
@@ -57,7 +58,7 @@ export default function VoiceLibrary({
       const next = { ...prev };
       for (const p of PITCHES) {
         const k = baseId + p.suffix;
-        next[k] = { ...(next[k] || { gender: "", age: "", name: "", dialect: "", special: false }), name };
+        next[k] = { ...(next[k] || { gender: "", age: "", name: "", dialect: "", special: false, enabled: true }), name };
       }
       saveVoiceTags(next);
       onTagsChange(next);
@@ -67,11 +68,24 @@ export default function VoiceLibrary({
 
   const copyBaseToVariants = (baseId: string) => {
     setTags((prev) => {
-      const base = prev[baseId] || { gender: "", age: "", name: "", dialect: "", special: false };
+      const base = prev[baseId] || { gender: "", age: "", name: "", dialect: "", special: false, enabled: true };
       const next = { ...prev };
       for (const p of PITCHES) {
         const k = baseId + p.suffix;
-        next[k] = { ...(next[k] || { gender: "", age: "", name: "", dialect: "", special: false }), ...base };
+        next[k] = { ...(next[k] || { gender: "", age: "", name: "", dialect: "", special: false, enabled: true }), ...base };
+      }
+      saveVoiceTags(next);
+      onTagsChange(next);
+      return next;
+    });
+  };
+
+  const enableOnlyOriginal = (baseId: string) => {
+    setTags((prev) => {
+      const next = { ...prev };
+      for (const p of PITCHES) {
+        const k = baseId + p.suffix;
+        next[k] = { ...(next[k] || { gender: "", age: "", name: "", dialect: "", special: false, enabled: true }), enabled: p.suffix === "" };
       }
       saveVoiceTags(next);
       onTagsChange(next);
@@ -94,13 +108,14 @@ export default function VoiceLibrary({
       for (const id of selected) {
         for (const p of PITCHES) {
           const k = id + p.suffix;
-          const cur = next[k] || { gender: "", age: "", name: "", dialect: "", special: false };
+          const cur = next[k] || { gender: "", age: "", name: "", dialect: "", special: false, enabled: true };
           next[k] = {
             ...cur,
             gender: batchGender || cur.gender,
             age: batchAge || cur.age,
             dialect: batchDialect,
-            special: batchSpecial === "special" ? true : batchSpecial === "normal" ? false : cur.special
+            special: batchSpecial === "special" ? true : batchSpecial === "normal" ? false : cur.special,
+            enabled: batchEnabled === "on" ? true : batchEnabled === "off" ? false : cur.enabled
           };
         }
       }
@@ -113,6 +128,7 @@ export default function VoiceLibrary({
     setBatchAge("");
     setBatchDialect("");
     setBatchSpecial("");
+    setBatchEnabled("");
   };
 
   const preview = async (baseId: string, suffix: string) => {
@@ -211,6 +227,11 @@ export default function VoiceLibrary({
               <option value="normal">通用</option>
               <option value="special">特殊</option>
             </select>
+            <select value={batchEnabled} onChange={(e) => setBatchEnabled(e.target.value)}>
+              <option value="">启用不变</option>
+              <option value="on">启用</option>
+              <option value="off">停用</option>
+            </select>
             <button onClick={applyBatch} disabled={!selected.size}>应用到选中 {selected.size ? "(" + selected.size + ")" : ""}</button>
           </div>
           <div className="lib-actions">
@@ -266,10 +287,11 @@ export default function VoiceLibrary({
                     placeholder="音色名"
                   />
                   <button className="lib-copy" onClick={() => copyBaseToVariants(id)}>复制原声到整组</button>
+                  <button className="lib-copy" onClick={() => enableOnlyOriginal(id)}>只开原声</button>
                 </div>
                 {PITCHES.map((p) => {
                   const key = id + p.suffix;
-                  const tag = tags[key] || { gender: "", age: "", name: baseTag.name, dialect: "", special: false };
+                  const tag = tags[key] || { gender: "", age: "", name: baseTag.name, dialect: "", special: false, enabled: true };
                   return (
                     <div className="lib-row" key={key}>
                       <button
@@ -299,6 +321,14 @@ export default function VoiceLibrary({
                           onChange={(e) => updateTag(key, { special: e.target.checked })}
                         />
                         特殊
+                      </label>
+                      <label className={"lib-enabled" + (tag.enabled ? " on" : "")} title="进入分配池">
+                        <input
+                          type="checkbox"
+                          checked={!!tag.enabled}
+                          onChange={(e) => updateTag(key, { enabled: e.target.checked })}
+                        />
+                        启用
                       </label>
                     </div>
                   );

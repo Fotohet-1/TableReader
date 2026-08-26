@@ -89,7 +89,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [showLibrary, setShowLibrary] = useState(false);
   const [voiceTags, setVoiceTags] = useState<Record<string, VoiceTag>>(() => loadVoiceTags());
   const [voiceFilter, setVoiceFilter] = useState({ gender: "", age: "", dialect: "", special: "" });
+  const [previewRole, setPreviewRole] = useState("");
+  const [previewErr, setPreviewErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const t0Ref = useRef(0);
 
   useEffect(() => {
@@ -174,7 +177,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   };
 
   const pickEdgeVoice = (p: { name?: string; gender?: string; age?: string }, used: Set<string>): string => {
-    const keys = Object.keys(edgeVoices);
+    const keys = Object.keys(edgeVoices).filter((k) => voiceTags[k]?.enabled !== false);
     const gender = p.gender === "男" ? "男" : p.gender === "女" ? "女" : "";
     const age = p.age || "";
     const findUnused = (pred: (t?: VoiceTag) => boolean, special?: boolean): string | null => {
@@ -215,6 +218,26 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const changeVoice = (name: string, newVoiceId: string) => {
     setCharVoices((cs) => cs.map((c) => (c.name === name ? { ...c, voiceId: newVoiceId } : c)));
+  };
+
+  const previewRoleVoice = async (cv: CharacterVoice) => {
+    if (!cv.voiceId) return;
+    const audio = previewAudioRef.current;
+    if (!audio) return;
+    if (previewRole === cv.name) {
+      audio.pause();
+      setPreviewRole("");
+      return;
+    }
+    setPreviewErr("");
+    try {
+      const r = await edgeSynthOne(edgeUrl, "夜色渐深，街角的咖啡店还亮着灯。", cv.voiceId);
+      audio.src = URL.createObjectURL(r.blob);
+      setPreviewRole(cv.name);
+      audio.play().catch(() => {});
+    } catch (e) {
+      setPreviewErr("试听失败: " + String(e));
+    }
   };
 
   const analyze = async () => {
@@ -380,6 +403,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const visibleEdgeKeys = Object.keys(edgeVoices).filter((key) => {
     const tag = voiceTags[key];
     if (!tag) return true;
+    if (tag.enabled === false) return false;
     if (voiceFilter.gender && tag.gender !== voiceFilter.gender) return false;
     if (voiceFilter.age && tag.age !== voiceFilter.age) return false;
     if (voiceFilter.dialect === "none" && tag.dialect) return false;
@@ -393,6 +417,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   for (const cv of charVoices) {
     if (cv.voiceId) voiceCounts[cv.voiceId] = (voiceCounts[cv.voiceId] || 0) + 1;
   }
+  const enabledVoiceCount = Object.keys(edgeVoices).filter((k) => voiceTags[k]?.enabled !== false).length;
 
   return (
     <div className="work">
@@ -530,6 +555,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                   </select>
                 </div>
               )}
+              {source === "edge" && charVoices.length > enabledVoiceCount && (
+                <div className="prog warn">
+                  可用音色 {enabledVoiceCount} 个，角色 {charVoices.length} 个，部分角色会重复。可到音色库启用更多档位。
+                </div>
+              )}
               {charVoices.map((cv) => (
                 <div className={"cv-row" + (source === "edge" && !cv.voiceId ? " unassigned" : "")} key={cv.name}>
                   <div className="cv-left">
@@ -537,19 +567,33 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                     {cv.gender && <span className="cv-tag">{cv.gender}{cv.age ? " · " + cv.age : ""}</span>}
                   </div>
                   {source === "edge" ? (
-                    <select value={cv.voiceId} onChange={(e) => changeVoice(cv.name, e.target.value)}>
-                      <option value="">未分配</option>
-                      {Object.keys(edgeCats).length ? Object.entries(edgeCats).map(([cat, vids]) => (
-                        <optgroup key={cat} label={cat}>
-                          {vids.filter((vid) => visibleEdgeKeys.includes(vid)).map((vid) => (
-                            <option key={vid} value={vid}>
-                              {tagLabelFor(vid, edgeVoices[vid].source_name, voiceTags)}
-                              {voiceCounts[vid] ? "（" + voiceCounts[vid] + "）" : ""}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )) : <option value={cv.voiceId}>{cv.voiceId}</option>}
-                    </select>
+                    <>
+                      <select value={cv.voiceId} onChange={(e) => changeVoice(cv.name, e.target.value)}>
+                        <option value="">未分配</option>
+                        {cv.voiceId && !visibleEdgeKeys.includes(cv.voiceId) && (
+                          <option value={cv.voiceId}>
+                            {tagLabelFor(cv.voiceId, edgeVoices[cv.voiceId]?.source_name || cv.voiceId, voiceTags)}（已停用）
+                          </option>
+                        )}
+                        {Object.keys(edgeCats).length ? Object.entries(edgeCats).map(([cat, vids]) => (
+                          <optgroup key={cat} label={cat}>
+                            {vids.filter((vid) => visibleEdgeKeys.includes(vid)).map((vid) => (
+                              <option key={vid} value={vid}>
+                                {tagLabelFor(vid, edgeVoices[vid].source_name, voiceTags)}
+                                {voiceCounts[vid] ? "（" + voiceCounts[vid] + "）" : ""}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )) : <option value={cv.voiceId}>{cv.voiceId}</option>}
+                      </select>
+                      <button
+                        className="cv-listen"
+                        disabled={!cv.voiceId}
+                        onClick={() => previewRoleVoice(cv)}
+                      >
+                        {previewRole === cv.name ? "停止" : "试听"}
+                      </button>
+                    </>
                   ) : (
                     <div className="cv-local-pick">
                       {cv.voiceMode === "clone" ? (
@@ -590,6 +634,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 </div>
               )}
               {err && <div className="err">{err}</div>}
+              {previewErr && <div className="err">{previewErr}</div>}
             </section>
           )}
         </aside>
@@ -603,6 +648,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           onClose={() => setShowLibrary(false)}
         />
       )}
+      <audio ref={previewAudioRef} onEnded={() => setPreviewRole("")} />
     </div>
   );
 }
