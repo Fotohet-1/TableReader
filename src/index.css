@@ -720,9 +720,9 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .pb-rate {
   width: auto;
   padding: 6px;
-  background: var(--accent-light);
+  background: rgba(255,255,255,.08);
   color: var(--bar-text);
-  border: 0;
+  border: 1px solid rgba(255,255,255,.22);
   border-radius: 999px;
   flex-shrink: 0;
 }
