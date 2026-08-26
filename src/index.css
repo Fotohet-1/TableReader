@@ -252,7 +252,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .lib-copy { padding: 5px 8px; font-size: 11px; white-space: nowrap; }
 .lib-row {
   display: grid;
-  grid-template-columns: 58px 1fr 1fr 1.2fr;
+  grid-template-columns: 58px 1fr 1fr 1fr 46px;
   gap: 6px;
   align-items: center;
   margin-bottom: 6px;
@@ -272,6 +272,16 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   border-radius: 6px;
 }
 .lib-pitch.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.lib-special {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lib-special input { width: auto; }
 
 /* ---------- 分配音色筛选 ---------- */
 .voice-filters { display: flex; gap: 8px; margin-bottom: 10px; }

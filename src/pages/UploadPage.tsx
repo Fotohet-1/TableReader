@@ -88,7 +88,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [eta, setEta] = useState(0);
   const [showLibrary, setShowLibrary] = useState(false);
   const [voiceTags, setVoiceTags] = useState<Record<string, VoiceTag>>(() => loadVoiceTags());
-  const [voiceFilter, setVoiceFilter] = useState({ gender: "", age: "", dialect: "" });
+  const [voiceFilter, setVoiceFilter] = useState({ gender: "", age: "", dialect: "", special: "" });
   const fileRef = useRef<HTMLInputElement>(null);
   const t0Ref = useRef(0);
 
@@ -177,28 +177,44 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     const keys = Object.keys(edgeVoices);
     const gender = p.gender === "男" ? "男" : p.gender === "女" ? "女" : "";
     const age = p.age || "";
-    const find = (pred: (t?: VoiceTag) => boolean): string | null => {
+    const findUnused = (pred: (t?: VoiceTag) => boolean, special?: boolean): string | null => {
       for (const k of keys) {
-        if (!used.has(k) && pred(voiceTags[k])) return k;
+        if (used.has(k)) continue;
+        const tag = voiceTags[k];
+        if (special !== undefined && !!tag?.special !== special) continue;
+        if (pred(tag)) return k;
       }
       return null;
     };
-    let vid = find((t) => !!t && t.gender === gender && t.age === age);
-    if (!vid) vid = find((t) => !!t && t.gender === gender);
-    if (!vid) vid = find(() => true);
-    return vid || defaultEdgeVoiceFor({ name: p.name || "", gender: gender || "女", age });
+    const findAny = (pred: (t?: VoiceTag) => boolean): string | null => {
+      for (const k of keys) {
+        if (pred(voiceTags[k])) return k;
+      }
+      return null;
+    };
+    const exact = (t?: VoiceTag) => !!t && gender !== "" && t.gender === gender && t.age === age;
+    const byGender = (t?: VoiceTag) => !!t && gender !== "" && t.gender === gender;
+
+    let vid =
+      findUnused(exact, false) ||
+      findUnused(exact, true) ||
+      findUnused(byGender, false) ||
+      findUnused(byGender, true) ||
+      findUnused(() => true, false) ||
+      findUnused(() => true, true);
+    if (!vid) {
+      // 合适的未占用音色已经用完，允许重复，但优先挑最合适的
+      vid =
+        findAny(exact) ||
+        findAny(byGender) ||
+        findAny(() => true) ||
+        defaultEdgeVoiceFor({ name: p.name || "", gender: gender || "女", age });
+    }
+    return vid;
   };
 
   const changeVoice = (name: string, newVoiceId: string) => {
-    setCharVoices((cs) => {
-      const target = cs.find((c) => c.name === name);
-      if (!target || target.voiceId === newVoiceId) return cs;
-      return cs.map((c) => {
-        if (c.name === name) return { ...c, voiceId: newVoiceId };
-        if (newVoiceId && c.voiceId === newVoiceId) return { ...c, voiceId: "" };
-        return c;
-      });
-    });
+    setCharVoices((cs) => cs.map((c) => (c.name === name ? { ...c, voiceId: newVoiceId } : c)));
   };
 
   const analyze = async () => {
@@ -368,8 +384,15 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     if (voiceFilter.age && tag.age !== voiceFilter.age) return false;
     if (voiceFilter.dialect === "none" && tag.dialect) return false;
     if (voiceFilter.dialect === "has" && !tag.dialect) return false;
+    if (voiceFilter.special === "normal" && tag.special) return false;
+    if (voiceFilter.special === "special" && !tag.special) return false;
     return true;
   });
+
+  const voiceCounts: Record<string, number> = {};
+  for (const cv of charVoices) {
+    if (cv.voiceId) voiceCounts[cv.voiceId] = (voiceCounts[cv.voiceId] || 0) + 1;
+  }
 
   return (
     <div className="work">
@@ -500,6 +523,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                     <option value="none">无方言</option>
                     <option value="has">有方言</option>
                   </select>
+                  <select value={voiceFilter.special} onChange={(e) => setVoiceFilter((f) => ({ ...f, special: e.target.value }))}>
+                    <option value="">通用+特殊</option>
+                    <option value="normal">仅通用</option>
+                    <option value="special">仅特殊</option>
+                  </select>
                 </div>
               )}
               {charVoices.map((cv) => (
@@ -514,7 +542,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                       {Object.keys(edgeCats).length ? Object.entries(edgeCats).map(([cat, vids]) => (
                         <optgroup key={cat} label={cat}>
                           {vids.filter((vid) => visibleEdgeKeys.includes(vid)).map((vid) => (
-                            <option key={vid} value={vid}>{tagLabelFor(vid, edgeVoices[vid].source_name, voiceTags)}</option>
+                            <option key={vid} value={vid}>
+                              {tagLabelFor(vid, edgeVoices[vid].source_name, voiceTags)}
+                              {voiceCounts[vid] ? "（" + voiceCounts[vid] + "）" : ""}
+                            </option>
                           ))}
                         </optgroup>
                       )) : <option value={cv.voiceId}>{cv.voiceId}</option>}

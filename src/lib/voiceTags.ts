@@ -3,6 +3,7 @@ export interface VoiceTag {
   age: string;
   name: string;
   dialect: string;
+  special: boolean;
 }
 
 export const PITCHES: Array<{ suffix: string; label: string }> = [
@@ -26,7 +27,7 @@ function ageForPitch(suffix: string, baseAge: string): string {
 
 /** 预填的微软音色信息：14 个基础音色 × 5 档语调，每档都是独立音色标签 */
 export function defaultVoiceTags(): Record<string, VoiceTag> {
-  const t = (gender: string, age: string, name: string, dialect = "") => ({ gender, age, name, dialect });
+  const t = (gender: string, age: string, name: string, dialect = "") => ({ gender, age, name, dialect, special: false });
   const bases: Record<string, VoiceTag> = {
     "zh-CN-XiaoxiaoNeural": t("女", "青年", "晓晓"),
     "zh-CN-XiaoyiNeural": t("女", "青年", "晓伊"),
@@ -46,7 +47,9 @@ export function defaultVoiceTags(): Record<string, VoiceTag> {
   const out: Record<string, VoiceTag> = {};
   for (const [id, tag] of Object.entries(bases)) {
     for (const p of PITCHES) {
-      out[id + p.suffix] = { ...tag, age: ageForPitch(p.suffix, tag.age) };
+      const age = ageForPitch(p.suffix, tag.age);
+      const special = tag.dialect !== "" || age === "少年";
+      out[id + p.suffix] = { ...tag, age, special };
     }
   }
   return out;
