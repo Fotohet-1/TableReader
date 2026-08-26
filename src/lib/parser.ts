@@ -163,6 +163,14 @@ export function parseScript(
       continue;
     }
 
+    // △ 开头是动作/环境描写，即使行内有冒号也不作为台词
+    if (trimmed.startsWith("△")) {
+      const u = mk(id++, "action", "旁白", trimmed, tStart);
+      u.raw = trimmed;
+      units.push(u);
+      continue;
+    }
+
     const dm = trimmed.match(DIALOGUE_RE);
     if (dm) {
       const name = normalizeRoleName(dm[1].trim());
