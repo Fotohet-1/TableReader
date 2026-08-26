@@ -719,11 +719,18 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .pb-time { font-size: 12px; color: #c2c7d0; white-space: nowrap; }
 .pb-rate {
   width: auto;
-  padding: 6px 8px 6px 12px;
+  height: 32px;
+  padding: 0 26px 0 12px;
   background: rgba(255,255,255,.08);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%23faf9f5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
   color: var(--bar-text);
   border: 1px solid rgba(255,255,255,.22);
   border-radius: 999px;
+  appearance: none;
+  -webkit-appearance: none;
+  line-height: 30px;
   flex-shrink: 0;
 }
 .wait-banner {
