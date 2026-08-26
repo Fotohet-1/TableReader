@@ -51,6 +51,33 @@ export default function VoiceLibrary({
     });
   };
 
+  const updateAllName = (baseId: string, name: string) => {
+    setTags((prev) => {
+      const next = { ...prev };
+      for (const p of PITCHES) {
+        const k = baseId + p.suffix;
+        next[k] = { ...(next[k] || { gender: "", age: "", name: "", dialect: "" }), name };
+      }
+      saveVoiceTags(next);
+      onTagsChange(next);
+      return next;
+    });
+  };
+
+  const copyBaseToVariants = (baseId: string) => {
+    setTags((prev) => {
+      const base = prev[baseId] || { gender: "", age: "", name: "", dialect: "" };
+      const next = { ...prev };
+      for (const p of PITCHES) {
+        const k = baseId + p.suffix;
+        next[k] = { ...(next[k] || { gender: "", age: "", name: "", dialect: "" }), ...base };
+      }
+      saveVoiceTags(next);
+      onTagsChange(next);
+      return next;
+    });
+  };
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -64,13 +91,16 @@ export default function VoiceLibrary({
     setTags((prev) => {
       const next = { ...prev };
       for (const id of selected) {
-        const cur = next[id] || { gender: "", age: "", name: "", dialect: "" };
-        next[id] = {
-          ...cur,
-          gender: batchGender || cur.gender,
-          age: batchAge || cur.age,
-          dialect: batchDialect
-        };
+        for (const p of PITCHES) {
+          const k = id + p.suffix;
+          const cur = next[k] || { gender: "", age: "", name: "", dialect: "" };
+          next[k] = {
+            ...cur,
+            gender: batchGender || cur.gender,
+            age: batchAge || cur.age,
+            dialect: batchDialect
+          };
+        }
       }
       saveVoiceTags(next);
       onTagsChange(next);
@@ -135,13 +165,15 @@ export default function VoiceLibrary({
   };
 
   const filteredBaseIds = baseIds.filter((id) => {
-    const tag = tags[id];
-    if (!tag) return true;
-    if (filter.gender && tag.gender !== filter.gender) return false;
-    if (filter.age && tag.age !== filter.age) return false;
-    if (filter.dialect === "none" && tag.dialect) return false;
-    if (filter.dialect === "has" && !tag.dialect) return false;
-    return true;
+    return PITCHES.some((p) => {
+      const tag = tags[id + p.suffix];
+      if (!tag) return true;
+      if (filter.gender && tag.gender !== filter.gender) return false;
+      if (filter.age && tag.age !== filter.age) return false;
+      if (filter.dialect === "none" && tag.dialect) return false;
+      if (filter.dialect === "has" && !tag.dialect) return false;
+      return true;
+    });
   });
 
   return (
@@ -204,54 +236,50 @@ export default function VoiceLibrary({
 
         <div className="lib-grid">
           {filteredBaseIds.map((id) => {
-            const tag = tags[id] || { gender: "", age: "", name: id, dialect: "" };
+            const baseTag = tags[id] || { gender: "", age: "", name: id, dialect: "" };
             const isSel = selected.has(id);
             return (
               <div key={id} className={"lib-card" + (isSel ? " selected" : "")}>
                 <div className="lib-card-head">
                   <label className="lib-check">
                     <input type="checkbox" checked={isSel} onChange={() => toggleSelect(id)} />
-                    {tag.name || id}
                   </label>
-                  <span className="lib-id">{id.replace("Neural", "").replace("zh-CN-", "").replace("zh-HK-", "").replace("zh-TW-", "")}</span>
+                  <input
+                    className="lib-name-input lib-name-inline"
+                    value={baseTag.name}
+                    onChange={(e) => updateAllName(id, e.target.value)}
+                    placeholder="音色名"
+                  />
+                  <button className="lib-copy" onClick={() => copyBaseToVariants(id)}>复制原声到整组</button>
                 </div>
-                <div className="lib-fields">
-                  <select value={tag.gender} onChange={(e) => updateTag(id, { gender: e.target.value })}>
-                    <option value="">性别</option>
-                    <option value="男">男</option>
-                    <option value="女">女</option>
-                  </select>
-                  <select value={tag.age} onChange={(e) => updateTag(id, { age: e.target.value })}>
-                    <option value="">年龄</option>
-                    {AGES.map((a) => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-                <input
-                  className="lib-name-input"
-                  value={tag.name}
-                  onChange={(e) => updateTag(id, { name: e.target.value })}
-                  placeholder="音色名"
-                />
-                <input
-                  className="lib-dialect-input"
-                  value={tag.dialect}
-                  onChange={(e) => updateTag(id, { dialect: e.target.value })}
-                  placeholder="方言（无则不填）"
-                />
-                <div className="lib-pitches">
-                  {PITCHES.map((p) => {
-                    const key = id + p.suffix;
-                    return (
+                {PITCHES.map((p) => {
+                  const key = id + p.suffix;
+                  const tag = tags[key] || { gender: "", age: "", name: baseTag.name, dialect: "" };
+                  return (
+                    <div className="lib-row" key={key}>
                       <button
-                        key={key}
                         className={"lib-pitch" + (playingKey === key ? " on" : "")}
                         onClick={() => preview(id, p.suffix)}
                       >
                         {p.label}
                       </button>
-                    );
-                  })}
-                </div>
+                      <select value={tag.gender} onChange={(e) => updateTag(key, { gender: e.target.value })}>
+                        <option value="">性别</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                      </select>
+                      <select value={tag.age} onChange={(e) => updateTag(key, { age: e.target.value })}>
+                        <option value="">年龄</option>
+                        {AGES.map((a) => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                      <input
+                        value={tag.dialect}
+                        onChange={(e) => updateTag(key, { dialect: e.target.value })}
+                        placeholder="方言"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             );
           })}

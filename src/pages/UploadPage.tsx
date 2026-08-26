@@ -18,7 +18,6 @@ import {
 import mammoth from "mammoth/mammoth.browser.js";
 import VoiceLibrary from "../components/VoiceLibrary";
 import {
-  baseVoiceIdOf,
   loadVoiceTags,
   saveVoiceTags,
   tagLabelFor,
@@ -153,27 +152,15 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const assignVoicesFor = (ps: Profile[]): CharacterVoice[] => {
     if (source === "edge") {
-      const malePool = Object.keys(edgeVoices).filter((k) => edgeVoices[k].category === "男");
-      const femalePool = Object.keys(edgeVoices).filter((k) => edgeVoices[k].category === "女");
       const used = new Set<string>();
-      const pick = (pool: string[], preferred: string): string => {
-        if (pool.includes(preferred) && !used.has(preferred)) {
-          used.add(preferred);
-          return preferred;
-        }
-        const bases = pool.filter((v) => !v.includes("#"));
-        for (const v of bases) if (!used.has(v)) { used.add(v); return v; }
-        for (const v of pool) if (!used.has(v)) { used.add(v); return v; }
-        used.add(preferred);
-        return preferred;
-      };
+      used.add("zh-CN-XiaoxiaoNeural"); // 旁白固定占用晓晓原声
       return ps.map((p) => {
         if (p.name === "旁白") {
-          used.add("zh-CN-XiaoxiaoNeural");
           return { name: p.name, voiceId: "zh-CN-XiaoxiaoNeural", gender: p.gender, age: p.age };
         }
-        const pool = p.gender === "男" ? malePool : femalePool;
-        return { name: p.name, voiceId: pick(pool, defaultEdgeVoiceFor(p)), gender: p.gender, age: p.age };
+        const voiceId = pickEdgeVoice(p, used);
+        used.add(voiceId);
+        return { name: p.name, voiceId, gender: p.gender, age: p.age };
       });
     }
     return ps.map((p) => ({
@@ -184,6 +171,34 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       voiceMode: "base",
       voiceBase: defaultBaseVoiceFor(p, baseVoices)
     }));
+  };
+
+  const pickEdgeVoice = (p: { name?: string; gender?: string; age?: string }, used: Set<string>): string => {
+    const keys = Object.keys(edgeVoices);
+    const gender = p.gender === "男" ? "男" : p.gender === "女" ? "女" : "";
+    const age = p.age || "";
+    const find = (pred: (t?: VoiceTag) => boolean): string | null => {
+      for (const k of keys) {
+        if (!used.has(k) && pred(voiceTags[k])) return k;
+      }
+      return null;
+    };
+    let vid = find((t) => !!t && t.gender === gender && t.age === age);
+    if (!vid) vid = find((t) => !!t && t.gender === gender);
+    if (!vid) vid = find(() => true);
+    return vid || defaultEdgeVoiceFor({ name: p.name || "", gender: gender || "女", age });
+  };
+
+  const changeVoice = (name: string, newVoiceId: string) => {
+    setCharVoices((cs) => {
+      const target = cs.find((c) => c.name === name);
+      if (!target || target.voiceId === newVoiceId) return cs;
+      return cs.map((c) => {
+        if (c.name === name) return { ...c, voiceId: newVoiceId };
+        if (newVoiceId && c.voiceId === newVoiceId) return { ...c, voiceId: "" };
+        return c;
+      });
+    });
   };
 
   const analyze = async () => {
@@ -281,10 +296,20 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     const missing = Array.from(needed).filter((n) => !charVoices.some((c) => c.name === n));
     const defaults: CharacterVoice[] = missing.map((n) => (
       source === "edge"
-        ? { name: n, voiceId: defaultEdgeVoiceFor({ name: n }) }
+        ? { name: n, voiceId: "" }
         : { name: n, voiceId: n, voiceMode: "base", voiceBase: defaultBaseVoiceFor({ name: n }, baseVoices) }
     ));
     const fullVoices = [...charVoices, ...defaults];
+    if (source === "edge") {
+      const used = new Set(fullVoices.map((c) => c.voiceId).filter(Boolean));
+      for (const cv of fullVoices) {
+        if (!cv.voiceId) {
+          const vid = pickEdgeVoice(cv, used);
+          cv.voiceId = vid;
+          used.add(vid);
+        }
+      }
+    }
     const project: Project = { scriptText: text, units, voices: fullVoices };
     setProject(project);
 
@@ -337,7 +362,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     (edgeCats[v.category] = edgeCats[v.category] || []).push(k);
   }
   const visibleEdgeKeys = Object.keys(edgeVoices).filter((key) => {
-    const tag = voiceTags[baseVoiceIdOf(key)];
+    const tag = voiceTags[key];
     if (!tag) return true;
     if (voiceFilter.gender && tag.gender !== voiceFilter.gender) return false;
     if (voiceFilter.age && tag.age !== voiceFilter.age) return false;
@@ -478,13 +503,14 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 </div>
               )}
               {charVoices.map((cv) => (
-                <div className="cv-row" key={cv.name}>
+                <div className={"cv-row" + (source === "edge" && !cv.voiceId ? " unassigned" : "")} key={cv.name}>
                   <div className="cv-left">
                     <span className="cv-name">{cv.name}</span>
                     {cv.gender && <span className="cv-tag">{cv.gender}{cv.age ? " · " + cv.age : ""}</span>}
                   </div>
                   {source === "edge" ? (
-                    <select value={cv.voiceId} onChange={(e) => setCharVoices((cs) => cs.map((c) => (c.name === cv.name ? { ...c, voiceId: e.target.value } : c)))}>
+                    <select value={cv.voiceId} onChange={(e) => changeVoice(cv.name, e.target.value)}>
+                      <option value="">未分配</option>
                       {Object.keys(edgeCats).length ? Object.entries(edgeCats).map(([cat, vids]) => (
                         <optgroup key={cat} label={cat}>
                           {vids.filter((vid) => visibleEdgeKeys.includes(vid)).map((vid) => (

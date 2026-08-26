@@ -15,10 +15,19 @@ export const PITCHES: Array<{ suffix: string; label: string }> = [
 
 const LS_TAGS = "sr_edge_voice_tags_v1";
 
-/** 预填的微软音色信息，供校对后覆盖保存 */
+/** 语调档位对应的默认年龄段，供预填后校对 */
+function ageForPitch(suffix: string, baseAge: string): string {
+  if (suffix === "#m20") return "老年";
+  if (suffix === "#m10") return "中年";
+  if (suffix === "#p10") return "青年";
+  if (suffix === "#p20") return "少年";
+  return baseAge;
+}
+
+/** 预填的微软音色信息：14 个基础音色 × 5 档语调，每档都是独立音色标签 */
 export function defaultVoiceTags(): Record<string, VoiceTag> {
   const t = (gender: string, age: string, name: string, dialect = "") => ({ gender, age, name, dialect });
-  return {
+  const bases: Record<string, VoiceTag> = {
     "zh-CN-XiaoxiaoNeural": t("女", "青年", "晓晓"),
     "zh-CN-XiaoyiNeural": t("女", "青年", "晓伊"),
     "zh-CN-YunjianNeural": t("男", "中年", "云健"),
@@ -34,16 +43,37 @@ export function defaultVoiceTags(): Record<string, VoiceTag> {
     "zh-TW-HsiaoYuNeural": t("女", "青年", "曉雨", "台湾口音"),
     "zh-TW-YunJheNeural": t("男", "青年", "雲哲", "台湾口音")
   };
+  const out: Record<string, VoiceTag> = {};
+  for (const [id, tag] of Object.entries(bases)) {
+    for (const p of PITCHES) {
+      out[id + p.suffix] = { ...tag, age: ageForPitch(p.suffix, tag.age) };
+    }
+  }
+  return out;
 }
 
 export function loadVoiceTags(): Record<string, VoiceTag> {
+  const defaults = defaultVoiceTags();
   try {
     const raw = localStorage.getItem(LS_TAGS);
-    if (!raw) return defaultVoiceTags();
-    const parsed = JSON.parse(raw);
-    return { ...defaultVoiceTags(), ...parsed };
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Record<string, Partial<VoiceTag>>;
+    const merged: Record<string, VoiceTag> = { ...defaults };
+    for (const [k, tag] of Object.entries(parsed)) {
+      if (!tag || typeof tag !== "object") continue;
+      if (k.includes("#")) {
+        merged[k] = { ...merged[k], ...tag };
+      } else {
+        // 旧格式：基础音色标签，复制到它的全部语调档
+        for (const p of PITCHES) {
+          const vk = k + p.suffix;
+          merged[vk] = { ...merged[vk], ...tag };
+        }
+      }
+    }
+    return merged;
   } catch {
-    return defaultVoiceTags();
+    return defaults;
   }
 }
 
@@ -60,7 +90,7 @@ export function tagLabelFor(
   sourceName: string,
   tags: Record<string, VoiceTag>
 ): string {
-  const tag = tags[baseVoiceIdOf(voiceId)];
+  const tag = tags[voiceId] || tags[baseVoiceIdOf(voiceId)];
   const parts = [sourceName];
   if (tag) {
     if (tag.gender) parts.push(tag.gender);

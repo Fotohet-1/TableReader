@@ -130,6 +130,8 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 
 .cv-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
 .cv-row:first-of-type { border-top: 0; }
+.cv-row.unassigned { background: #fdf0ee; border-radius: 6px; }
+.cv-row.unassigned .cv-name { color: var(--danger); }
 .cv-left { display: flex; flex-direction: column; gap: 2px; min-width: 96px; }
 .cv-name { font-weight: 700; font-size: 14px; }
 .cv-tag { font-size: 11px; color: var(--accent); background: var(--accent-soft); padding: 1px 8px; border-radius: 8px; width: fit-content; }
@@ -223,7 +225,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   overflow-y: auto;
   padding: 16px 18px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
   align-content: start;
 }
@@ -234,12 +236,10 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   padding: 12px 14px;
 }
 .lib-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.lib-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.lib-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .lib-check { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px; cursor: pointer; min-width: 0; }
 .lib-check input { width: auto; }
-.lib-id { font-size: 10px; color: var(--muted); white-space: nowrap; }
-.lib-fields { display: flex; gap: 8px; margin-bottom: 8px; }
-.lib-fields select {
+.lib-name-input {
   flex: 1;
   min-width: 0;
   padding: 6px 8px;
@@ -248,17 +248,26 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   background: var(--paper);
   font-size: 13px;
 }
-.lib-name-input, .lib-dialect-input {
-  width: 100%;
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  margin-bottom: 8px;
-  font-size: 13px;
+.lib-name-inline { font-weight: 600; }
+.lib-copy { padding: 5px 8px; font-size: 11px; white-space: nowrap; }
+.lib-row {
+  display: grid;
+  grid-template-columns: 58px 1fr 1fr 1.2fr;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
 }
-.lib-pitches { display: flex; flex-wrap: wrap; gap: 6px; }
+.lib-row select, .lib-row input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  font-size: 12px;
+}
 .lib-pitch {
-  padding: 5px 9px;
+  padding: 5px 8px;
   font-size: 12px;
   border-radius: 6px;
 }
