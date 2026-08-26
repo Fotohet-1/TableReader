@@ -10,8 +10,6 @@ const PAREN_RE = /[（(][^（）()]*[)）]/g;
 const EPISODE_LINE_RE = /^第\s*([0-9]+|[一二三四五六七八九十百零两]+)\s*(集|话|回)[：:、\s]?/;
 const EPISODE_NAME_RE = /第\s*([0-9]+|[一二三四五六七八九十百零两]+)\s*(集|话|回)/;
 const INSERT_RE = /^INSERT[：:、\s\-—]*/i;
-const FLASHBACK_RE = /^闪回/;
-const SEGMENT_SCENE_RE = /^\d+[A-Za-z]+[.、．]?/;
 
 const CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
 const CN_UNITS = ["", "十", "百", "千"];
@@ -125,8 +123,8 @@ export function parseScript(
       continue;
     }
 
-    // INSERT/闪回/字母段（27A.）都是场内镜头或续拍段，不单独算场，按旁白处理
-    if (INSERT_RE.test(trimmed) || FLASHBACK_RE.test(trimmed) || SEGMENT_SCENE_RE.test(trimmed)) {
+    // INSERT 闪回/插叙是场内镜头，不单独算场，按旁白处理
+    if (INSERT_RE.test(trimmed)) {
       const u = mk(id++, "narration", "旁白", trimmed, tStart);
       u.raw = trimmed;
       units.push(u);
@@ -196,7 +194,7 @@ export function findLikelySceneLines(text: string): string[] {
   for (const raw of text.split(/\r?\n/)) {
     const trimmed = raw.trim();
     if (!trimmed || trimmed.startsWith("△") || trimmed.includes("：")) continue;
-    if (INSERT_RE.test(trimmed) || FLASHBACK_RE.test(trimmed) || SEGMENT_SCENE_RE.test(trimmed)) continue;
+    if (INSERT_RE.test(trimmed)) continue;
     if (SCENE_EMPTY_RE.test(trimmed)) {
       out.push(trimmed);
       continue;
