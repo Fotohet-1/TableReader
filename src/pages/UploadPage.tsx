@@ -83,6 +83,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [demoTextByRole, setDemoTextByRole] = useState<Record<string, string>>({});
   const [seedByRole, setSeedByRole] = useState<Record<string, { b64: string; refText: string; url: string; descUsed: string }>>({});
   const [descGen, setDescGen] = useState<{ total: number; done: number } | null>(null);
+  const [seedGen, setSeedGen] = useState<{ total: number; done: number } | null>(null);
   const [genderSel, setGenderSel] = useState<Record<string, Gender>>({});
   const [edgeVoices, setEdgeVoices] = useState<Record<string, BaseVoiceInfo>>({});
   const [aiState, setAiState] = useState<"idle" | "running" | "done">("idle");
@@ -166,6 +167,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setDemoTextByRole({});
     setSeedByRole({});
     setDescGen(null);
+    setSeedGen(null);
     setSummary(null);
     setCanEnter(false);
     setErr("");
@@ -529,9 +531,34 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     }
   };
 
-  const confirmDesign = () => {
+  const confirmDesign = async () => {
+    const seeds = { ...seedByRole };
+    const missing = profiles.filter((p) => {
+      const desc = descByRole[p.name] || defaultVoiceDescFor(p);
+      const seed = seeds[p.name];
+      return !(seed && seed.descUsed === desc);
+    });
+    if (missing.length) {
+      setSeedGen({ total: missing.length, done: 0 });
+      for (const p of missing) {
+        const desc = descByRole[p.name] || defaultVoiceDescFor(p);
+        const text = demoTextByRole[p.name] || firstLineFor(p.name);
+        try {
+          const r = await qwenSynthOne(qwenUrl, text, desc);
+          const b64 = await blobToB64(r.blob);
+          const url = URL.createObjectURL(r.blob);
+          seeds[p.name] = { b64, refText: text, url, descUsed: desc };
+          setSeedByRole(seeds);
+        } catch (e) {
+          setErr("音色生成失败: " + String(e) + "（" + p.name + "）");
+        } finally {
+          setSeedGen((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+        }
+      }
+      setSeedGen(null);
+    }
     const ncv: CharacterVoice[] = profiles.map((p) => {
-      const seed = seedByRole[p.name];
+      const seed = seeds[p.name];
       return {
         name: p.name,
         voiceId: p.name,
@@ -707,6 +734,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             <section className="card flow-card">
               <h2>声音设计 · {profiles.length} 人</h2>
               {descGen && <div className="prog warn">AI 正在生成声音描述… {descGen.done}/{descGen.total}</div>}
+              {seedGen && <div className="prog warn">正在生成固定音色… {seedGen.done}/{seedGen.total}</div>}
               {profiles.map((p) => {
                 const desc = descByRole[p.name] || defaultVoiceDescFor(p);
                 const demo = demoTextByRole[p.name] || firstLineFor(p.name);
@@ -746,7 +774,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                   </div>
                 );
               })}
-              <button className="primary big" onClick={confirmDesign}>确认描述，进入角色与音色</button>
+              <button className="primary big" disabled={!!seedGen} onClick={confirmDesign}>
+                {seedGen ? "生成固定音色中…" : "确认描述，进入角色与音色"}
+              </button>
             </section>
           )}
 
