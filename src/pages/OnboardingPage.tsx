@@ -62,12 +62,8 @@ export default function OnboardingPage({ onDone }: {
               借助大模型，程序会更智能地拆解剧本、合并角色，并为每个角色写出符合台词气质的声音描述。
             </p>
             <div className="ob-key-field">
-              <label>DeepSeek Key（选填）</label>
-              <input
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                placeholder="不填也能使用"
-              />
+              <label>DeepSeek API Key（选填）</label>
+              <input value={key} onChange={(e) => setKey(e.target.value)} />
             </div>
             {err && <div className="err">{err}</div>}
             <div className="onboard-actions">

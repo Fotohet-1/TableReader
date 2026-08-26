@@ -126,10 +126,11 @@ input, textarea, select { font: inherit; }
   padding: 28px 32px;
 }
 .ob-ai-text {
+  max-width: 320px;
+  margin: 0 auto 20px;
   font-size: 14px;
   line-height: 1.9;
   color: var(--muted);
-  margin-bottom: 20px;
 }
 .ob-key-field {
   max-width: 360px;
@@ -141,6 +142,7 @@ input, textarea, select { font: inherit; }
   font-size: 13px;
   color: var(--muted);
   margin-bottom: 8px;
+  text-align: center;
 }
 .ob-key-field input {
   width: 100%;
