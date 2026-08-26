@@ -6,10 +6,11 @@ POST /health -> {"ok": true}
 模型路径可用环境变量 QWEN_VD_MODEL / QWEN_BASE_MODEL 覆盖。
 """
 import base64
-import glob
+import io
 import json
 import os
 import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODEL_DIR = os.environ.get(
@@ -20,75 +21,82 @@ CLONE_MODEL_DIR = os.environ.get(
     "QWEN_BASE_MODEL",
     "/Users/hetan/Documents/剧本围读/qwen3-tts-test/models/Qwen3-TTS-12Hz-1.7B-Base-4bit",
 )
-OUT_DIR = "/tmp/qwen3-tts-server"
-LOCK = threading.Lock()
-MODEL_CACHE = {}
+REF_DIR = "/tmp/qwen3-tts-server/refs"
+os.makedirs(REF_DIR, exist_ok=True)
+
+POOL_LOCK = threading.Lock()
+DESIGN_POOL_SIZE = int(os.environ.get("QWEN_DESIGN_POOL", "2"))
+CLONE_POOL_SIZE = int(os.environ.get("QWEN_CLONE_POOL", "2"))
+_design_pool: list = []
+_clone_pool: list = []
 
 
-def get_model(name: str, model_dir: str):
-    if name not in MODEL_CACHE:
-        from mlx_audio.tts.utils import load_model
+def _load_model(model_dir: str):
+    from mlx_audio.tts.utils import load_model
 
-        print("加载模型:", name, flush=True)
-        MODEL_CACHE[name] = load_model(model_dir)
-    return MODEL_CACHE[name]
+    print("加载模型:", model_dir.split("/")[-1], flush=True)
+    return load_model(model_dir)
 
 
-def _clear_outputs():
-    os.makedirs(OUT_DIR, exist_ok=True)
-    for f in glob.glob(os.path.join(OUT_DIR, "out_*.wav")):
-        os.remove(f)
+def _acquire(pool: list, model_dir: str):
+    with POOL_LOCK:
+        if pool:
+            return pool.pop()
+    return _load_model(model_dir)
 
 
-def _write_outputs() -> bytes:
-    files = sorted(glob.glob(os.path.join(OUT_DIR, "out_*.wav")))
-    if not files:
-        raise RuntimeError("合成失败：未生成音频文件")
-    with open(files[-1], "rb") as f:
-        return f.read()
+def _release(pool: list, model):
+    with POOL_LOCK:
+        if len(pool) < 4:
+            pool.append(model)
+
+
+def _model_generate(model, text: str, *, instruct=None, ref_path=None, ref_text=None) -> bytes:
+    import numpy as np
+    import soundfile as sf
+
+    gen = model.generate(
+        text=text,
+        lang_code="zh",
+        instruct=instruct,
+        ref_audio=ref_path,
+        ref_text=ref_text,
+        verbose=False,
+    )
+    chunks = []
+    sample_rate = 24000
+    for r in gen:
+        chunks.append(np.asarray(r.audio, dtype=np.float32))
+        sample_rate = r.sample_rate
+    if not chunks:
+        raise RuntimeError("合成失败：模型未返回音频")
+    audio = np.concatenate(chunks)
+    buf = io.BytesIO()
+    sf.write(buf, audio, sample_rate, format="WAV", subtype="PCM_16")
+    return buf.getvalue()
 
 
 def synth_design(text: str, instruct: str) -> bytes:
-    from mlx_audio.tts.generate import generate_audio
-
-    model = get_model("design", MODEL_DIR)
-    with LOCK:
-        _clear_outputs()
-        generate_audio(
-            model=model,
-            text=text,
-            lang_code="zh",
-            instruct=instruct,
-            output_path=OUT_DIR,
-            file_prefix="out",
-            save=True,
-            verbose=False,
-        )
-    return _write_outputs()
+    model = _acquire(_design_pool, MODEL_DIR)
+    try:
+        return _model_generate(model, text, instruct=instruct)
+    finally:
+        _release(_design_pool, model)
 
 
 def synth_clone(text: str, audio_b64: str, ref_text: str) -> bytes:
-    from mlx_audio.tts.generate import generate_audio
-
-    model = get_model("clone", CLONE_MODEL_DIR)
-    ref_path = os.path.join(OUT_DIR, "ref.wav")
-    os.makedirs(OUT_DIR, exist_ok=True)
-    with open(ref_path, "wb") as f:
-        f.write(base64.b64decode(audio_b64))
-    with LOCK:
-        _clear_outputs()
-        generate_audio(
-            model=model,
-            text=text,
-            lang_code="zh",
-            ref_audio=ref_path,
-            ref_text=ref_text,
-            output_path=OUT_DIR,
-            file_prefix="out",
-            save=True,
-            verbose=False,
-        )
-    return _write_outputs()
+    model = _acquire(_clone_pool, CLONE_MODEL_DIR)
+    ref_path = os.path.join(REF_DIR, uuid.uuid4().hex + ".wav")
+    try:
+        with open(ref_path, "wb") as f:
+            f.write(base64.b64decode(audio_b64))
+        return _model_generate(model, text, ref_path=ref_path, ref_text=ref_text)
+    finally:
+        _release(_clone_pool, model)
+        try:
+            os.remove(ref_path)
+        except OSError:
+            pass
 
 
 class Handler(BaseHTTPRequestHandler):

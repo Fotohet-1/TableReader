@@ -28,7 +28,7 @@ npm install
 .venv-edge/bin/pip install edge-tts soundfile
 
 /opt/homebrew/bin/python3.11 -m venv .venv-qwen
-.venv-qwen/bin/pip install -U mlx-audio huggingface_hub
+.venv-qwen/bin/pip install -U mlx-audio huggingface_hub soundfile
 ```
 
 3. 下载 Qwen3 模型（约 4GB，走 hf-mirror）：
