@@ -67,6 +67,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const restored = lastSession && lastSession.source === source;
   const [tab, setTab] = useState<"file" | "paste">("file");
+  const [pasteMode, setPasteMode] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [fileInfo, setFileInfo] = useState("");
   const [text, setText] = useState(() => (lastSession && lastSession.source === source ? lastSession.text : ""));
   const [segments, setSegments] = useState<Array<{ episode: number; text: string }> | null>(null);
@@ -579,40 +581,28 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       <header className="work-top">
         <span className="work-title">剧本围读</span>
         <span className="work-version">v1</span>
-        <div className="src-switch">
-          <button className={source === "edge" ? "on" : ""} onClick={() => switchSource("edge")}>edge-tts</button>
-          <button className={source === "qwen" ? "on" : ""} onClick={() => switchSource("qwen")}>Qwen3 1.7B</button>
-        </div>
-        <span className="top-status">{source === "edge" ? edgeUrl : qwenUrl}</span>
+        <span className="top-spacer" />
+        <select
+          className="source-select"
+          value={source}
+          onChange={(e) => switchSource(e.target.value as Source)}
+          title="声音来源"
+        >
+          <option value="qwen">Qwen3 1.7B 本地</option>
+          <option value="edge">edge-tts 在线</option>
+        </select>
         <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>
+        <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
       </header>
 
-      <div className="work-grid">
+      <div className={"work-grid" + (showSettings || phase !== "upload" ? "" : " solo")}>
         <section className="card">
-          <div className="card-head">
-            <h2>剧本</h2>
-            <div className="tabs">
-              <button className={"tab" + (tab === "file" ? " active" : "")} onClick={() => setTab("file")}>上传文件</button>
-              <button className={"tab" + (tab === "paste" ? " active" : "")} onClick={() => setTab("paste")}>粘贴文本</button>
-            </div>
-          </div>
-          {tab === "file" ? (
-            <>
-              <div className="upload-zone" onClick={() => fileRef.current?.click()}>
+          {!pasteMode ? (
+            <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
                 <div className="uz-icon">📄</div>
                 <div className="uz-main">点击选择剧本文件</div>
                 <div className="uz-sub">可多选；文件夹里的文件全选后一起导入（.docx / .txt）</div>
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                accept=".docx,.doc,.txt,.md"
-                style={{ display: "none" }}
-                onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
-              />
-              {fileInfo && <div className="file-info">✓ {fileInfo}</div>}
-            </>
+            </div>
           ) : (
             <textarea
               value={text}
@@ -621,15 +611,31 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               placeholder="在此粘贴剧本原文…"
             />
           )}
-          <div className="row">
-            {tab === "paste" && <button onClick={() => { setText(SAMPLE); setSegments(null); setStructureCandidates([]); }}>填入示例</button>}
-            <button onClick={analyze} className="primary" disabled={aiState === "running"}>
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept=".docx,.doc,.txt,.md"
+            style={{ display: "none" }}
+            onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
+          />
+          {fileInfo && <div className="file-info">✓ {fileInfo}</div>}
+          <div className="upload-foot">
+            <button className="paste-toggle" onClick={() => setPasteMode((v) => !v)}>
+              {pasteMode ? "← 返回选择文件" : "或者，粘贴剧本原文"}
+            </button>
+            {pasteMode && (
+              <button onClick={() => { setText(SAMPLE); setSegments(null); setStructureCandidates([]); }}>填入示例</button>
+            )}
+            <button onClick={analyze} className="primary big" disabled={aiState === "running"}>
               {aiState === "running" ? "解析中…" : "解析剧本"}
             </button>
           </div>
         </section>
 
+        {(showSettings || phase !== "upload") && (
         <aside className="side">
+          {showSettings && (
           <section className="card">
             <h2>设置</h2>
             {source === "edge" ? (
@@ -655,7 +661,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               />
               DeepSeek 角色分析
             </label>
+            <div className="row">
+              <button onClick={() => { localStorage.removeItem("sr_has_onboarded"); window.location.reload(); }}>重新查看引导</button>
+            </div>
           </section>
+          )}
 
           {phase === "gender" && units && (
             <section className="card">
@@ -869,6 +879,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             </section>
           )}
         </aside>
+        )}
       </div>
 
       {showLibrary && (

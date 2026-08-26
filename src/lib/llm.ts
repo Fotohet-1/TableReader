@@ -120,3 +120,20 @@ export async function describeRoleVoice(
     clearTimeout(timer);
   }
 }
+
+/** 校验 DeepSeek Key 是否有效 */
+export async function checkDeepSeekKey(apiKey: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const resp = await fetch("https://api.deepseek.com/models", {
+      headers: { "Authorization": "Bearer " + apiKey },
+      signal: controller.signal
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}

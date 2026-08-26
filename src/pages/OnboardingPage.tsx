@@ -1,0 +1,90 @@
+import { useState } from "react";
+import { checkDeepSeekKey } from "../lib/llm";
+
+type Source = "edge" | "qwen";
+
+export default function OnboardingPage({ onDone }: {
+  onDone: (source: Source, dsKey: string) => void;
+}) {
+  const [step, setStep] = useState(0);
+  const [source, setSource] = useState<Source | null>(null);
+  const [key, setKey] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [err, setErr] = useState("");
+
+  const checkAndContinue = async () => {
+    if (!key.trim()) {
+      onDone(source || "qwen", "");
+      return;
+    }
+    setChecking(true);
+    setErr("");
+    const ok = await checkDeepSeekKey(key.trim());
+    setChecking(false);
+    if (ok) {
+      onDone(source || "qwen", key.trim());
+    } else {
+      setErr("Key 校验失败，可检查后重试，或暂不设置");
+    }
+  };
+
+  return (
+    <div className="onboard" onClick={() => { if (step < 1) setStep(1); }}>
+      {step === 0 && (
+        <div className="onboard-inner">
+          <p className="onboard-line">把剧本变成一场可以听的多角色围读</p>
+          <button className="primary onboard-next" onClick={() => setStep(1)}>继续</button>
+        </div>
+      )}
+      {step === 1 && (
+        <div className="onboard-inner" onClick={(e) => e.stopPropagation()}>
+          <p className="onboard-title">选择声音来源</p>
+          <div className="onboard-cards">
+            <div className={"ob-card" + (source === "qwen" ? " on" : "")} onClick={() => setSource("qwen")}>
+              <h3>Qwen3 1.7B 本地</h3>
+              <p>自然语言描述即可生成角色音色，全本地运行，效果最好</p>
+              <span className="ob-tag">需要 Apple Silicon 与模型</span>
+            </div>
+            <div className={"ob-card" + (source === "edge" ? " on" : "")} onClick={() => setSource("edge")}>
+              <h3>edge-tts 在线</h3>
+              <p>即开即用，依赖微软在线语音，音色固定但选择多</p>
+              <span className="ob-tag">需要联网</span>
+            </div>
+          </div>
+          <button
+            className="primary onboard-next"
+            disabled={!source}
+            onClick={() => setStep(2)}
+          >
+            继续
+          </button>
+        </div>
+      )}
+      {step === 2 && (
+        <div className="onboard-inner" onClick={(e) => e.stopPropagation()}>
+          <div className="ob-ai-card">
+            <p className="onboard-title">AI 加持</p>
+            <p className="onboard-line">
+              借助大模型，程序会更智能地拆解剧本、合并角色，并为每个角色写出符合台词气质的声音描述。
+            </p>
+          </div>
+          <div className="field">
+            <label>DeepSeek Key</label>
+            <input
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="选填，不填也能使用"
+            />
+          </div>
+          {err && <div className="err">{err}</div>}
+          <div className="onboard-actions">
+            <button onClick={() => onDone(source || "qwen", "")}>暂不设置，继续</button>
+            <button className="primary" disabled={checking} onClick={checkAndContinue}>
+              {checking ? "检测中…" : "检测并继续"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

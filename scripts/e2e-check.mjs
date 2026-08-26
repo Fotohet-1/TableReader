@@ -32,7 +32,7 @@ await new Promise((r) => { ws.onopen = r; });
 await send("Page.enable");
 await send("Runtime.enable");
 await send("Page.navigate", { url: PAGE_URL });
-await evalJs(`localStorage.setItem("sr_tts_source", "edge")`);
+await evalJs(`localStorage.setItem("sr_has_onboarded", "1"); localStorage.setItem("sr_tts_source", "edge")`);
 await send("Page.navigate", { url: PAGE_URL });
 await new Promise((r) => setTimeout(r, 2500));
 
@@ -61,7 +61,11 @@ const clickByText = (text) =>
     return true;
   })()`);
 
-await clickByText("粘贴文本");
+await waitFor(`document.querySelector(".home") !== null`, 10000);
+await evalJs(`document.querySelector(".home").click()`);
+await waitFor(`document.querySelector(".upload-hero") !== null`, 10000);
+
+await clickByText("或者，粘贴剧本原文");
 const sampleOk = await clickByText("填入示例");
 const textLen = await evalJs(`document.querySelector("textarea") ? document.querySelector("textarea").value.length : 0`);
 console.log("填入示例:", sampleOk, "字数:", textLen);

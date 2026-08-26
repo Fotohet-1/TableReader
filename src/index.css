@@ -23,6 +23,117 @@ input, textarea, select { font: inherit; }
 
 .app { min-height: 100vh; }
 
+/* ---------- 首页 ---------- */
+.home {
+  height: 100vh;
+  background: radial-gradient(ellipse 70% 55% at 50% -8%, #23304d 0%, #121722 68%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+.home-inner { text-align: center; z-index: 2; animation: homeFade .8s ease; }
+.home-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  color: #8fa0bd;
+  border: 1px solid rgba(143,160,189,.35);
+  border-radius: 999px;
+  padding: 5px 14px;
+}
+.home-title {
+  margin-top: 26px;
+  font-size: 52px;
+  color: #f2f5fa;
+  font-weight: 700;
+}
+.home-desc {
+  margin-top: 16px;
+  color: #a9b5c8;
+  font-size: 15px;
+}
+.home-hint {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #68748a;
+  font-size: 12px;
+  z-index: 2;
+  animation: homePulse 2.4s ease-in-out infinite;
+}
+@keyframes homeFade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes homePulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+/* ---------- 首次引导 ---------- */
+.onboard {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.onboard-inner {
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+}
+.onboard-line {
+  font-size: 21px;
+  line-height: 1.7;
+  color: var(--ink);
+  margin-bottom: 34px;
+}
+.onboard-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+.onboard-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 26px;
+  text-align: left;
+}
+.ob-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+}
+.ob-card h3 { font-size: 16px; margin-bottom: 8px; }
+.ob-card p { color: var(--muted); font-size: 13px; line-height: 1.7; margin-bottom: 12px; }
+.ob-tag {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.ob-card.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.ob-ai-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px;
+  margin-bottom: 18px;
+}
+.onboard-next { margin-top: 8px; padding: 11px 34px; font-size: 15px; }
+.onboard-actions { display: flex; gap: 12px; justify-content: center; margin-top: 18px; }
+.onboard-actions button { padding: 10px 22px; font-size: 14px; }
+@media (max-width: 640px) {
+  .onboard-cards { grid-template-columns: 1fr; }
+  .home-title { font-size: 38px; }
+}
+
 /* ---------- 工作台 ---------- */
 .work { min-height: 100vh; padding-bottom: 40px; }
 .work-top {
@@ -38,7 +149,17 @@ input, textarea, select { font: inherit; }
 }
 .work-title { font-size: 18px; font-weight: 700; }
 .work-version { font-size: 11px; color: var(--muted); }
-.top-status { margin-left: auto; font-size: 12px; color: var(--muted); }
+.top-spacer { flex: 1; }
+.source-select {
+  width: auto;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+.source-select:hover { border-color: var(--line); }
 .src-switch { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .src-switch button {
   border: 0;
@@ -57,6 +178,10 @@ input, textarea, select { font: inherit; }
   grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
   gap: 16px;
   align-items: start;
+}
+.work-grid.solo {
+  max-width: 760px;
+  grid-template-columns: 1fr;
 }
 @media (max-width: 900px) {
   .work-grid { grid-template-columns: 1fr; }
@@ -91,11 +216,27 @@ input, textarea, select { font: inherit; }
   cursor: pointer;
   transition: border-color .2s, background .2s;
 }
+.upload-hero { padding: 72px 24px; }
 .upload-zone.drag { border-color: var(--accent); background: var(--accent-soft); }
 .uz-icon { font-size: 32px; }
 .uz-main { margin-top: 8px; }
 .uz-sub { margin-top: 4px; color: var(--muted); font-size: 13px; }
 .file-info { margin-top: 10px; color: var(--accent); font-size: 13px; }
+.upload-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.upload-foot .primary.big { flex: 1; }
+.paste-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 6px 4px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
 
 textarea {
   width: 100%;
