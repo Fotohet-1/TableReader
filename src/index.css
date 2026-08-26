@@ -164,6 +164,14 @@ input, textarea, select { font: inherit; }
 
 /* ---------- 工作台 ---------- */
 .work { min-height: 100vh; padding-bottom: 40px; }
+.work.upload-only {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding-bottom: 0;
+}
+.work.upload-only .work-grid.solo { margin: 0; }
 .work-top {
   position: sticky;
   top: 0;

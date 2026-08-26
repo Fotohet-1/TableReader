@@ -587,7 +587,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const unrecognizedScenes = likelyLines.filter((l) => !sceneRaws.has(l) && !ignoredLines.has(l));
 
   return (
-    <div className="work">
+    <div className={"work" + (phase === "upload" && !showSettings ? " upload-only" : "")}>
       {phase !== "upload" && (
       <header className="work-top">
         <span className="work-title">剧本围读</span>
