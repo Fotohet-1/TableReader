@@ -147,6 +147,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 .choose-card {
   text-align: left;
   padding: 28px;
+  border: 0;
   border-radius: 18px;
   background: var(--paper);
   display: flex;
@@ -155,6 +156,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   animation: srFadeUp .5s cubic-bezier(.22, .8, .32, 1) backwards;
   transition: box-shadow .3s;
 }
+.choose-card:focus, .choose-card:focus-visible { outline: none; }
 .choose-card:nth-child(2) { animation-delay: .1s; }
 .choose-card:hover {
   box-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0;
