@@ -421,6 +421,10 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   grid-template-columns: minmax(0, 1fr);
   padding: 0;
 }
+.work:not(.upload-only):has(.scene-phase) { display: flex; flex-direction: column; }
+.scene-phase { margin: auto; width: 100%; min-height: calc(100dvh - 52px - 24px); display: flex; }
+.scene-phase .flow-card { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.scene-phase .flow-card .scene-list { flex: 1; min-height: 0; max-height: none; }
 @media (max-width: 900px) {
   .work-grid { grid-template-columns: 1fr; }
 }
@@ -553,8 +557,9 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 }
 .design-actions button { padding: 7px 12px; font-size: 14px; flex-shrink: 0; }
 
-.gender-pick { display: flex; gap: 6px; margin-left: auto; }
-.gender-pick button { padding: 7px 14px; font-size: 14px; border-radius: 999px; }
+.gender-pick { display: flex; gap: 6px; margin-left: auto; align-items: stretch; }
+.gender-pick button, .gender-pick select { min-width: 72px; padding: 7px 12px; font-size: 14px; border-radius: 999px; text-align: center; }
+.gender-pick select { text-align-last: center; background: var(--paper); }
 .gender-pick button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .age-select, .variant-select {
   padding: 7px 10px;
@@ -634,6 +639,15 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .settings-body .field label { width: 104px; }
 .settings-body .row { margin-top: 2px; justify-content: flex-end; }
 .settings-hint { font-size: 11px; color: var(--muted); margin: 0; }
+.regen-body { padding: 24px 28px 28px; display: flex; flex-direction: column; gap: 14px; }
+.regen-label { font-size: 14px; color: var(--muted); }
+.regen-actions { display: flex; gap: 10px; align-items: center; }
+.regen-actions button { border-radius: 999px; padding: 9px 18px; font-size: 14px; }
+.regen-actions .primary { margin-left: auto; }
+.secondary-pill { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+.secondary-pill:hover { background: var(--accent-soft); }
+.regen-hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0; }
+.regen-modal .design-desc { min-height: 64px; }
 .settings-link {
   border: 0;
   background: transparent;
@@ -886,6 +900,12 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   background: rgba(0, 0, 0, 0.04);
   font-size: 13px;
   color: var(--ink);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%231d1d1f'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
 }
 .tb-progress {
   width: 100%;

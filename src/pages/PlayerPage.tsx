@@ -296,6 +296,14 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
     if (waiting && slots.length > slotIdxRef.current + 1) advanceRef.current();
   }, [slots.length, waiting]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { saveNow(); onBack(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onBack]);
+
   const toggle = () => {
     const els = audioElsRef.current;
     const anyPlaying = els.some((a) => a && a.src && !a.paused);
@@ -425,7 +433,13 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       const refText = regenSample;
       const seed = await qwenSynthOne(qwenUrl, refText, regenDesc.trim());
       const b64 = await blobToB64(seed.blob);
-      const roleUnits = project.units.filter((u) => u.type === "dialogue" && u.character === regenRole);
+      const curUnitId = activeUnitIds[0] ?? -1;
+      const roleUnits = project.units
+        .filter((u) => u.type === "dialogue" && u.character === regenRole)
+        .sort((a, b) => a.id - b.id);
+      const behind = roleUnits.filter((u) => u.id > curUnitId);
+      const ahead = roleUnits.filter((u) => u.id <= curUnitId);
+      const ordered = [...behind, ...ahead];
       const updates: Record<number, { url: string; durationMs: number }> = {};
       const durations: Record<number, { durationMs: number }> = {};
       const ar = project.archive;
@@ -433,8 +447,8 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       const worker = async () => {
         while (true) {
           const idx = cursor++;
-          if (idx >= roleUnits.length) break;
-          const u = roleUnits[idx];
+          if (idx >= ordered.length) break;
+          const u = ordered[idx];
           const r = await qwenCloneSynthOne(qwenUrl, u.text, b64, refText);
           let url: string;
           if (ar) {
@@ -445,14 +459,16 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
             url = URL.createObjectURL(r.blob);
           }
           updates[u.id] = { url, durationMs: r.durationMs };
-          setRegenProgress({ done: idx + 1, total: roleUnits.length });
+          onUpdateItems?.({ [u.id]: updates[u.id] });
+          const doneCount = Object.keys(updates).length;
+          setRegenProgress({ done: doneCount, total: ordered.length });
+          if (doneCount === 5) setRegenOpen(false);
         }
       };
       await Promise.all([worker(), worker()]);
       if (ar) {
         await saveMeta(ar.dir, ar.id, { id: ar.id, name: ar.name, source: "qwen", audio: durations });
       }
-      onUpdateItems?.(updates);
       setRegenProgress(null);
       setRegenOpen(false);
     } catch (e) {
@@ -468,7 +484,6 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
         {Array.from({ length: MAX_SIMUL }).map((_, k) => <audio key={k} ref={setAudioRef(k)} preload="auto" />)}
       </div>
       <header className="topbar">
-        <button onClick={() => { saveNow(); onBack(); }} className="tb-btn">← 返回</button>
         <div className="tb-right">
           {source === "qwen" && (
             <div className="tb-regen">
@@ -518,25 +533,24 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
           <div className="modal settings-modal regen-modal" onClick={(e) => e.stopPropagation()}>
             <header className="lib-top">
               <span className="lib-title">重新生成音色 · {regenRole || ""}</span>
-              <button className="lib-close" onClick={() => setRegenOpen(false)} aria-label="关闭">✕</button>
+              <button className="lib-close" disabled={regenBusy} onClick={() => setRegenOpen(false)} aria-label="关闭">✕</button>
             </header>
-            <div className="settings-body">
-              <div className="field">
-                <label>声音描述</label>
-                <textarea
-                  className="design-desc"
-                  rows={3}
-                  value={regenDesc}
-                  onChange={(e) => setRegenDesc(e.target.value)}
-                />
-              </div>
-              <div className="design-actions">
-                <button disabled={regenBusy} onClick={aiDesc}>AI 生成描述</button>
-                <button disabled={regenBusy} onClick={previewSeed}>试听</button>
+            <div className="regen-body">
+              <label className="regen-label">声音描述</label>
+              <textarea
+                className="design-desc"
+                rows={3}
+                value={regenDesc}
+                onChange={(e) => setRegenDesc(e.target.value)}
+              />
+              <div className="regen-actions">
+                <button className="secondary-pill" disabled={regenBusy} onClick={aiDesc}>AI 生成描述</button>
+                <button className="secondary-pill" disabled={regenBusy} onClick={previewSeed}>试听</button>
+                <button className="primary" disabled={regenBusy} onClick={applyRegen}>生成并应用</button>
               </div>
               {regenProgress && <div className="prog">正在重新合成… {regenProgress.done}/{regenProgress.total}</div>}
               {regenErr && <div className="err">{regenErr}</div>}
-              <button className="primary" disabled={regenBusy} onClick={applyRegen}>生成并应用到全部台词</button>
+              <p className="regen-hint">优先生成当前位置之后该角色的台词，生成五句后自动收起，其余在后台继续。</p>
             </div>
             <audio ref={regenAudioRef} />
           </div>

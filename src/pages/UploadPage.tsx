@@ -849,7 +849,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
         </div>
       </header>
-      <div className="work-grid solo">
+      <div className={"work-grid solo" + (phase === "scenes" ? " scene-phase" : "")}>
         {phase === "upload" && (
         <section className="card" ref={cardRef}>
           <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
@@ -893,10 +893,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                     {(["男", "女"] as const).map((g) => (
                       <button key={g} className={genderSel[p.name] === g ? "on" : ""} onClick={() => setGenderSel((s) => ({ ...s, [p.name]: g }))}>{g}</button>
                     ))}
+                    <select className="age-select" value={ageSel[p.name] || "中年"} onChange={(e) => setAgeSel((s) => ({ ...s, [p.name]: e.target.value }))} title="年龄">
+                      {["少年", "青年", "中年", "老年"].map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
                   </div>
-                  <select className="age-select" value={ageSel[p.name] || "中年"} onChange={(e) => setAgeSel((s) => ({ ...s, [p.name]: e.target.value }))} title="年龄">
-                    {["少年", "青年", "中年", "老年"].map((a) => <option key={a} value={a}>{a}</option>)}
-                  </select>
                 </div>
               ))}
               <button onClick={confirmGender} className="primary big">确认并分配音色</button>
@@ -980,7 +980,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           {units && phase === "voices" && (
             <section className="card flow-card">
               <h2>角色与音色 · {units.length} 句</h2>
-              <button className="link" onClick={() => setPhase("gender")}>修改性别</button>
               {source === "edge" && (
                 <div className="voice-filters">
                   <select value={voiceFilter.gender} onChange={(e) => setVoiceFilter((f) => ({ ...f, gender: e.target.value }))}>
