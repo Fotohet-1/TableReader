@@ -92,9 +92,41 @@ export function normalizeRoleName(raw: string): string {
   n = n.replace(PAREN_RE, "");
   n = n.replace(/(?:os|v\.?o\.?|vo|画外音|内心独白)$/i, "");
   n = n.replace(/(?:齐声|齐|们|一起)$/, "");
-  n = n.replace(/(?:笑着|哭着|喊着|冷冷|淡淡|轻轻|微微|低声|大声|高声|低沉|温柔|严肃|认真|急切|慌张|平静|犹豫|笃定|不耐烦|好奇|惊讶|震惊|激动|愤怒|生气|高兴|难过|无奈)$/, "");
+  n = n.replace(/(?:笑着|哭着|喊着|冷冷|淡淡|轻轻|微微|低声|大声|高声|低沉|温柔|严肃|认真|急切|慌张|平静|犹豫|笃定|不耐烦|好奇|惊讶|震惊|激动|愤怒|生气|高兴|难过|无奈|僵住|愣住|呆住|怔住|顿住|站住)$/, "");
   n = n.replace(/(?:异口同声|同时说道|同时开口|说道|喊道|问道|答道|回答道|开口|开口说|开口问|接着说|继续说|打断|插话|叹道|笑道|苦笑|冷笑|低语|嘀咕|嘟囔|吆喝|哀叹|惊叫|哽咽)$/, "");
+  // 状态+时长尾缀：熊黑迟疑片刻 → 熊黑
+  n = n.replace(/(?:迟疑|沉吟|沉默|愣|怔|顿|踌躇|犹豫|想了想)(?:了片刻|了一下|片刻)?$/, "");
+  // 称谓/指向："院长对红丝巾阿姨" → "院长"；A对B说 → A（B 是被指向的人，不是说话人）
+  n = n.replace(/^(.*?)对[^，。、：\n]{1,12}$/g, (_m, left) => left || _m);
   return n.trim();
+}
+
+/** 常见头衔/称谓，用于跨集统一身份 */
+const TITLE_RE = /(?:\s+(?:董事长|总裁|总经理|老板|经理|医生|大夫|老师|律师|警官|警察|院长|校长|主任|主管|护士|服务员|保安|司机|先生|女士|小姐|夫人|太太|阿姨|爷爷|奶奶|哥哥|姐姐|弟弟|妹妹|大哥|小哥|大叔|大爷|大伯|大婶|大姐|主持人|总监|编辑|记者|作家|画家|歌手|演员|导演|教授|博士|专家|局长|处长|部长|厂长|村长|族长|会长|书记))$/;
+
+/**
+ * 跨集稳定身份键：剥离 头衔后缀 / OS / 括注 / 情绪后缀。
+ * 与某集内部的 groupRoles 不同，它不依赖当前集的写法集合，
+ * 保证 "聂九罗 董事长" 在任何一集都归到 "聂九罗"。
+ */
+export function roleBase(raw: string): string {
+  const n = normalizeRoleName(raw);
+  return n.replace(TITLE_RE, "").trim();
+}
+
+const CAPTION_SEQ_RE = /^第[一二三四五六七八九十\d]+(?:张|幅|条|个|页)$/;
+const CAPTION_NOUN_RE = /(?:内容|文字|字幕|画面|照片)$/;
+const DESC_VERB_RE = /(?:显示|出现|传来|写着|赫然|定格|回放)$/;
+
+/** 判断冒号前的部分是否是"人"（说话角色），排除字幕/画面/内容等描写行 */
+export function isPersona(raw: string): boolean {
+  const n = raw.trim();
+  if (!n) return false;
+  if (CAPTION_SEQ_RE.test(n)) return false;
+  if (/^[A-Za-z][A-Za-z0-9]*$/.test(n)) return true; // 字母代号：D / B / A
+  if (CAPTION_NOUN_RE.test(n)) return false;
+  if (n.length > 6 && DESC_VERB_RE.test(n)) return false;
+  return true;
 }
 
 function mk(id: number, type: Unit["type"], character: string, text: string, start: number): Unit {
@@ -184,9 +216,17 @@ export function parseScript(
 
     const dm = trimmed.match(DIALOGUE_RE);
     if (dm) {
-      const name = normalizeRoleName(dm[1].trim());
+      const rawName = dm[1].trim();
       const speech = dm[2].trim().replace(PAREN_RE, "").trim();
       if (speech) {
+        const name = normalizeRoleName(rawName);
+        // 非人角色（字幕/画面/内容等描述行）按旁白处理
+        if (name !== "旁白" && !isPersona(rawName)) {
+          const u = mk(id++, "narration", "旁白", trimmed, tStart);
+          u.raw = trimmed;
+          units.push(u);
+          continue;
+        }
         const type: Unit["type"] = name === "旁白" ? "narration" : "dialogue";
         units.push({ id: id++, type, character: name, text: speech, raw: trimmed, start: tStart, end: tStart + trimmed.length });
       }

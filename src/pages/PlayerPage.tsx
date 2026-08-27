@@ -460,8 +460,8 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
           const r = await qwenCloneSynthOne(qwenUrl, u.text, b64, refText);
           let url: string;
           if (ar) {
-            await saveAudio(ar.dir, ar.id, u.id, r.blob);
-            url = archiveAudioUrl(ar.dir, ar.id, u.id);
+            await saveAudio(ar.dir, ar.series, ar.episode, u.id, r.blob);
+            url = archiveAudioUrl(ar.dir, ar.series, ar.episode, u.id);
             durations[u.id] = { durationMs: r.durationMs };
           } else {
             url = URL.createObjectURL(r.blob);
@@ -475,7 +475,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       };
       await Promise.all([worker(), worker()]);
       if (ar) {
-        await saveMeta(ar.dir, ar.id, { id: ar.id, name: ar.name, source: "qwen", audio: durations });
+        await saveMeta(ar.dir, ar.series, ar.episode, { id: ar.episode, name: ar.episodeName, source: "qwen", audio: durations });
       }
       setRegenProgress(null);
       setRegenOpen(false);

@@ -8,6 +8,16 @@ export interface TTSResult {
   durationMs: number;
 }
 
+async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...opts, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function checkHealth(baseUrl: string): Promise<boolean> {
   try {
     const resp = await fetch(baseUrl.replace(/\/+$/, "") + "/health", { method: "POST" });
@@ -28,11 +38,11 @@ export async function fetchEdgeVoices(baseUrl: string): Promise<Record<string, B
 }
 
 export async function edgeSynthOne(baseUrl: string, text: string, voiceId: string): Promise<TTSResult> {
-  const resp = await fetch(baseUrl + "/tts", {
+  const resp = await fetchWithTimeout(baseUrl + "/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, voice_id: voiceId })
-  });
+  }, 60000);
   if (!resp.ok) {
     const t = await resp.text().catch(() => "");
     throw new Error("edge-tts 失败 HTTP " + resp.status + " " + t.slice(0, 120));
@@ -44,11 +54,11 @@ export async function edgeSynthOne(baseUrl: string, text: string, voiceId: strin
 
 /** Qwen3-TTS VoiceDesign：按自然语言描述生成语音 */
 export async function qwenSynthOne(baseUrl: string, text: string, instruct: string): Promise<TTSResult> {
-  const resp = await fetch(baseUrl + "/tts", {
+  const resp = await fetchWithTimeout(baseUrl + "/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, instruct })
-  });
+  }, 120000);
   if (!resp.ok) {
     const t = await resp.text().catch(() => "");
     throw new Error("Qwen3-TTS 失败 HTTP " + resp.status + " " + t.slice(0, 120));
@@ -65,11 +75,11 @@ export async function qwenCloneSynthOne(
   audioB64: string,
   refText: string
 ): Promise<TTSResult> {
-  const resp = await fetch(baseUrl + "/tts-clone", {
+  const resp = await fetchWithTimeout(baseUrl + "/tts-clone", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, audio_b64: audioB64, ref_text: refText })
-  });
+  }, 120000);
   if (!resp.ok) {
     const t = await resp.text().catch(() => "");
     throw new Error("Qwen3-TTS 克隆失败 HTTP " + resp.status + " " + t.slice(0, 120));

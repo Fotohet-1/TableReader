@@ -37,7 +37,15 @@ export interface Project {
   scriptText: string;
   units: Unit[];
   voices: CharacterVoice[];
-  archive?: { dir: string; id: string; name: string };
+  archive?: ArchiveContext;
+}
+
+export interface ArchiveContext {
+  dir: string;
+  series: string; // 剧集 id
+  seriesName: string;
+  episode: string; // 集 id
+  episodeName: string;
 }
 
 export interface Session {

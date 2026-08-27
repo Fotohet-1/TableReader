@@ -30,11 +30,11 @@ export function defaultEdgeVoiceFor(p: { name: string; gender?: string; age?: st
 export function defaultVoiceDescFor(p: { name: string; gender?: string; age?: string }): string {
   const g = p.gender === "男" ? "男声" : "女声";
   const age = p.age && p.age !== "未知" ? p.age : "中年";
-  const tone =
-    age === "少年" ? "声音清亮明亮" :
-    age === "老年" ? "声音沉稳、略沙哑" :
-    age === "青年" ? "声音自然清晰" :
-    "声音沉稳克制";
-  const mood = p.name === "旁白" ? "语气冷静，带叙述感" : "语气自然生活化";
-  return `${age}${g}，${tone}，${mood}`;
+  const pitch =
+    age === "少年" ? "音色清亮、偏高" :
+    age === "老年" ? "音色沉稳、略沙哑" :
+    age === "青年" ? "音色自然清晰" :
+    "音色沉稳克制";
+  const mood = p.name === "旁白" ? "语气冷静、带叙述感" : "语气自然生活化";
+  return `【性别 ${g}，年龄 ${age}，音调 ${pitch}，语速 匀速，情感 ${mood}，质感 吐字清晰】`;
 }

@@ -1,4 +1,4 @@
-import { normalizeRoleName } from "./parser";
+import { normalizeRoleName, roleBase } from "./parser";
 
 export interface RoleGroup {
   canonical: string;
@@ -9,24 +9,63 @@ export interface RoleGroup {
 /**
  * 角色名分组归并：
  * 1) 先做基础清洗（括号 / OS / 尾随群组词）
- * 2) 前缀归并：变体以基础名为前缀时并入（熊黑严肃 → 熊黑；炎拓/熊黑 → 炎拓）
- * 3) 按出现次数降序，保证高频的基础名先成为组
+ * 2) 前缀归并：对每个名字，取所有名字里"最短且为前缀"的那一个作为 canonical，
+ *    与出现顺序和次数无关（炎拓 总裁 → 炎拓；聂九罗 董事长 → 聂九罗）。
+ * 3) 单字名不作归并基底，避免把完整的双字/多字名误并进单字姓/名。
+ * 4) 按出现次数降序输出。
  */
 export function groupRoles(cleanedNames: string[]): RoleGroup[] {
   const counts = new Map<string, number>();
   for (const n of cleanedNames) counts.set(n, (counts.get(n) || 0) + 1);
-  const unique = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
-  const groups: RoleGroup[] = [];
-  for (const [name, cnt] of unique) {
-    const parent = groups.find((g) => name !== g.canonical && name.startsWith(g.canonical));
-    if (parent) {
-      parent.variants.push(name);
-      parent.count += cnt;
+  const names = Array.from(counts.keys());
+  // 长度升序，长度相同按次数降序，保证"最短且高频"的基底先被选中
+  const byLen = [...names].sort(
+    (a, b) => a.length - b.length || (counts.get(b)! - counts.get(a)!)
+  );
+  const canonicalOf = new Map<string, string>();
+  for (const name of names) {
+    let canonical = name;
+    for (const cand of byLen) {
+      if (cand === name) continue;
+      // 单字名不作为归并基底，避免误合并
+      if (cand.length < 2) continue;
+      if (name.startsWith(cand) && cand.length < canonical.length) canonical = cand;
+    }
+    canonicalOf.set(name, canonical);
+  }
+  const groupMap = new Map<string, RoleGroup>();
+  for (const [name, cnt] of counts) {
+    const canon = canonicalOf.get(name)!;
+    const g = groupMap.get(canon);
+    if (g) {
+      if (name !== canon) g.variants.push(name);
+      g.count += cnt;
     } else {
-      groups.push({ canonical: name, variants: [name], count: cnt });
+      groupMap.set(canon, {
+        canonical: canon,
+        variants: name === canon ? [canon] : [canon, name],
+        count: cnt
+      });
     }
   }
-  return groups;
+  return Array.from(groupMap.values()).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * 确认角色页排序：无音色种子（新角色）在前，可复用（有种子）在后，各自按台词数降序。
+ * 纯函数，便于单元测试。
+ */
+export function sortRolesForConfirm<T extends { name: string; lines?: number }>(
+  profiles: T[],
+  bank: Record<string, unknown>
+): T[] {
+  const hasSeed = (p: T) => !!bank[roleBase(p.name)];
+  return [...profiles].sort((a, b) => {
+    const sa = hasSeed(a) ? 1 : 0;
+    const sb = hasSeed(b) ? 1 : 0;
+    if (sa !== sb) return sa - sb;
+    return (b.lines || 0) - (a.lines || 0) || a.name.localeCompare(b.name, "zh-Hans-CN");
+  });
 }
 
 export { normalizeRoleName };

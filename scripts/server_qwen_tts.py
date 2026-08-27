@@ -27,6 +27,11 @@ os.makedirs(REF_DIR, exist_ok=True)
 POOL_LOCK = threading.Lock()
 DESIGN_POOL_SIZE = int(os.environ.get("QWEN_DESIGN_POOL", "1"))
 CLONE_POOL_SIZE = int(os.environ.get("QWEN_CLONE_POOL", "1"))
+# 并发通路信号量：上限=池大小，避免并发请求各自加载模型导致内存峰值。
+# acquire 带超时，且成功/异常都会 release，避免"某个生成卡住"永久占死通路。
+ACQUIRE_TIMEOUT = int(os.environ.get("QWEN_ACQUIRE_TIMEOUT", "300"))
+_design_gate = threading.Semaphore(max(1, DESIGN_POOL_SIZE))
+_clone_gate = threading.Semaphore(max(1, CLONE_POOL_SIZE))
 _design_pool: list = []
 _clone_pool: list = []
 
@@ -38,22 +43,34 @@ def _load_model(model_dir: str):
     return load_model(model_dir)
 
 
-def _acquire(pool: list, model_dir: str):
-    with POOL_LOCK:
-        if pool:
-            return pool.pop()
-    return _load_model(model_dir)
+def _acquire(pool: list, model_dir: str, gate: threading.Semaphore):
+    if not gate.acquire(timeout=ACQUIRE_TIMEOUT):
+        raise TimeoutError("合成请求过多，请稍后再试")
+    try:
+        with POOL_LOCK:
+            if pool:
+                return pool.pop()
+        return _load_model(model_dir)
+    except BaseException:
+        gate.release()
+        raise
 
 
-def _release(pool: list, model):
-    with POOL_LOCK:
-        if len(pool) < 4:
-            pool.append(model)
+def _release(pool: list, model, gate: threading.Semaphore):
+    try:
+        with POOL_LOCK:
+            if len(pool) < 4:
+                pool.append(model)
+    finally:
+        gate.release()
 
 
-def _release_discard(model):
-    """生成异常时丢弃实例，避免坏状态污染池。"""
-    del model
+def _release_discard(model, gate: threading.Semaphore):
+    """生成异常时丢弃实例，避免坏状态污染池，并释放并发通路。"""
+    try:
+        del model
+    finally:
+        gate.release()
 
 
 def _model_generate(model, text: str, *, instruct=None, ref_path=None, ref_text=None) -> bytes:
@@ -82,28 +99,28 @@ def _model_generate(model, text: str, *, instruct=None, ref_path=None, ref_text=
 
 
 def synth_design(text: str, instruct: str) -> bytes:
-    model = _acquire(_design_pool, MODEL_DIR)
+    model = _acquire(_design_pool, MODEL_DIR, _design_gate)
     try:
         return _model_generate(model, text, instruct=instruct)
     except Exception:
-        _release_discard(model)
+        _release_discard(model, _design_gate)
         raise
     else:
-        _release(_design_pool, model)
+        _release(_design_pool, model, _design_gate)
 
 
 def synth_clone(text: str, audio_b64: str, ref_text: str) -> bytes:
-    model = _acquire(_clone_pool, CLONE_MODEL_DIR)
+    model = _acquire(_clone_pool, CLONE_MODEL_DIR, _clone_gate)
     ref_path = os.path.join(REF_DIR, uuid.uuid4().hex + ".wav")
     try:
         with open(ref_path, "wb") as f:
             f.write(base64.b64decode(audio_b64))
         return _model_generate(model, text, ref_path=ref_path, ref_text=ref_text)
     except Exception:
-        _release_discard(model)
+        _release_discard(model, _clone_gate)
         raise
     else:
-        _release(_clone_pool, model)
+        _release(_clone_pool, model, _clone_gate)
     finally:
         try:
             os.remove(ref_path)
@@ -188,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
 
             traceback.print_exc()
             try:
-                self.send_error(500)
+                self._json({"ok": False, "error": str(e)}, 503 if isinstance(e, TimeoutError) else 500)
             except Exception:
                 pass
 

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { CharacterVoice, Project, Session, Unit, UnitAudio } from "../lib/types";
-import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines } from "../lib/parser";
-import { extractSceneCandidates } from "../lib/docxMeta";
-import { groupRoles } from "../lib/roles";
+import type { ArchiveContext, CharacterVoice, Project, Session, Unit, UnitAudio } from "../lib/types";
+import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines, roleBase } from "../lib/parser";
+import { groupRoles, sortRolesForConfirm } from "../lib/roles";
 import { guessGender, defaultEdgeVoiceFor, defaultVoiceDescFor } from "../lib/voices";
 import { analyzeRolesWithLLM, describeRoleVoice } from "../lib/llm";
 import { synthesizeStream, type Progress, type SynthSummary } from "../lib/synth";
+import { seriesKeyFromFile, slugify } from "../lib/series";
 import {
   checkHealth,
   edgeSynthOne,
@@ -14,7 +14,6 @@ import {
   qwenSynthOne,
   type BaseVoiceInfo
 } from "../lib/tts";
-import mammoth from "mammoth/mammoth.browser.js";
 import VoiceLibrary from "../components/VoiceLibrary";
 import {
   loadVoiceTags,
@@ -41,10 +40,18 @@ import {
 import {
   archiveAudioUrl,
   archiveHealth,
+  listSeries,
   loadMeta,
+  loadVoiceBank,
   saveAudio,
   saveMeta,
-  type ArchiveMeta
+  saveSeed,
+  saveSeries,
+  saveVoiceBank,
+  seedUrl,
+  mergeVoiceBanks,
+  type EpisodeMeta,
+  type VoiceBankEntry
 } from "../lib/archive";
 
 type Source = TtsSource;
@@ -90,7 +97,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [structureCandidates, setStructureCandidates] = useState<string[]>([]);
   const [forcedLines, setForcedLines] = useState<Set<string>>(new Set());
   const [ignoredLines, setIgnoredLines] = useState<Set<string>>(new Set());
-  const [roleBase, setRoleBase] = useState<{ profiles: Profile[]; mapping: Record<string, string> } | null>(null);
+  const [roleInfo, setRoleInfo] = useState<{ profiles: Profile[]; mapping: Record<string, string> } | null>(null);
   const [descByRole, setDescByRole] = useState<Record<string, string>>({});
   const [descBusy, setDescBusy] = useState<Set<string>>(new Set());
   const [demoTextByRole, setDemoTextByRole] = useState<Record<string, string>>({});
@@ -115,6 +122,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [serviceOk, setServiceOk] = useState<boolean | null>(null);
   const [archiveDir, setArchiveDir] = useState(loadArchiveDir);
   const [archiveOk, setArchiveOk] = useState<boolean | null>(null);
+  const [seriesId, setSeriesId] = useState("");
+  const [seriesName, setSeriesName] = useState("");
+  const [bank, setBank] = useState<Record<string, VoiceBankEntry>>({});
+  const [reusedRoles, setReusedRoles] = useState<Set<string>>(new Set());
+  const [seedBusy, setSeedBusy] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -124,7 +136,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const archiveAudioRef = useRef<Record<number, { durationMs: number }>>({});
   const metaSaveTimerRef = useRef<number | null>(null);
   const metaDirtyRef = useRef(false);
-  const archiveCtxRef = useRef<{ dir: string; id: string; name: string } | null>(null);
+  const archiveCtxRef = useRef<ArchiveContext | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -213,41 +225,78 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setErr("");
   };
 
-  const saveProjectBase = (dir: string, id: string, name: string) => {
-    const meta: Partial<ArchiveMeta> = {
-      id,
-      name,
+  const episodeNameFor = () => {
+    if (fileName) return fileName.replace(/\.(docx|txt|md)$/i, "");
+    const first = text.trim().split("\n")[0]?.slice(0, 24) || "剧本";
+    return first;
+  };
+
+  const episodeIdFor = () => slugify(episodeNameFor());
+
+  const ctxFor = (): ArchiveContext => ({
+    dir: archiveDir,
+    series: seriesId,
+    seriesName,
+    episode: episodeIdFor(),
+    episodeName: episodeNameFor()
+  });
+
+  const saveProjectBase = () => {
+    const eid = episodeIdFor();
+    void saveMeta(archiveDir, seriesId, eid, {
+      id: eid,
+      name: episodeNameFor(),
       source,
       scriptText: text,
       units: units || [],
       voices: charVoices,
       audio: {}
-    };
-    void saveMeta(dir, id, meta);
+    });
   };
 
-  const saveStateOnly = (dir: string, id: string, name: string, audio: Record<number, { durationMs: number }>) => {
-    void saveMeta(dir, id, { id, name, source, audio });
+  const saveStateOnly = (audio: Record<number, { durationMs: number }>) => {
+    const eid = episodeIdFor();
+    void saveMeta(archiveDir, seriesId, eid, { id: eid, name: episodeNameFor(), source, audio });
   };
 
-  const flushMetaSoon = (dir: string, id: string, name: string) => {
+  const flushMetaSoon = () => {
     metaDirtyRef.current = true;
     if (metaSaveTimerRef.current) return;
     metaSaveTimerRef.current = window.setTimeout(() => {
       metaSaveTimerRef.current = null;
       if (!metaDirtyRef.current) return;
       metaDirtyRef.current = false;
-      saveStateOnly(dir, id, name, { ...archiveAudioRef.current });
+      saveStateOnly({ ...archiveAudioRef.current });
     }, 2000);
   };
 
-  const projectNameFor = () => {
-    if (fileName) {
-      const base = fileName.replace(/\.(docx|txt)$/i, "");
-      return segments && segments.length > 1 ? base + "（" + segments.length + "集）" : base;
+  const b64ToBlob = (b64: string): Blob => {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: "audio/wav" });
+  };
+
+  const bankEntryFor = (name: string): VoiceBankEntry | undefined => bank[roleBase(name)];
+
+  const buildBankRoles = (vs: CharacterVoice[]): Record<string, VoiceBankEntry> => {
+    const out: Record<string, VoiceBankEntry> = {};
+    for (const cv of vs) {
+      const key = roleBase(cv.name);
+      out[key] = {
+        canonical: key,
+        variants: cv.merged && cv.merged.length ? cv.merged : [cv.name],
+        gender: cv.gender,
+        age: cv.age,
+        source,
+        voiceId: source === "edge" ? cv.voiceId : undefined,
+        voiceDesc: cv.voiceDesc,
+        seed: source === "qwen" ? "seeds/" + slugify(key) + ".wav" : undefined,
+        refText: cv.cloneRefText,
+        confirmedIn: episodeNameFor()
+      };
     }
-    const first = text.trim().split("\n")[0]?.slice(0, 24) || "剧本";
-    return first;
+    return out;
   };
 
   const enterPlayer = () => {
@@ -259,7 +308,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       metaDirtyRef.current = false;
       const a = archiveAudioRef.current;
       const ctx = archiveCtxRef.current;
-      if (a && Object.keys(a).length && ctx) saveStateOnly(ctx.dir, ctx.id, ctx.name, { ...a });
+      if (a && Object.keys(a).length && ctx) saveStateOnly({ ...a });
     }
     onEnterPlayer();
   };
@@ -289,11 +338,14 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       try {
         if (f.name.toLowerCase().endsWith(".docx")) {
           const buf = await f.arrayBuffer();
+          // 惰性加载 docx 相关依赖，避免 mammoth + jszip 进首屏
+          const mammoth = (await import("mammoth/mammoth.browser.js")).default;
           const result = await mammoth.extractRawText({ arrayBuffer: buf });
           const v = (result.value || "").trim();
           if (!v) throw new Error(f.name + " 未提取到文本");
           parts.push(v);
           segs.push({ episode, text: v });
+          const { extractSceneCandidates } = await import("../lib/docxMeta");
           structCands.push(...(await extractSceneCandidates(buf)));
         } else if (f.name.toLowerCase().endsWith(".txt") || f.name.toLowerCase().endsWith(".md")) {
           const v = (await f.text()).trim();
@@ -314,7 +366,13 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setSegments(segs);
     setStructureCandidates(Array.from(new Set(structCands)));
     setFileInfo(ordered.length + " 个文件 · 共 " + v.length + " 字");
-    setFileName(ordered[0]?.file.name || "");
+    const fname = ordered[0]?.file.name || "";
+    setFileName(fname);
+    const sk = seriesKeyFromFile(fname) || "剧本";
+    setSeriesName(sk);
+    setSeriesId(slugify(sk));
+    setBank({});
+    setReusedRoles(new Set());
   };
 
   const assignVoicesFor = (ps: Profile[]): CharacterVoice[] => {
@@ -322,11 +380,16 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     used.add("zh-CN-XiaoxiaoNeural"); // 旁白固定占用晓晓原声
     return ps.map((p) => {
       if (p.name === "旁白") {
-        return { name: p.name, voiceId: "zh-CN-XiaoxiaoNeural", gender: p.gender, age: p.age, lines: p.lines };
+        return { name: p.name, voiceId: "zh-CN-XiaoxiaoNeural", gender: p.gender, age: p.age, lines: p.lines, merged: p.merged };
+      }
+      const entry = bankEntryFor(p.name);
+      if (entry && entry.voiceId) {
+        used.add(entry.voiceId);
+        return { name: p.name, voiceId: entry.voiceId, gender: p.gender, age: p.age, lines: p.lines, merged: p.merged };
       }
       const voiceId = pickEdgeVoice(p, used);
       used.add(voiceId);
-      return { name: p.name, voiceId, gender: p.gender, age: p.age, lines: p.lines };
+      return { name: p.name, voiceId, gender: p.gender, age: p.age, lines: p.lines, merged: p.merged };
     });
   };
 
@@ -408,7 +471,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     return parseScript(text, { forcedSceneLines: forced });
   };
 
-  const buildFromUnits = (us: Unit[], baseProfiles: Profile[], mapping: Record<string, string>) => {
+  const buildFromUnits = (us: Unit[], baseProfiles: Profile[], mapping: Record<string, string>, bk: Record<string, VoiceBankEntry>) => {
     const us2 = us.map((u) => ({
       ...u,
       character: u.type === "narration" || u.type === "action" || u.type === "scene"
@@ -424,11 +487,22 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       }
     }
     const nextProfiles = baseProfiles.map((p) => ({ ...p, lines: lines[p.name] || 0 }));
-    nextProfiles.sort((a, b) => (b.lines || 0) - (a.lines || 0) || a.name.localeCompare(b.name, "zh-Hans-CN"));
     setUnits(us2);
-    setProfiles(nextProfiles);
-    setGenderSel(Object.fromEntries(nextProfiles.map((p) => [p.name, p.gender === "男" ? "男" : "女"])));
-    setAgeSel(Object.fromEntries(nextProfiles.map((p) => [p.name, ["少年", "青年", "中年", "老年"].includes(p.age || "") ? (p.age as string) : "中年"])));
+    // 无种子(新角色)排前，可复用(有种子)排后，各自按台词数降序
+    setProfiles(sortRolesForConfirm(nextProfiles, bk || {}));
+  };
+
+  /** 从角色 + 音色库一次性算性别/年龄预填：库里有的用库值，新角色用规则判断值 */
+  const applyGenderAge = (ps: Profile[], bk: Record<string, VoiceBankEntry>) => {
+    const gs: Record<string, Gender> = {};
+    const as: Record<string, string> = {};
+    for (const p of ps) {
+      const e = bk[roleBase(p.name)];
+      gs[p.name] = (e && e.gender) ? (e.gender as Gender) : (p.gender === "男" ? "男" : "女");
+      as[p.name] = (e && e.age) ? e.age : (["少年", "青年", "中年", "老年"].includes(p.age || "") ? (p.age as string) : "中年");
+    }
+    setGenderSel(gs);
+    setAgeSel(as);
   };
 
   const analyze = async () => {
@@ -475,7 +549,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     } else {
       profiles = [...profiles, { name: "旁白", gender: "女", age: "中年", merged: [] }];
     }
-    setRoleBase({ profiles, mapping });
+    setRoleInfo({ profiles, mapping });
     const ruleLikely = (segments && segments.length)
       ? Array.from(new Set(segments.flatMap((seg) => findLikelySceneLines(seg.text))))
       : findLikelySceneLines(text);
@@ -484,7 +558,56 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setForcedLines(new Set());
     setIgnoredLines(new Set());
     setSeedByRole({});
-    buildFromUnits(us, profiles, mapping);
+
+    // 剧集音色库：识别剧名 → 载入已有音色 → 预填复用角色
+    setBank({});
+    setReusedRoles(new Set());
+    let bankRoles: Record<string, VoiceBankEntry> = {};
+    const archiveUpNow = archiveOk === true || await archiveHealth();
+    setArchiveOk(archiveUpNow);
+    const sk = seriesName || seriesKeyFromFile(fileName) || "剧本";
+    const sid = slugify(sk);
+    setSeriesName(sk);
+    setSeriesId(sid);
+    if (archiveUpNow) {
+      try {
+        const existing = (await listSeries(archiveDir)).find(
+          (s) => (s.id === sid || s.name === sk) && s.source === source
+        );
+        const conflict = (await listSeries(archiveDir)).find((s) => (s.id === sid || s.name === sk) && s.source !== source);
+        if (existing) {
+          const vb = await loadVoiceBank(archiveDir, existing.id);
+          bankRoles = vb.roles || {};
+        }
+        if (conflict && !existing) {
+          setErr("该剧集已用 " + (conflict.source === "edge" ? "edge-tts" : "Qwen3") + " 音源建立，当前为" + (source === "edge" ? "edge-tts" : "Qwen3") + "，音色不再复用");
+        }
+      } catch { /* 音色库读不到就按新剧处理 */ }
+    }
+    setBank(bankRoles);
+    const reused = new Set<string>();
+    for (const p of profiles) {
+      if (bankRoles[roleBase(p.name)]) reused.add(p.name);
+    }
+    setReusedRoles(reused);
+    // qwen：复用既有种子，跳过重新生成
+    if (source === "qwen" && archiveUpNow && sid) {
+      const extra: Record<string, { b64: string; refText: string; url: string; descUsed: string }> = {};
+      for (const p of profiles) {
+        const e = bankRoles[roleBase(p.name)];
+        if (!e || !e.seed || !e.refText) continue;
+        const url = seedUrl(archiveDir, sid, e.canonical);
+        try {
+          const blob = await (await fetch(url)).blob();
+          extra[p.name] = { b64: await blobToB64(blob), refText: e.refText, url, descUsed: e.voiceDesc || defaultVoiceDescFor(p) };
+        } catch { /* 下载种子失败则走重新生成 */ }
+      }
+      if (Object.keys(extra).length) setSeedByRole((prev) => ({ ...prev, ...extra }));
+    }
+
+    buildFromUnits(us, profiles, mapping, bankRoles);
+    // 性别/年龄预填：新角色用规则判断，复用角色用音色库
+    applyGenderAge(profiles, bankRoles);
     setPhase("scenes");
     setAiState("done");
   };
@@ -494,7 +617,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     if (next.has(line)) next.delete(line);
     else next.add(line);
     setForcedLines(next);
-    if (roleBase) buildFromUnits(runParse(next), roleBase.profiles, roleBase.mapping);
+    if (roleInfo) buildFromUnits(runParse(next), roleInfo.profiles, roleInfo.mapping, bank);
+    if (roleInfo) applyGenderAge(roleInfo.profiles, bank);
   };
 
   const toggleIgnoredLine = (line: string) => {
@@ -517,13 +641,13 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       const descs: Record<string, string> = {};
       const demos: Record<string, string> = {};
       for (const p of confirmed) {
-        descs[p.name] = defaultVoiceDescFor(p);
-        demos[p.name] = firstLineFor(p.name);
+        descs[p.name] = seedByRole[p.name]?.descUsed || defaultVoiceDescFor(p);
+        demos[p.name] = seedByRole[p.name]?.refText || firstLineFor(p.name);
       }
       setDescByRole(descs);
       setDemoTextByRole(demos);
       setPhase("design");
-      if (aiEnabled && dsKey.trim()) generateAllDescs(confirmed);
+      if (aiEnabled && dsKey.trim()) generateAllDescs(confirmed.filter((p) => !reusedRoles.has(p.name)));
       return;
     }
     const ncv = assignVoicesFor(confirmed);
@@ -621,6 +745,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       return;
     }
     setPreviewErr("");
+    setSeedBusy((prev) => new Set(prev).add(name));
     try {
       const r = await qwenSynthOne(qwenUrl, text, desc || defaultVoiceDescFor({ name }));
       const b64 = await blobToB64(r.blob);
@@ -632,6 +757,12 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       audio.play().catch(() => {});
     } catch (e) {
       setPreviewErr("音色生成失败: " + String(e));
+    } finally {
+      setSeedBusy((prev) => {
+        const next = new Set(prev);
+        next.delete(name);
+        return next;
+      });
     }
   };
 
@@ -655,7 +786,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             const b64 = await blobToB64(r.blob);
             const url = URL.createObjectURL(r.blob);
             seeds[p.name] = { b64, refText: text, url, descUsed: desc };
-            setSeedByRole(seeds);
+            setSeedByRole((prev) => ({ ...prev, [p.name]: { b64, refText: text, url, descUsed: desc } }));
           } catch (e) {
             setErr("音色生成失败: " + String(e) + "（" + p.name + "）");
           } finally {
@@ -725,30 +856,45 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     }
     const project: Project = { scriptText: text, units, voices: fullVoices };
 
-    let archiveInfo: { dir: string; id: string; name: string } | null = null;
+    let archiveInfo: ArchiveContext | null = null;
     let existingAudio: Record<number, { url: string; durationMs: number }> = {};
     archiveAudioRef.current = {};
     archiveCtxRef.current = null;
     const archiveUp = archiveOk === true || await archiveHealth();
     setArchiveOk(archiveUp);
     if (archiveUp) {
-      const id = "sr-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
-      const name = projectNameFor();
-      archiveInfo = { dir: archiveDir, id, name };
-      archiveCtxRef.current = archiveInfo;
-      project.archive = archiveInfo;
+      const ctx = ctxFor();
+      archiveInfo = ctx;
+      archiveCtxRef.current = ctx;
+      project.archive = ctx;
       onArchiveActive();
-      saveProjectBase(archiveDir, id, name);
-      const meta = await loadMeta(archiveDir, id);
+      const order = episodeFromName(fileName) || (segments && segments.length ? segments[segments.length - 1].episode : 1);
+      await saveSeries(archiveDir, seriesId, seriesName, source, { id: ctx.episode, name: ctx.episodeName, order });
+      saveProjectBase();
+      const meta = await loadMeta(archiveDir, seriesId, ctx.episode);
       if (meta && meta.audio) {
         for (const [uid, a] of Object.entries(meta.audio)) {
           const n = Number(uid);
-          existingAudio[n] = { url: archiveAudioUrl(archiveDir, id, n), durationMs: a.durationMs };
+          existingAudio[n] = { url: archiveAudioUrl(archiveDir, seriesId, ctx.episode, n), durationMs: a.durationMs };
           archiveAudioRef.current[n] = { durationMs: a.durationMs };
         }
       }
     }
     setProject(project);
+
+    // 回写音色库：合并到整部剧音色库，保留前几集已有角色，本集确认/覆盖
+    if (archiveUp) {
+      const existingBank = await loadVoiceBank(archiveDir, seriesId);
+      const merged = mergeVoiceBanks(existingBank.roles, buildBankRoles(fullVoices));
+      await saveVoiceBank(archiveDir, seriesId, { roles: merged });
+      if (source === "qwen") {
+        for (const cv of fullVoices) {
+          if (cv.cloneAudioB64 && cv.cloneRefText) {
+            await saveSeed(archiveDir, seriesId, roleBase(cv.name), b64ToBlob(cv.cloneAudioB64));
+          }
+        }
+      }
+    }
 
     const descMap: Record<string, string> = {};
     const cloneMap: Record<string, { b64: string; refText: string }> = {};
@@ -776,11 +922,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               : await qwenSynthOne(qwenUrl, t, descMap[v] || ""))
           : await edgeSynthOne(edgeUrl, t, v);
         if (archiveInfo && unitId != null) {
-          const ok = await saveAudio(archiveInfo.dir, archiveInfo.id, unitId, r.blob);
+          const ok = await saveAudio(archiveInfo.dir, archiveInfo.series, archiveInfo.episode, unitId, r.blob);
           if (ok) {
             archiveAudioRef.current[unitId] = { durationMs: r.durationMs };
-            flushMetaSoon(archiveInfo.dir, archiveInfo.id, archiveInfo.name);
-            return { ...r, url: archiveAudioUrl(archiveInfo.dir, archiveInfo.id, unitId) };
+            flushMetaSoon();
+            return { ...r, url: archiveAudioUrl(archiveInfo.dir, archiveInfo.series, archiveInfo.episode, unitId) };
           }
         }
         return r;
@@ -795,7 +941,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           window.clearTimeout(metaSaveTimerRef.current);
           metaSaveTimerRef.current = null;
         }
-        saveStateOnly(archiveInfo.dir, archiveInfo.id, archiveInfo.name, { ...archiveAudioRef.current });
+        saveStateOnly({ ...archiveAudioRef.current });
       }
       markSynthDone();
     });
@@ -882,6 +1028,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               {profiles.map((p) => (
                 <div className="cv-row" key={p.name}>
                   <span className="cv-name">{p.name}</span>
+                  {reusedRoles.has(p.name) && <span className="reuse-badge">已复用</span>}
                   {p.lines ? <span className="cv-tag">{p.lines} 句</span> : null}
                   <div className="cv-controls">
                     {p.merged && p.merged.length > 1 && (
@@ -909,6 +1056,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             <section className="card flow-card">
               <h2>声音设计 · {profiles.length} 人</h2>
               {descGen && <div className="prog warn">AI 正在生成声音描述… {descGen.done}/{descGen.total}</div>}
+              {previewErr && <div className="err">{previewErr}</div>}
+              {err && <div className="err">{err}</div>}
               {profiles.map((p) => {
                 const desc = descByRole[p.name] || defaultVoiceDescFor(p);
                 const demo = demoTextByRole[p.name] || firstLineFor(p.name);
@@ -936,10 +1085,10 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                       <button disabled={descBusy.has(p.name)} onClick={() => generateDesc(p)}>
                         {descBusy.has(p.name) ? "生成中…" : "AI 生成描述"}
                       </button>
-                      <button onClick={() => generateSeed(p.name, desc, demo)}>
-                        {seedByRole[p.name] && seedByRole[p.name].descUsed === desc
+                      <button disabled={seedBusy.has(p.name)} onClick={() => generateSeed(p.name, desc, demo)}>
+                        {seedBusy.has(p.name) ? "生成中…" : (seedByRole[p.name] && seedByRole[p.name].descUsed === desc
                           ? (previewRole === p.name ? "停止" : "播放试听")
-                          : "生成音色"}
+                          : "生成音色")}
                       </button>
                       {seedByRole[p.name] && seedByRole[p.name].descUsed === desc && (
                         <span className="cv-tag">✓ 已生成固定音色</span>
@@ -1017,6 +1166,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 <div className={"cv-row" + (source === "edge" && !cv.voiceId ? " unassigned" : "")} key={cv.name}>
                   <div className="cv-left">
                     <span className="cv-name">{cv.name}</span>
+                    {reusedRoles.has(cv.name) && <span className="reuse-badge">已复用</span>}
                     {cv.gender && (
                       <span className="cv-tag">
                         {cv.gender}{cv.age ? " · " + cv.age : ""}{cv.lines ? " · " + cv.lines + " 句" : ""}

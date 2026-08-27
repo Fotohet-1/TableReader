@@ -7,6 +7,7 @@ import ArchiveContinuePage from "./pages/ArchiveContinuePage";
 import UploadPage from "./pages/UploadPage";
 import PlayerPage from "./pages/PlayerPage";
 import { archiveAudioUrl, loadMeta, savePlayback } from "./lib/archive";
+import type { ArchiveContext } from "./lib/types";
 import { hasOnboarded, markOnboarded, saveDsKey, saveSource, type TtsSource } from "./lib/settings";
 
 export default function App() {
@@ -26,32 +27,46 @@ export default function App() {
   }, []);
 
   const resetItems = useCallback(() => {
-    setItems([]);
+    setItems((prev) => {
+      for (const it of prev) {
+        if (it.url && it.url.startsWith("blob:")) {
+          try { URL.revokeObjectURL(it.url); } catch {}
+        }
+      }
+      return [];
+    });
     setSynthDone(false);
   }, []);
 
   const markSynthDone = useCallback(() => setSynthDone(true), []);
 
   const updateItems = useCallback((updates: Record<number, { url: string; durationMs: number }>) => {
-    setItems((prev) => prev.map((it) => updates[it.unitId] ? { ...it, ...updates[it.unitId] } : it));
+    setItems((prev) => prev.map((it) => {
+      const upd = updates[it.unitId];
+      if (!upd) return it;
+      if (it.url && it.url !== upd.url && it.url.startsWith("blob:")) {
+        try { URL.revokeObjectURL(it.url); } catch {}
+      }
+      return { ...it, ...upd };
+    }));
   }, []);
 
   const enter = () => setView(hasOnboarded() ? "choose" : "onboard");
 
-  const resumeArchive = useCallback(async (dir: string, id: string, name: string) => {
-    const meta = await loadMeta(dir, id);
+  const resumeArchive = useCallback(async (ctx: ArchiveContext) => {
+    const meta = await loadMeta(ctx.dir, ctx.series, ctx.episode);
     if (!meta) return false;
     const p: Project = {
       scriptText: meta.scriptText || "",
       units: meta.units || [],
       voices: meta.voices || [],
-      archive: { dir, id, name }
+      archive: { ...ctx }
     };
     const items: UnitAudio[] = (meta.units || []).map((u) => {
       const audio = meta.audio && meta.audio[u.id];
       return {
         unitId: u.id,
-        url: audio ? archiveAudioUrl(dir, id, u.id) : "",
+        url: audio ? archiveAudioUrl(ctx.dir, ctx.series, ctx.episode, u.id) : "",
         durationMs: audio ? audio.durationMs : 0,
         startMs: 0,
         endMs: 0
@@ -80,7 +95,7 @@ export default function App() {
   const handlePosition = useCallback((idx: number, ms: number, rate: number) => {
     const p = projectRef.current;
     if (!archiveActiveRef.current || !p?.archive) return;
-    void savePlayback(p.archive.dir, p.archive.id, idx, ms, rate);
+    void savePlayback(p.archive.dir, p.archive.series, p.archive.episode, idx, ms, rate);
   }, []);
 
   const finishOnboard = (source: TtsSource, dsKey: string) => {

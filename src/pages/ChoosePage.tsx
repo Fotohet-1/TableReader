@@ -5,7 +5,6 @@ export default function ChoosePage({ onUpload, onContinue }: {
   return (
     <div className="choose-page">
       <div className="choose-inner">
-        <span className="choose-eyebrow">SCREENPLAY READING STUDIO</span>
         <h1 className="choose-title">开始围读</h1>
         <div className="choose-cards">
           <button className="choose-card" onClick={onUpload}>

@@ -30,27 +30,31 @@ export default function OnboardingPage({ onDone }: {
   return (
     <div className="onboard">
       {step === 0 && (
-        <div className="onboard-inner" onClick={(e) => e.stopPropagation()}>
-          <p className="onboard-title">请选择声音来源</p>
-          <div className="onboard-cards">
-            <div className={"ob-card" + (source === "qwen" ? " on" : "")} onClick={() => setSource("qwen")}>
-              <h3>Qwen3 1.7B 本地</h3>
-              <p>自然语言描述即可生成角色音色，全本地运行，效果最好</p>
-              <span className="ob-tag">需要 Apple Silicon 与模型</span>
+        <div className="choose-page">
+          <div className="choose-inner" onClick={(e) => e.stopPropagation()}>
+            <h1 className="choose-title">选择声音来源</h1>
+            <div className="choose-cards">
+              <button className={"choose-card" + (source === "qwen" ? " on" : "")} onClick={() => setSource("qwen")}>
+                <span className="choose-card-mark">{source === "qwen" ? "✓ 已选" : "01"}</span>
+                <span className="choose-card-title">Qwen3 1.7B 本地</span>
+                <span className="choose-card-desc">自然语言描述即可生成角色音色，全本地运行，效果最好</span>
+                <span className="ob-tag">需要 Apple Silicon 与模型</span>
+              </button>
+              <button className={"choose-card" + (source === "edge" ? " on" : "")} onClick={() => setSource("edge")}>
+                <span className="choose-card-mark">{source === "edge" ? "✓ 已选" : "02"}</span>
+                <span className="choose-card-title">edge-tts 在线</span>
+                <span className="choose-card-desc">即开即用，依赖微软在线语音，音色固定但选择多</span>
+                <span className="ob-tag">需要联网</span>
+              </button>
             </div>
-            <div className={"ob-card" + (source === "edge" ? " on" : "")} onClick={() => setSource("edge")}>
-              <h3>edge-tts 在线</h3>
-              <p>即开即用，依赖微软在线语音，音色固定但选择多</p>
-              <span className="ob-tag">需要联网</span>
-            </div>
+            <button
+              className="primary onboard-next"
+              disabled={!source}
+              onClick={() => setStep(1)}
+            >
+              继续
+            </button>
           </div>
-          <button
-            className="primary onboard-next"
-            disabled={!source}
-            onClick={() => setStep(1)}
-          >
-            继续
-          </button>
         </div>
       )}
       {step === 1 && (

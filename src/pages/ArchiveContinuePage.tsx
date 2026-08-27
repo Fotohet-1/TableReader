@@ -1,17 +1,26 @@
 import { useEffect, useState } from "react";
-import { archiveHealth, listProjects, type ArchiveProject } from "../lib/archive";
+import {
+  archiveHealth,
+  listSeries,
+  listEpisodes,
+  type SeriesListItem,
+  type EpisodeRef
+} from "../lib/archive";
 import { loadArchiveDir, saveArchiveDir } from "../lib/settings";
+import type { ArchiveContext } from "../lib/types";
 
 export default function ArchiveContinuePage({ onContinue, onBack }: {
-  onContinue: (dir: string, id: string, name: string) => Promise<boolean>;
+  onContinue: (ctx: ArchiveContext) => Promise<boolean>;
   onBack: () => void;
 }) {
   const [dir, setDir] = useState(loadArchiveDir);
   const [ok, setOk] = useState<boolean | null>(null);
-  const [projects, setProjects] = useState<ArchiveProject[]>([]);
+  const [series, setSeries] = useState<SeriesListItem[]>([]);
+  const [openId, setOpenId] = useState("");
+  const [episodes, setEpisodes] = useState<EpisodeRef[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [loadingId, setLoadingId] = useState("");
+  const [loadingKey, setLoadingKey] = useState("");
 
   const refresh = async () => {
     setErr("");
@@ -19,18 +28,37 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
     const up = await archiveHealth();
     setOk(up);
     if (!up) {
-      setProjects([]);
+      setSeries([]);
       setBusy(false);
       setErr("存档服务未启动，请先运行桌面快捷入口");
       return;
     }
-    setProjects(await listProjects(dir));
+    setSeries(await listSeries(dir));
+    setOpenId("");
+    setEpisodes([]);
     setBusy(false);
   };
 
   useEffect(() => {
     void refresh();
   }, []);
+
+  const openSeries = async (id: string) => {
+    setOpenId(id);
+    setErr("");
+    setBusy(true);
+    setEpisodes(await listEpisodes(dir, id));
+    setBusy(false);
+  };
+
+  const resume = async (s: SeriesListItem, ep: EpisodeRef) => {
+    const key = s.id + ":" + ep.id;
+    setLoadingKey(key);
+    setErr("");
+    const ok2 = await onContinue({ dir, series: s.id, seriesName: s.name, episode: ep.id, episodeName: ep.name });
+    setLoadingKey("");
+    if (!ok2) setErr("存档读取失败，请检查目录和存档文件");
+  };
 
   return (
     <div className="archive-page">
@@ -40,7 +68,7 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
       </header>
       <div className="archive-body">
         <section className="card archive-card">
-          <h2 className="archive-title">选择存档</h2>
+          <h2 className="archive-title">选择剧集</h2>
           <div className="archive-dir-row">
             <input
               value={dir}
@@ -54,28 +82,32 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
             />
           </div>
           {err && <div className="err">{err}</div>}
-          {!busy && !err && projects.length === 0 && (
-            <p className="archive-empty">这个目录里还没有存档项目</p>
+          {!busy && !err && series.length === 0 && (
+            <p className="archive-empty">这个工作区里还没有剧集存档</p>
           )}
           <div className="archive-list">
-            {projects.map((p) => (
-              <button
-                key={p.id}
-                className="resume-item"
-                disabled={loadingId === p.id}
-                onClick={async () => {
-                  setErr("");
-                  setLoadingId(p.id);
-                  const ok2 = await onContinue(dir, p.id, p.name);
-                  setLoadingId("");
-                  if (!ok2) setErr("存档读取失败，请检查目录和存档文件");
-                }}
-              >
-                <span className="resume-name">{loadingId === p.id ? "载入中…" : p.name}</span>
-                <span className="resume-time">
-                  {typeof p.units === "number" && p.units > 0 ? p.units + " 句 · " : ""}{p.updatedAt}
-                </span>
-              </button>
+            {series.map((s) => (
+              <div key={s.id} className="series-item">
+                <button className="resume-item" onClick={() => openSeries(s.id)}>
+                  <span className="resume-name">{s.name}</span>
+                  <span className="resume-time">{s.episodes} 集 · {s.voices} 音色 · {s.updatedAt}</span>
+                </button>
+                {openId === s.id && (
+                  <div className="episode-list">
+                    {episodes.length === 0 && <p className="archive-empty">这部剧还没有集</p>}
+                    {episodes.map((ep) => (
+                      <button
+                        key={ep.id}
+                        className="resume-item episode-item"
+                        disabled={loadingKey === s.id + ":" + ep.id}
+                        onClick={() => resume(s, ep)}
+                      >
+                        <span className="resume-name">{loadingKey === s.id + ":" + ep.id ? "载入中…" : ep.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </section>
