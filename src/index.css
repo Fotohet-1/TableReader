@@ -90,6 +90,129 @@ input, textarea, select { font: inherit; }
 @keyframes homeFade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes homePulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 
+/* ---------- 选择页 ---------- */
+.choose-page {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+}
+.choose-back {
+  position: absolute;
+  top: 22px;
+  left: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 6px 10px;
+}
+.choose-inner {
+  width: 100%;
+  max-width: 620px;
+  text-align: center;
+}
+.choose-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 15px;
+}
+.choose-title {
+  margin-top: 24px;
+  font-size: 34px;
+  color: var(--accent);
+  font-weight: 700;
+  font-family: var(--serif);
+}
+.choose-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 34px;
+}
+.choose-card {
+  text-align: left;
+  padding: 24px 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.choose-card:hover { border-color: var(--accent); }
+.choose-card-mark {
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0;
+}
+.choose-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--serif);
+}
+.choose-card-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ---------- 续读页 ---------- */
+.archive-page { min-height: 100vh; display: flex; flex-direction: column; }
+.archive-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bar);
+  color: var(--bar-text);
+}
+.archive-top .tb-btn {
+  border: 1px solid rgba(255,255,255,.35);
+  background: transparent;
+  color: var(--bar-text);
+}
+.archive-top .tb-info { font-size: 13px; color: rgba(255,255,255,.85); }
+.archive-body {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 22px;
+}
+.archive-card {
+  width: 100%;
+  max-width: 640px;
+  padding: 26px;
+}
+.archive-title { font-size: 20px; font-family: var(--serif); color: var(--accent); margin-bottom: 18px; }
+.archive-dir-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.archive-dir-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.archive-empty { font-size: 13px; color: var(--muted); padding: 14px 0; }
+.archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.resume-item:disabled { opacity: .55; cursor: wait; }
+
 /* ---------- 首次引导 ---------- */
 .onboard {
   min-height: 100vh;
@@ -187,6 +310,17 @@ input, textarea, select { font: inherit; }
 
 /* ---------- 工作台 ---------- */
 .work { min-height: 100vh; padding-bottom: 40px; }
+.work-back {
+  position: absolute;
+  top: 22px;
+  left: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 6px 10px;
+  z-index: 2;
+}
 .work.upload-only {
   display: flex;
   align-items: center;

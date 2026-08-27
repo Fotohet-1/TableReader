@@ -64,6 +64,8 @@ const clickByText = (text) =>
 
 await waitFor(`document.querySelector(".home") !== null`, 10000);
 await evalJs(`document.querySelector(".home").click()`);
+await waitFor(`document.querySelector(".choose-card") !== null`, 10000);
+await evalJs(`(() => { const b = [...document.querySelectorAll(".choose-card")].find((x) => x.textContent.includes("上传新剧本")); b && b.click(); return !!b; })()`);
 await waitFor(`document.querySelector(".upload-hero") !== null`, 10000);
 
 const sampleText = `1. 咖啡店 日 内

@@ -41,12 +41,10 @@ import {
 import {
   archiveAudioUrl,
   archiveHealth,
-  listProjects,
   loadMeta,
   saveAudio,
   saveMeta,
-  type ArchiveMeta,
-  type ArchiveProject
+  type ArchiveMeta
 } from "../lib/archive";
 
 type Source = TtsSource;
@@ -60,7 +58,7 @@ interface Profile {
   merged?: string[];
 }
 
-export default function UploadPage({ lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onResume, onEnterPlayer }: {
+export default function UploadPage({ lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack }: {
   lastSession: Session | null;
   onAnalyzed: (s: Session) => void;
   resetItems: () => void;
@@ -69,8 +67,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   setProject: (p: Project) => void;
   onArchiveNew: () => void;
   onArchiveActive: () => void;
-  onResume: (dir: string, id: string, name: string) => Promise<boolean>;
   onEnterPlayer: () => void;
+  onBack: () => void;
 }) {
   const [source, setSourceState] = useState<Source>(loadSource);
   const [edgeUrl, setEdgeUrlState] = useState(loadEdgeUrl);
@@ -116,10 +114,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [serviceOk, setServiceOk] = useState<boolean | null>(null);
   const [archiveDir, setArchiveDir] = useState(loadArchiveDir);
   const [archiveOk, setArchiveOk] = useState<boolean | null>(null);
-  const [resumeOpen, setResumeOpen] = useState(false);
-  const [resumeProjects, setResumeProjects] = useState<ArchiveProject[]>([]);
-  const [resumeBusy, setResumeBusy] = useState(false);
-  const [resumeErr, setResumeErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -267,22 +261,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       if (a && Object.keys(a).length && ctx) saveProjectMeta(ctx.dir, ctx.id, ctx.name, { ...a });
     }
     onEnterPlayer();
-  };
-
-  const openResume = async () => {
-    setResumeErr("");
-    setResumeOpen(true);
-    const ok = await archiveHealth();
-    setArchiveOk(ok);
-    if (!ok) {
-      setResumeErr("存档服务未启动，请先运行桌面快捷入口");
-      return;
-    }
-    setResumeBusy(true);
-    setResumeProjects([]);
-    const projects = await listProjects(archiveDir);
-    setResumeProjects(projects);
-    setResumeBusy(false);
   };
 
   const handleFiles = async (files: FileList | File[]) => {
@@ -837,6 +815,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   return (
     <div className={"work" + (phase === "upload" ? " upload-only" : "")}>
+      <button className="work-back" onClick={onBack}>← 返回</button>
       <div className="work-grid solo">
         <section className="card" ref={cardRef}>
           <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
@@ -874,9 +853,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             />
             {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
             <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
-            <button className="lib-entry" onClick={openResume}>继续上次围读</button>
           </div>
-          {archiveOk === false && <div className="prog warn">存档服务未启动，本次不会保存音频。请先运行桌面快捷入口。</div>}
         </section>
 
         {phase !== "upload" && (
@@ -1142,60 +1119,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               <div className="row">
                 <button className="settings-link" onClick={() => { setDsKey(""); saveDsKey(""); }}>清除 Key</button>
                 <button className="settings-link" onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {resumeOpen && (
-        <div className="modal-mask" onClick={() => setResumeOpen(false)}>
-          <div className="modal settings-modal resume-modal" onClick={(e) => e.stopPropagation()}>
-            <header className="lib-top">
-              <span className="lib-title">继续上次围读</span>
-              <button className="lib-close" onClick={() => setResumeOpen(false)} aria-label="关闭">✕</button>
-            </header>
-            <div className="settings-body">
-              <div className="field">
-                <label>存档目录</label>
-                <input
-                  value={archiveDir}
-                  onChange={(e) => { setArchiveDir(e.target.value); saveArchiveDir(e.target.value); }}
-                />
-                <button
-                  disabled={resumeBusy}
-                  onClick={async () => {
-                    setResumeErr("");
-                    const ok = await archiveHealth();
-                    setArchiveOk(ok);
-                    if (!ok) { setResumeErr("存档服务未启动"); return; }
-                    setResumeBusy(true);
-                    setResumeProjects(await listProjects(archiveDir));
-                    setResumeBusy(false);
-                  }}
-                >
-                  {resumeBusy ? "读取中…" : "刷新"}
-                </button>
-              </div>
-              {resumeErr && <div className="err">{resumeErr}</div>}
-              {!resumeBusy && resumeProjects.length === 0 && !resumeErr && (
-                <p className="settings-hint">这个目录里还没有存档项目</p>
-              )}
-              <div className="resume-list">
-                {resumeProjects.map((p) => (
-                  <button
-                    key={p.id}
-                    className="resume-item"
-                    onClick={async () => {
-                      setResumeErr("");
-                      const ok = await onResume(archiveDir, p.id, p.name);
-                      if (ok) setResumeOpen(false);
-                      else setResumeErr("存档读取失败，请检查目录和存档文件");
-                    }}
-                  >
-                    <span className="resume-name">{p.name}</span>
-                    <span className="resume-time">{p.updatedAt}</span>
-                  </button>
-                ))}
               </div>
             </div>
           </div>

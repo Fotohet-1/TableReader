@@ -2,13 +2,15 @@ import { useCallback, useRef, useState } from "react";
 import type { Project, Session, UnitAudio } from "./lib/types";
 import HomePage from "./pages/HomePage";
 import OnboardingPage from "./pages/OnboardingPage";
+import ChoosePage from "./pages/ChoosePage";
+import ArchiveContinuePage from "./pages/ArchiveContinuePage";
 import UploadPage from "./pages/UploadPage";
 import PlayerPage from "./pages/PlayerPage";
 import { archiveAudioUrl, loadMeta, savePlayback } from "./lib/archive";
 import { hasOnboarded, markOnboarded, saveDsKey, saveSource, type TtsSource } from "./lib/settings";
 
 export default function App() {
-  const [view, setView] = useState<"home" | "onboard" | "work" | "player">("home");
+  const [view, setView] = useState<"home" | "onboard" | "choose" | "archive" | "work" | "player">("home");
   const [project, setProject] = useState<Project | null>(null);
   const [items, setItems] = useState<UnitAudio[]>([]);
   const [synthDone, setSynthDone] = useState(false);
@@ -16,6 +18,7 @@ export default function App() {
   const [playerInit, setPlayerInit] = useState({ idx: -1, ms: 0 });
   const archiveActiveRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
+  const playerFromRef = useRef<"work" | "archive">("work");
   projectRef.current = project;
 
   const registerUnit = useCallback((item: UnitAudio) => {
@@ -29,7 +32,7 @@ export default function App() {
 
   const markSynthDone = useCallback(() => setSynthDone(true), []);
 
-  const enter = () => setView(hasOnboarded() ? "work" : "onboard");
+  const enter = () => setView(hasOnboarded() ? "choose" : "onboard");
 
   const resumeArchive = useCallback(async (dir: string, id: string, name: string) => {
     const meta = await loadMeta(dir, id);
@@ -61,6 +64,7 @@ export default function App() {
     setSynthDone(true);
     archiveActiveRef.current = true;
     setPlayerInit({ idx: meta.playback?.currentIdx ?? 0, ms: meta.playback?.globalMs ?? 0 });
+    playerFromRef.current = "archive";
     setView("player");
     return true;
   }, []);
@@ -75,13 +79,26 @@ export default function App() {
     markOnboarded();
     saveSource(source);
     saveDsKey(dsKey);
-    setView("work");
+    setView("choose");
   };
 
   return (
     <div className="app">
       {view === "home" && <HomePage onEnter={enter} />}
       {view === "onboard" && <OnboardingPage onDone={finishOnboard} />}
+      {view === "choose" && (
+        <ChoosePage
+          onUpload={() => setView("work")}
+          onContinue={() => setView("archive")}
+          onBack={() => setView("home")}
+        />
+      )}
+      {view === "archive" && (
+        <ArchiveContinuePage
+          onContinue={resumeArchive}
+          onBack={() => setView("choose")}
+        />
+      )}
       {view === "work" && (
         <UploadPage
           lastSession={lastSession}
@@ -98,8 +115,11 @@ export default function App() {
             archiveActiveRef.current = true;
             setPlayerInit({ idx: -1, ms: 0 });
           }}
-          onResume={resumeArchive}
-          onEnterPlayer={() => setView("player")}
+          onEnterPlayer={() => {
+            playerFromRef.current = "work";
+            setView("player");
+          }}
+          onBack={() => setView("choose")}
         />
       )}
       {view === "player" && (
@@ -110,7 +130,7 @@ export default function App() {
             synthDone={synthDone}
             initialIndex={playerInit.idx}
             initialMs={playerInit.ms}
-            onBack={() => setView("work")}
+            onBack={() => setView(playerFromRef.current === "archive" ? "archive" : "work")}
             onPosition={handlePosition}
           />
         )
