@@ -679,12 +679,12 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .pb-play {
   font-size: 15px;
   width: 40px;
-  padding: 7px 0;
-  background: var(--bar-text);
-  color: var(--bar);
-  border: 0;
+  padding: 6px 0;
+  background: transparent;
+  color: var(--bar-text);
+  border: 1px solid rgba(255,255,255,.22);
 }
-.pb-play:hover { background: #fff; color: var(--bar); }
+.pb-play:hover { border-color: #fff; color: #fff; }
 .pb-range {
   flex: 1;
   min-width: 60px;
@@ -702,7 +702,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   border-radius: 50%;
   background: var(--bar-text);
   border: 0;
-  margin-top: -6px;
+  margin-top: -1px;
   cursor: pointer;
 }
 .pb-range::-moz-range-track {

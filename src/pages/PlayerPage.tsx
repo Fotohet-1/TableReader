@@ -83,6 +83,14 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     if (i < items2.length) {
       idxRef.current = i;
       setCurrentIdx(i);
+      const audio = audioRef.current;
+      if (audio && items2[i].url) {
+        audio.preload = "auto";
+        audio.src = items2[i].url;
+        audio.load();
+        audio.currentTime = 0;
+        audio.playbackRate = rateRef.current;
+      }
     }
   }, []);
 
