@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<!-- 剧本围读助手 · 网页风格打印版（A4 PDF）
+     版式语言沿用 cover/index.html：羊皮纸底、墨蓝单强调色、衬线层级、截图画廊。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>剧本围读助手 · 核心功能与使用技巧</title>
+<meta name="author" content="剧本围读助手">
+<meta name="description" content="把剧本变成可听的围读：从上传解析、音色设计到续读存档的完整指南，网页风格打印版。">
+<meta name="keywords" content="剧本围读, 配音, 音色库, 流式合成, 存档续读">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @page {
+    size: A4;
+    margin: 16mm 18mm 18mm 18mm;
+    background: #f5f4ed;
+    @bottom-center {
+      content: counter(page) "  ·  剧本围读助手";
+      font-family: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+      font-size: 8.5pt;
+      color: #6b6a64;
+    }
+    @top-right {
+      content: string(section-title);
+      font-family: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+      font-size: 8pt;
+      color: #6b6a64;
+    }
+  }
+  @page:first {
+    @bottom-center { content: ""; }
+    @top-right { content: ""; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory: #faf9f5;
+    --warm-sand: #e8e6dc;
+    --brand: #1B365D;
+    --brand-light: #2D5A8A;
+    --brand-tint: #EEF2F7;
+    --near-black: #141413;
+    --dark-warm: #3d3d3a;
+    --olive: #504e49;
+    --stone: #6b6a64;
+    --border: #e8e6dc;
+    --border-soft: #e5e3d8;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Source Han Serif CN",
+             "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "STSong", "SimSun",
+             Georgia, serif;
+    --mono: "JetBrains Mono", "SF Mono", Consolas,
+            "TsangerJinKai02", "Source Han Serif SC", monospace;
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 14mm 18mm; }
+  }
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 10.5pt;
+    line-height: 1.55;
+    letter-spacing: 0.25pt;
+    widows: 2;
+    orphans: 2;
+  }
+
+  strong { font-weight: 500; }
+  code {
+    font-family: var(--mono);
+    font-size: 8.5pt;
+    background: var(--ivory);
+    padding: 0.5pt 3pt;
+    border-radius: 2pt;
+    color: var(--dark-warm);
+  }
+
+  .eyebrow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    color: var(--stone);
+    letter-spacing: 1pt;
+    border-bottom: 1px solid var(--border-soft);
+    padding-bottom: 8pt;
+    margin-bottom: 22pt;
+  }
+  .eyebrow .hl { color: var(--brand); font-weight: 500; }
+
+  .section-head {
+    margin: 0 0 18pt 0;
+    break-after: avoid;
+  }
+  .section-num {
+    font-size: 9pt;
+    letter-spacing: 1.2pt;
+    color: var(--brand);
+    text-transform: uppercase;
+    margin-bottom: 5pt;
+  }
+  h2 {
+    font-size: 21pt;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--near-black);
+    margin-bottom: 7pt;
+    string-set: section-title content();
+  }
+  .section-lede {
+    font-size: 10.5pt;
+    color: var(--olive);
+    max-width: 86%;
+  }
+
+  /* ========== 封面 ========== */
+  .cover {
+    min-height: 248mm;
+    display: flex;
+    flex-direction: column;
+    break-after: page;
+  }
+  .cover-main { flex: 1; }
+  .cover .eyebrow { margin-top: 4mm; }
+  .cover h1 {
+    font-size: 38pt;
+    font-weight: 500;
+    line-height: 1.12;
+    letter-spacing: 0.4pt;
+    color: var(--near-black);
+    margin: 26pt 0 14pt;
+  }
+  .cover-tagline {
+    font-size: 14pt;
+    line-height: 1.55;
+    color: var(--olive);
+    max-width: 78%;
+    margin-bottom: 22pt;
+  }
+  .cover-tokens {
+    display: flex;
+    gap: 10pt;
+    margin-bottom: 24pt;
+  }
+  .metric {
+    background: var(--ivory);
+    border-radius: 5pt;
+    padding: 9pt 13pt;
+    min-width: 88pt;
+  }
+  .metric-value {
+    display: block;
+    font-size: 11.5pt;
+    font-weight: 500;
+    color: var(--brand);
+  }
+  .metric-label {
+    display: block;
+    font-size: 8.5pt;
+    color: var(--stone);
+    margin-top: 2pt;
+  }
+  .cover-shot {
+    background: var(--ivory);
+    border-radius: 6pt;
+    padding: 10pt;
+    break-inside: avoid;
+  }
+  .cover-shot img {
+    width: 100%;
+    border-radius: 4pt;
+    display: block;
+  }
+  .cover-shot figcaption {
+    font-size: 8.5pt;
+    color: var(--stone);
+    text-align: center;
+    padding-top: 6pt;
+  }
+  .cover-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    color: var(--stone);
+    margin-top: 16pt;
+  }
+  .cover-meta strong { color: var(--dark-warm); font-weight: 500; }
+
+  /* ========== 画廊 ========== */
+  .gallery-page {
+    break-before: page;
+  }
+  .gallery-shot {
+    background: var(--ivory);
+    border-radius: 6pt;
+    padding: 10pt;
+    margin-bottom: 16pt;
+    break-inside: avoid;
+  }
+  .gallery-shot img {
+    width: 80%;
+    margin: 0 auto;
+    display: block;
+    border-radius: 4pt;
+  }
+  .gallery-shot figcaption {
+    text-align: center;
+    font-size: 9pt;
+    color: var(--olive);
+    padding-top: 6pt;
+  }
+  .gallery-shot figcaption small {
+    display: block;
+    color: var(--stone);
+    font-size: 8pt;
+    margin-top: 2pt;
+  }
+
+  /* ========== 功能 ========== */
+  .features-page { break-before: page; }
+  .features {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12pt;
+  }
+  .features li {
+    width: 48.5%;
+    background: var(--ivory);
+    border-left: 1.4pt solid var(--brand);
+    border-radius: 5pt;
+    padding: 14pt 15pt;
+    break-inside: avoid;
+  }
+  .features .name {
+    font-size: 12pt;
+    font-weight: 500;
+    color: var(--near-black);
+    margin-bottom: 3pt;
+  }
+  .features .name small {
+    font-size: 8pt;
+    color: var(--stone);
+    margin-left: 6pt;
+    letter-spacing: 0.6pt;
+    text-transform: uppercase;
+  }
+  .features .what {
+    font-size: 9.5pt;
+    color: var(--olive);
+    line-height: 1.5;
+  }
+  .feature-note {
+    background: var(--brand-tint);
+    border-radius: 5pt;
+    padding: 11pt 14pt;
+    margin-top: 12pt;
+    font-size: 9.5pt;
+    color: var(--dark-warm);
+    break-inside: avoid;
+  }
+  .feature-note strong { color: var(--brand); font-weight: 500; }
+
+  /* ========== 原则 ========== */
+  .principles-page { break-before: page; }
+  .principles {
+    list-style: none;
+    counter-reset: prin;
+    margin-top: 4pt;
+  }
+  .principles li {
+    counter-increment: prin;
+    display: flex;
+    gap: 14pt;
+    align-items: baseline;
+    padding: 13pt 0;
+    border-bottom: 0.4pt solid var(--border-soft);
+    break-inside: avoid;
+  }
+  .principles li::before {
+    content: "0" counter(prin);
+    font-size: 15pt;
+    font-weight: 500;
+    color: var(--brand);
+    min-width: 26pt;
+  }
+  .principles .title {
+    font-size: 12pt;
+    font-weight: 500;
+    color: var(--near-black);
+    min-width: 120pt;
+  }
+  .principles .desc {
+    font-size: 9.5pt;
+    color: var(--olive);
+  }
+
+  /* ========== 技巧 ========== */
+  .tips-page { break-before: page; }
+  .tips {
+    list-style: none;
+    counter-reset: tip;
+  }
+  .tips li {
+    counter-increment: tip;
+    display: flex;
+    gap: 12pt;
+    padding: 11pt 0;
+    border-bottom: 0.4pt solid var(--border-soft);
+    break-inside: avoid;
+  }
+  .tips li::before {
+    content: counter(tip);
+    width: 20pt;
+    height: 20pt;
+    flex: 0 0 20pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10pt;
+    background: var(--brand);
+    color: var(--ivory);
+    font-size: 9.5pt;
+    font-weight: 500;
+    margin-top: 2pt;
+  }
+  .tips .title {
+    font-size: 11pt;
+    font-weight: 500;
+    color: var(--near-black);
+    margin-bottom: 2pt;
+  }
+  .tips .desc {
+    font-size: 9.5pt;
+    color: var(--olive);
+    line-height: 1.5;
+  }
+
+  /* ========== FAQ ========== */
+  .faq-page { break-before: page; }
+  .faq dt {
+    font-size: 11pt;
+    font-weight: 500;
+    color: var(--near-black);
+    margin: 12pt 0 3pt;
+    break-after: avoid;
+  }
+  .faq dd {
+    font-size: 9.5pt;
+    color: var(--olive);
+    line-height: 1.5;
+    break-inside: avoid;
+  }
+  .env-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 14pt;
+    font-size: 9pt;
+  }
+  .env-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--dark-warm);
+    padding: 6pt 8pt;
+    border-bottom: 1pt solid var(--border);
+  }
+  .env-table td {
+    padding: 5pt 8pt;
+    border-bottom: 0.3pt solid var(--border-soft);
+    color: var(--olive);
+  }
+  .env-table code { background: transparent; padding: 0; }
+
+  /* ========== 结尾 ========== */
+  .foot {
+    margin-top: 28pt;
+    padding-top: 14pt;
+    border-top: 1px solid var(--border-soft);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 9pt;
+    color: var(--stone);
+  }
+  .foot .wm-name {
+    font-size: 11pt;
+    font-weight: 500;
+    color: var(--dark-warm);
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ 封面 ============ -->
+  <section class="cover">
+    <div class="cover-main">
+      <div class="eyebrow">
+        <span>剧本围读助手 · <span class="hl">V1.1</span></span>
+        <span>核心功能与使用技巧</span>
+      </div>
+      <h1>把剧本变成<br>可听的围读</h1>
+      <p class="cover-tagline">上传剧本，让每个角色拥有自己的声音。这份指南讲清完整流程、核心功能与最容易踩的坑。</p>
+
+      <div class="cover-tokens">
+        <span class="metric"><span class="metric-value">本地</span><span class="metric-label">TTS 引擎</span></span>
+        <span class="metric"><span class="metric-value">自然语言</span><span class="metric-label">音色设计</span></span>
+        <span class="metric"><span class="metric-value">多集</span><span class="metric-label">剧本围读</span></span>
+        <span class="metric"><span class="metric-value">0 元</span><span class="metric-label">本地免费</span></span>
+      </div>
+
+      <figure class="cover-shot">
+        <img src="assets/sr_home_latest.png" alt="剧本围读助手首页">
+        <figcaption>每次打开，从一页安静的封面开始；点“开始使用”，进入上传或续读。</figcaption>
+      </figure>
+    </div>
+
+    <div class="cover-meta">
+      <span><strong>剧本围读助手</strong> · 使用指南</span>
+      <span>2026.08 · 打印版</span>
+    </div>
+  </section>
+
+  <!-- ============ 00 · 界面 ============ -->
+  <section class="gallery-page">
+    <div class="section-head">
+      <p class="section-num">00 · 界面</p>
+      <h2>从首页到音色库</h2>
+      <p class="section-lede">三个关键画面：进入、选择文件、为每个角色准备声音。</p>
+    </div>
+
+    <figure class="gallery-shot">
+      <img src="assets/sr_upload_latest.png" alt="上传页">
+      <figcaption>上传页：拖入 .docx / .txt / .md，可多选多集；解析后先过场标预览。<small>文件名带“第1集”这类集号，会自动排序并独立计场。</small></figcaption>
+    </figure>
+
+    <figure class="gallery-shot">
+      <img src="assets/sr_library_latest.png" alt="音色库">
+      <figcaption>音色库：14 个中文基础音色 × 5 档语调，共 70 个音色位。<small>每个音色位可单独打性别、年龄、方言标签，批量设置后锁定防误改。</small></figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 01 · 功能 ============ -->
+  <section class="features-page">
+    <div class="section-head">
+      <p class="section-num">01 · 功能</p>
+      <h2>为一场戏准备声音</h2>
+      <p class="section-lede">四个核心能力，串起从剧本到围读的整条流水线。</p>
+    </div>
+
+    <ol class="features">
+      <li>
+        <p class="name">智能拆剧本<small>parsing</small></p>
+        <p class="what">按行区分场标、对白、动作与旁白，多集剧本按集排序、独立计场；疑似漏识别的行可一键设为场标或忽略。</p>
+      </li>
+      <li>
+        <p class="name">声音设计<small>voice design</small></p>
+        <p class="what">Qwen 用一句自然语言描述生成种子音色，试听满意后克隆固定，全剧声音统一；edge 模式直接分配，即开即用。</p>
+      </li>
+      <li>
+        <p class="name">流式围读<small>streaming</small></p>
+        <p class="what">边合成边播放，满 25 句即可提前进入围读，后台继续生成；当前句高亮跟随，0.5x-3x 倍速随时调。</p>
+      </li>
+      <li>
+        <p class="name">跨集存档<small>archive</small></p>
+        <p class="what">存档按“剧 → 集”两级落盘，每集独立保存音频与进度；角色音色按 roleBase 身份键跨集复用，音源锁在剧级。</p>
+      </li>
+    </ol>
+
+    <div class="feature-note">
+      <strong>两条路线怎么选：</strong>edge-tts 接近实时、需要联网，适合先听节奏；Qwen3 1.7B 全本地、首次加载较慢，适合定最终声音。同一部剧内不要混用两种音源。
+    </div>
+  </section>
+
+  <!-- ============ 02 · 原则 ============ -->
+  <section class="principles-page">
+    <div class="section-head">
+      <p class="section-num">02 · 原则</p>
+      <h2>少即是好</h2>
+      <p class="section-lede">四句话概括这个工具的设计取舍，也是使用时的判断标准。</p>
+    </div>
+
+    <ol class="principles">
+      <li>
+        <span class="title">本地优先</span>
+        <span class="desc">剧本与音频只写入本地存档，数据不出这台电脑；唯一外部依赖是 edge 在线合成和可选的 DeepSeek 精修。</span>
+      </li>
+      <li>
+        <span class="title">一个角色，一个音色</span>
+        <span class="desc">种子音色与 roleBase 身份键保证同一角色跨集复用同一声音，界面会标注“已复用”。</span>
+      </li>
+      <li>
+        <span class="title">流程一条直线</span>
+        <span class="desc">上传 → 场标 → 角色 → 声音 → 合成 → 围读 → 续读，默认值已能跑通，设置只是精调。</span>
+      </li>
+      <li>
+        <span class="title">规则打底，人工接手</span>
+        <span class="desc">解析、性别年龄、自动分配都有规则兜底；确认页随时可改，AI 只是减少重复劳动。</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ 03 · 使用技巧 ============ -->
+  <section class="tips-page">
+    <div class="section-head">
+      <p class="section-num">03 · 使用技巧</p>
+      <h2>少踩坑，一次成型</h2>
+      <p class="section-lede">按上传前、合成前、续读前三个阶段排列的高频技巧。</p>
+    </div>
+
+    <ol class="tips">
+      <li>
+        <div>
+          <p class="title">文件名带集号</p>
+          <p class="desc">写“第1集”“第一集”等，多集上传后自动排序并独立计场，否则多集文件容易被当成同集处理。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p class="title">先跑一集再批量</p>
+          <p class="desc">用一集测试剧本走完流程，确认场标与角色识别无误，再上传后续集数，返工成本最低。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p class="title">先试听种子音色</p>
+          <p class="desc">Qwen 模式下先为每个角色生成种子音色并试听，满意后再批量合成；种子决定全剧声音统一。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p class="title">先启用音色位</p>
+          <p class="desc">自动分配只在“已启用”的音色池里找；角色多时先启用更多档位，避免“可用音色不足”。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p class="title">同剧不换音源</p>
+          <p class="desc">音源锁在剧级，切回续读时不要在同剧内混用 edge 与 Qwen，否则角色声音可能不一致。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p class="title">存档目录别乱换</p>
+          <p class="desc">默认 <code>~/Documents/剧本围读存档</code>，第一次保存时自动创建；改目录等于换一套存档，共享要拷贝整个文件夹。</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ 04 · FAQ ============ -->
+  <section class="faq-page">
+    <div class="section-head">
+      <p class="section-num">04 · 常见问题</p>
+      <h2>问答</h2>
+      <p class="section-lede">安装、运行与存档的快速对照。</p>
+    </div>
+
+    <dl class="faq">
+      <dt>需要什么电脑？</dt>
+      <dd>Apple Silicon Mac（M1 及以上）。16GB 内存可跑 Qwen3 1.7B；更小的机器建议全程用 edge-tts。</dd>
+      <dt>Qwen 报错或生成超时？</dt>
+      <dd>服务必须用 <code>.venv-qwen/bin/python</code> 启动；生成有 180 秒超时并会自动重建 worker，卡住后重试即可，日志在 <code>logs/sr_qwen.log</code>。</dd>
+      <dt>前端打不开怎么办？</dt>
+      <dd>确认 5174、9882、9883、9884 四个端口健康、<code>dist/</code> 存在；日志都在 <code>logs/</code> 目录。</dd>
+      <dt>存档找不到？</dt>
+      <dd>默认目录是 <code>~/Documents/剧本围读存档</code>，第一次保存时懒创建；换目录等于换一套存档。</dd>
+      <dt>edge 合成失败？</dt>
+      <dd>edge-tts 使用微软在线音色，需要联网；检查网络后重试即可。</dd>
+    </dl>
+
+    <table class="env-table">
+      <thead>
+        <tr>
+          <th>端口</th>
+          <th>服务</th>
+          <th>依赖</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>5174</code></td>
+          <td>前端静态服务</td>
+          <td>dist 构建产物</td>
+        </tr>
+        <tr>
+          <td><code>9882</code></td>
+          <td>edge-tts</td>
+          <td>联网</td>
+        </tr>
+        <tr>
+          <td><code>9883</code></td>
+          <td>Qwen3</td>
+          <td>本地模型</td>
+        </tr>
+        <tr>
+          <td><code>9884</code></td>
+          <td>存档服务</td>
+          <td>Python 标准库</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="foot">
+      <span class="wm-name">剧本围读助手</span>
+      <span>本地运行 · 开源模型 · 人工确认</span>
+    </div>
+  </section>
+
+</body>
+</html>
