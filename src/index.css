@@ -179,7 +179,7 @@ input, textarea, select { font: inherit; }
 }
 .onboard-next { margin-top: 8px; padding: 11px 34px; font-size: 15px; }
 .onboard-actions { display: flex; gap: 12px; justify-content: center; margin-top: 18px; }
-.onboard-actions button { padding: 10px 22px; font-size: 14px; }
+.onboard-actions button { padding: 10px 22px; font-size: 14px; border-radius: 999px; }
 @media (max-width: 640px) {
   .onboard-cards { grid-template-columns: 1fr; }
   .home-title { font-size: 38px; }
