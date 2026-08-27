@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""剧本围读存档服务（默认 9884）
+GET  /list?dir=...              -> 列出目录下的存档项目
+GET  /meta?dir=...&id=...       -> 读取项目 meta.json
+POST /meta {"dir":..., "id":..., "meta":{...}} -> 写项目 meta.json
+POST /audio (raw wav) headers X-Archive-Dir / X-Project-Id / X-Unit-Id -> 写音频
+GET  /audio?dir=...&id=...&unit=... -> 返回音频（播放）
+POST /playback {"dir":..., "id":..., "currentIdx":..., "globalMs":...} -> 更新播放进度
+POST /health -> {"ok": true}
+"""
+import json
+import os
+import threading
+import time
+import urllib.parse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+META_LOCK = threading.Lock()
+
+
+def safe_child(base: str, *parts: str) -> str:
+    base = os.path.abspath(os.path.expanduser(base))
+    path = os.path.abspath(os.path.join(base, *parts))
+    if not path.startswith(base + os.sep) and path != base:
+        raise ValueError("路径越界")
+    return path
+
+
+def read_meta(base: str, pid: str):
+    p = safe_child(base, pid, "meta.json")
+    if not os.path.exists(p):
+        return None
+    with open(p, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def write_meta(base: str, pid: str, meta: dict):
+    folder = safe_child(base, pid)
+    os.makedirs(folder, exist_ok=True)
+    p = os.path.join(folder, "meta.json")
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, p)
+
+
+class Handler(BaseHTTPRequestHandler):
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Archive-Dir, X-Project-Id, X-Unit-Id")
+
+    def _json(self, obj, code=200):
+        body = json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self._cors()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _read_json(self):
+        length = int(self.headers.get("Content-Length", 0))
+        return json.loads(self.rfile.read(length) or b"{}")
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self._cors()
+        self.end_headers()
+
+    def do_GET(self):
+        try:
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            if self.path.startswith("/health"):
+                self._json({"ok": True})
+                return
+            if self.path.startswith("/list"):
+                base = q.get("dir", [""])[0]
+                base = os.path.abspath(os.path.expanduser(base or "~/Documents/剧本围读存档"))
+                out = []
+                if os.path.isdir(base):
+                    for name in sorted(os.listdir(base)):
+                        mp = os.path.join(base, name, "meta.json")
+                        if not os.path.isfile(mp):
+                            continue
+                        try:
+                            with open(mp, "r", encoding="utf-8") as f:
+                                m = json.load(f)
+                            out.append({"id": name, "name": m.get("name", name), "updatedAt": m.get("updatedAt", "")})
+                        except Exception:
+                            pass
+                self._json({"projects": out})
+                return
+            if self.path.startswith("/meta"):
+                base = q.get("dir", [""])[0] or "~/Documents/剧本围读存档"
+                pid = q.get("id", [""])[0]
+                m = read_meta(base, pid)
+                if m is None:
+                    self._json({"ok": False, "error": "not found"}, 404)
+                else:
+                    self._json({"ok": True, "meta": m})
+                return
+            if self.path.startswith("/audio"):
+                base = q.get("dir", [""])[0] or "~/Documents/剧本围读存档"
+                pid = q.get("id", [""])[0]
+                unit = q.get("unit", [""])[0]
+                p = safe_child(base, pid, "audio", str(unit) + ".wav")
+                if not os.path.isfile(p):
+                    self.send_error(404)
+                    return
+                with open(p, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "audio/wav")
+                self.send_header("Content-Length", str(len(data)))
+                self._cors()
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            self.send_error(404)
+        except Exception as e:
+            self._json({"ok": False, "error": str(e)}, 500)
+
+    def do_POST(self):
+        try:
+            if self.path.startswith("/health"):
+                self._json({"ok": True})
+                return
+            if self.path.startswith("/meta"):
+                body = self._read_json()
+                base = body.get("dir", "") or "~/Documents/剧本围读存档"
+                pid = str(body.get("id", ""))
+                meta = body.get("meta") or {}
+                meta["updatedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                with META_LOCK:
+                    write_meta(base, pid, meta)
+                self._json({"ok": True})
+                return
+            if self.path.startswith("/playback"):
+                body = self._read_json()
+                base = body.get("dir", "") or "~/Documents/剧本围读存档"
+                pid = str(body.get("id", ""))
+                with META_LOCK:
+                    m = read_meta(base, pid) or {}
+                    m["playback"] = {"currentIdx": int(body.get("currentIdx", 0)), "globalMs": int(body.get("globalMs", 0))}
+                    m["updatedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                    write_meta(base, pid, m)
+                self._json({"ok": True})
+                return
+            if self.path.startswith("/audio"):
+                length = int(self.headers.get("Content-Length", 0))
+                data = self.rfile.read(length)
+                base = urllib.parse.unquote(self.headers.get("X-Archive-Dir", "")) or "~/Documents/剧本围读存档"
+                pid = self.headers.get("X-Project-Id", "")
+                unit = self.headers.get("X-Unit-Id", "")
+                p = safe_child(base, pid, "audio", str(unit) + ".wav")
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, "wb") as f:
+                    f.write(data)
+                self._json({"ok": True})
+                return
+            self.send_error(404)
+        except Exception as e:
+            self._json({"ok": False, "error": str(e)}, 500)
+
+    def log_message(self, fmt, *args):
+        import sys
+        sys.stderr.write("%s\n" % (fmt % args))
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "9884"))
+    print("剧本围读存档服务 on http://127.0.0.1:%d" % port, flush=True)
+    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()

@@ -12,26 +12,31 @@ function colorFor(name: string): string {
   return PALETTE[h % PALETTE.length];
 }
 
-export default function PlayerPage({ project, items, synthDone, onBack }: {
+export default function PlayerPage({ project, items, synthDone, initialIndex = -1, initialMs = 0, onBack, onPosition }: {
   project: Project;
   items: UnitAudio[];
   synthDone: boolean;
+  initialIndex?: number;
+  initialMs?: number;
   onBack: () => void;
+  onPosition?: (currentIdx: number, globalMs: number) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const [currentIdx, setCurrentIdx] = useState(-1);
+  const [currentIdx, setCurrentIdx] = useState(initialIndex);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [rate, setRate] = useState(1);
-  const [globalMs, setGlobalMs] = useState(0);
+  const [globalMs, setGlobalMs] = useState(initialMs);
   const followLockUntil = useRef(0);
   const jumpMode = useRef(false);
   const idxRef = useRef(-1);
   const rateRef = useRef(1);
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  const lastPosRef = useRef(0);
+  const posRef = useRef(initialMs);
   const synthDoneRef = useRef(synthDone);
   synthDoneRef.current = synthDone;
 
@@ -82,7 +87,7 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
 
   useEffect(() => {
     const items2 = itemsRef.current;
-    let i = 0;
+    let i = initialIndex >= 0 ? initialIndex : 0;
     while (i < items2.length && (!items2[i].url || items2[i].durationMs <= 0)) i++;
     if (i < items2.length) {
       idxRef.current = i;
@@ -92,11 +97,11 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
         audio.preload = "auto";
         audio.src = items2[i].url;
         audio.load();
-        audio.currentTime = 0;
+        audio.currentTime = initialMs > 0 ? Math.min(initialMs / 1000, items2[i].durationMs / 1000) : 0;
         audio.playbackRate = rateRef.current;
       }
     }
-  }, []);
+  }, [initialIndex, initialMs]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -106,7 +111,14 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     const onPlay = () => setPlaying(true);
     const onTime = () => {
       const item = itemsRef.current[idxRef.current];
-      if (item) setGlobalMs(item.startMs + audio.currentTime * 1000);
+      if (!item) return;
+      const ms = item.startMs + audio.currentTime * 1000;
+      setGlobalMs(ms);
+      posRef.current = ms;
+      if (onPosition && ms - lastPosRef.current > 2000) {
+        lastPosRef.current = ms;
+        onPosition(idxRef.current, Math.round(ms));
+      }
     };
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("pause", onPause);
@@ -118,7 +130,15 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("timeupdate", onTime);
     };
-  }, []);
+  }, [onPosition]);
+
+  useEffect(() => {
+    return () => {
+      const item = itemsRef.current[idxRef.current];
+      const ms = item && audioRef.current ? item.startMs + audioRef.current.currentTime * 1000 : posRef.current;
+      if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms));
+    };
+  }, [onPosition]);
 
   useEffect(() => {
     if (waiting && itemsRef.current.length > idxRef.current + 1) advance();
@@ -231,7 +251,12 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     <div className="player-page">
       <audio ref={audioRef} preload="auto" />
       <header className="topbar">
-        <button onClick={onBack} className="tb-btn">← 返回</button>
+        <button onClick={() => {
+          const item = itemsRef.current[idxRef.current];
+          const ms = item && audioRef.current ? item.startMs + audioRef.current.currentTime * 1000 : posRef.current;
+          if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms));
+          onBack();
+        }} className="tb-btn">← 返回</button>
         <span className="tb-info">
           {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
         </span>

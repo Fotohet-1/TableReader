@@ -14,7 +14,7 @@ export interface SynthSummary {
 }
 
 export interface SynthFn {
-  (text: string, voiceId: string, idx?: number): Promise<{ blob: Blob; durationMs: number }>;
+  (text: string, voiceId: string, idx?: number, unitId?: number): Promise<{ blob: Blob; durationMs: number; url?: string }>;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -30,6 +30,7 @@ export function synthesizeStream(
     onUnitReady: (item: UnitAudio) => void;
     onProgress?: (p: Progress) => void;
     synthFn: SynthFn;
+    existing?: Record<number, { url: string; durationMs: number }>;
   }
 ): { firstReady: Promise<void>; done: Promise<SynthSummary> } {
   const units = project.units.filter((u) => u.text.trim());
@@ -69,10 +70,10 @@ export function synthesizeStream(
     }
   }
 
-  async function synthWithRetry(text: string, voiceId: string, idx: number) {
+  async function synthWithRetry(text: string, voiceId: string, idx: number, unitId: number) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        return await opts.synthFn(text, voiceId, idx);
+        return await opts.synthFn(text, voiceId, idx, unitId);
       } catch {
         if (attempt < 1) await sleep(1000);
       }
@@ -87,11 +88,25 @@ export function synthesizeStream(
       const u = units[idx];
       const voiceId = voiceMap[u.character] || "zh-CN-XiaoxiaoNeural";
       opts.onProgress?.({ done: doneCount, total, current: u.text.slice(0, 18), failed });
-      try {
-        const r = await synthWithRetry(u.text, voiceId, idx);
+      const ex = opts.existing && opts.existing[u.id];
+      if (ex) {
         results[idx] = {
           unitId: u.id,
-          url: URL.createObjectURL(r.blob),
+          url: ex.url,
+          durationMs: ex.durationMs,
+          startMs: 0,
+          endMs: 0
+        };
+        doneCount++;
+        flush();
+        opts.onProgress?.({ done: doneCount, total, current: "", failed });
+        continue;
+      }
+      try {
+        const r = await synthWithRetry(u.text, voiceId, idx, u.id);
+        results[idx] = {
+          unitId: u.id,
+          url: r.url || URL.createObjectURL(r.blob),
           durationMs: r.durationMs,
           startMs: 0,
           endMs: 0

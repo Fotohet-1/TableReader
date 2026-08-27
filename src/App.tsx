@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Project, Session, UnitAudio } from "./lib/types";
 import HomePage from "./pages/HomePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import UploadPage from "./pages/UploadPage";
 import PlayerPage from "./pages/PlayerPage";
+import { archiveAudioUrl, loadMeta, savePlayback } from "./lib/archive";
 import { hasOnboarded, markOnboarded, saveDsKey, saveSource, type TtsSource } from "./lib/settings";
 
 export default function App() {
@@ -12,6 +13,10 @@ export default function App() {
   const [items, setItems] = useState<UnitAudio[]>([]);
   const [synthDone, setSynthDone] = useState(false);
   const [lastSession, setLastSession] = useState<Session | null>(null);
+  const [playerInit, setPlayerInit] = useState({ idx: -1, ms: 0 });
+  const archiveActiveRef = useRef(false);
+  const projectRef = useRef<Project | null>(null);
+  projectRef.current = project;
 
   const registerUnit = useCallback((item: UnitAudio) => {
     setItems((prev) => [...prev, item]);
@@ -25,6 +30,46 @@ export default function App() {
   const markSynthDone = useCallback(() => setSynthDone(true), []);
 
   const enter = () => setView(hasOnboarded() ? "work" : "onboard");
+
+  const resumeArchive = useCallback(async (dir: string, id: string, name: string) => {
+    const meta = await loadMeta(dir, id);
+    if (!meta) return false;
+    const p: Project = {
+      scriptText: meta.scriptText || "",
+      units: meta.units || [],
+      voices: meta.voices || [],
+      archive: { dir, id, name }
+    };
+    const items: UnitAudio[] = (meta.units || []).map((u) => {
+      const audio = meta.audio && meta.audio[u.id];
+      return {
+        unitId: u.id,
+        url: audio ? archiveAudioUrl(dir, id, u.id) : "",
+        durationMs: audio ? audio.durationMs : 0,
+        startMs: 0,
+        endMs: 0
+      };
+    });
+    let acc = 0;
+    for (const it of items) {
+      it.startMs = acc;
+      acc += it.durationMs;
+      it.endMs = acc;
+    }
+    setProject(p);
+    setItems(items);
+    setSynthDone(true);
+    archiveActiveRef.current = true;
+    setPlayerInit({ idx: meta.playback?.currentIdx ?? 0, ms: meta.playback?.globalMs ?? 0 });
+    setView("player");
+    return true;
+  }, []);
+
+  const handlePosition = useCallback((idx: number, ms: number) => {
+    const p = projectRef.current;
+    if (!archiveActiveRef.current || !p?.archive) return;
+    void savePlayback(p.archive.dir, p.archive.id, idx, ms);
+  }, []);
 
   const finishOnboard = (source: TtsSource, dsKey: string) => {
     markOnboarded();
@@ -45,6 +90,15 @@ export default function App() {
           registerUnit={registerUnit}
           markSynthDone={markSynthDone}
           setProject={setProject}
+          onArchiveNew={() => {
+            archiveActiveRef.current = false;
+            setPlayerInit({ idx: -1, ms: 0 });
+          }}
+          onArchiveActive={() => {
+            archiveActiveRef.current = true;
+            setPlayerInit({ idx: -1, ms: 0 });
+          }}
+          onResume={resumeArchive}
           onEnterPlayer={() => setView("player")}
         />
       )}
@@ -54,7 +108,10 @@ export default function App() {
             project={project}
             items={items}
             synthDone={synthDone}
+            initialIndex={playerInit.idx}
+            initialMs={playerInit.ms}
             onBack={() => setView("work")}
+            onPosition={handlePosition}
           />
         )
       )}

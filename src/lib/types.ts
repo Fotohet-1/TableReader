@@ -35,6 +35,7 @@ export interface Project {
   scriptText: string;
   units: Unit[];
   voices: CharacterVoice[];
+  archive?: { dir: string; id: string; name: string };
 }
 
 export interface Session {

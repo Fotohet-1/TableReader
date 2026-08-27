@@ -40,7 +40,7 @@ mkdir -p models
 .venv-qwen/bin/hf download mlx-community/Qwen3-TTS-12Hz-1.7B-Base-4bit --local-dir models/Qwen3-TTS-12Hz-1.7B-Base-4bit
 ```
 
-4. 启动全部服务（edge-tts 9882、Qwen3 9883、前端 5174）：
+4. 启动全部服务（edge-tts 9882、Qwen3 9883、存档服务 9884、前端 5174）：
 
 ```bash
 EDGE_PY="$PWD/.venv-edge/bin/python" \
@@ -55,13 +55,14 @@ QWEN_BASE_MODEL="$PWD/models/Qwen3-TTS-12Hz-1.7B-Base-4bit" \
 ```bash
 curl -s -X POST http://127.0.0.1:9882/health
 curl -s -X POST http://127.0.0.1:9883/health
+curl -s http://127.0.0.1:9884/health
 ```
 
 都返回 `{"ok": true}` 后，打开 http://127.0.0.1:5174/ 。
 
 ## 排查
 
-- 端口被占用：先 `lsof -nP -iTCP -sTCP:LISTEN | grep -E '9882|9883|5174'` 看是不是已有服务，有就不用重复启动。
+- 端口被占用：先 `lsof -nP -iTCP -sTCP:LISTEN | grep -E '9882|9883|9884|5174'` 看是不是已有服务，有就不用重复启动。
 - 模型路径错误：确认 `models/` 下两个目录存在且包含 `model.safetensors`。
 - 内存不足（16GB 以下）：只保留 VoiceDesign 模型，Base 可以先用 0.6B 替代，或全程用 edge-tts。
 - 前端空白：检查 dev server 日志，`npm run dev` 必须在仓库根目录执行。

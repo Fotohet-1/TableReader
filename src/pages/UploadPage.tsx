@@ -25,17 +25,29 @@ import {
 import {
   clearOnboarded,
   loadAiEnabled,
+  loadArchiveDir,
   loadDsKey,
   loadEdgeUrl,
   loadQwenUrl,
   loadSource,
   saveAiEnabled,
+  saveArchiveDir,
   saveDsKey,
   saveEdgeUrl as persistEdgeUrl,
   saveQwenUrl as persistQwenUrl,
   saveSource,
   type TtsSource
 } from "../lib/settings";
+import {
+  archiveAudioUrl,
+  archiveHealth,
+  listProjects,
+  loadMeta,
+  saveAudio,
+  saveMeta,
+  type ArchiveMeta,
+  type ArchiveProject
+} from "../lib/archive";
 
 type Source = TtsSource;
 type Gender = "男" | "女" | "未知";
@@ -48,13 +60,16 @@ interface Profile {
   merged?: string[];
 }
 
-export default function UploadPage({ lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onEnterPlayer }: {
+export default function UploadPage({ lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onResume, onEnterPlayer }: {
   lastSession: Session | null;
   onAnalyzed: (s: Session) => void;
   resetItems: () => void;
   registerUnit: (item: UnitAudio) => void;
   markSynthDone: () => void;
   setProject: (p: Project) => void;
+  onArchiveNew: () => void;
+  onArchiveActive: () => void;
+  onResume: (dir: string, id: string, name: string) => Promise<boolean>;
   onEnterPlayer: () => void;
 }) {
   const [source, setSourceState] = useState<Source>(loadSource);
@@ -66,6 +81,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const restored = lastSession && lastSession.source === source;
   const [showSettings, setShowSettings] = useState(false);
   const [fileInfo, setFileInfo] = useState("");
+  const [fileName, setFileName] = useState("");
   const [text, setText] = useState(() => (lastSession && lastSession.source === source ? lastSession.text : ""));
   const [segments, setSegments] = useState<Array<{ episode: number; text: string }> | null>(null);
   const [units, setUnits] = useState<Unit[] | null>(() => (lastSession && lastSession.source === source ? lastSession.units : null));
@@ -98,12 +114,37 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [previewRole, setPreviewRole] = useState("");
   const [previewErr, setPreviewErr] = useState("");
   const [serviceOk, setServiceOk] = useState<boolean | null>(null);
+  const [archiveDir, setArchiveDir] = useState(loadArchiveDir);
+  const [archiveOk, setArchiveOk] = useState<boolean | null>(null);
+  const [resumeOpen, setResumeOpen] = useState(false);
+  const [resumeProjects, setResumeProjects] = useState<ArchiveProject[]>([]);
+  const [resumeBusy, setResumeBusy] = useState(false);
+  const [resumeErr, setResumeErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const cardTopRef = useRef(0);
   const prevPhaseRef = useRef(phase);
   const t0Ref = useRef(0);
+  const archiveAudioRef = useRef<Record<number, { durationMs: number }>>({});
+  const metaSaveTimerRef = useRef<number | null>(null);
+  const metaDirtyRef = useRef(false);
+  const playbackRef = useRef({ currentIdx: 0, globalMs: 0 });
+  const inPlayerRef = useRef(false);
+  const archiveCtxRef = useRef<{ dir: string; id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    archiveHealth().then((ok) => { if (alive) setArchiveOk(ok); });
+    const timer = setInterval(() => {
+      archiveHealth().then((ok) => { if (alive) setArchiveOk(ok); });
+    }, 30000);
+    return () => { alive = false; clearInterval(timer); };
+  }, []);
+
+  useEffect(() => () => {
+    if (metaSaveTimerRef.current) window.clearTimeout(metaSaveTimerRef.current);
+  }, []);
 
   useEffect(() => {
     fetchEdgeVoices(edgeUrl).then(setEdgeVoices);
@@ -179,6 +220,71 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setErr("");
   };
 
+  const saveProjectMeta = (dir: string, id: string, name: string, audio: Record<number, { durationMs: number }>) => {
+    const meta: Partial<ArchiveMeta> = {
+      id,
+      name,
+      source,
+      scriptText: text,
+      units: units || [],
+      voices: charVoices,
+      audio,
+      playback: inPlayerRef.current ? playbackRef.current : { currentIdx: 0, globalMs: 0 }
+    };
+    void saveMeta(dir, id, meta);
+  };
+
+  const flushMetaSoon = (dir: string, id: string, name: string) => {
+    metaDirtyRef.current = true;
+    if (metaSaveTimerRef.current) return;
+    metaSaveTimerRef.current = window.setTimeout(() => {
+      metaSaveTimerRef.current = null;
+      if (!metaDirtyRef.current) return;
+      metaDirtyRef.current = false;
+      saveProjectMeta(dir, id, name, { ...archiveAudioRef.current });
+    }, 2000);
+  };
+
+  const projectNameFor = () => {
+    if (fileName) {
+      const base = fileName.replace(/\.(docx|txt|md)$/i, "");
+      return segments && segments.length > 1 ? base + "（" + segments.length + "集）" : base;
+    }
+    const first = text.trim().split("\n")[0]?.slice(0, 24) || "剧本";
+    return first;
+  };
+
+  const enterPlayer = () => {
+    inPlayerRef.current = true;
+    if (metaSaveTimerRef.current) {
+      window.clearTimeout(metaSaveTimerRef.current);
+      metaSaveTimerRef.current = null;
+    }
+    if (metaDirtyRef.current) {
+      metaDirtyRef.current = false;
+      const a = archiveAudioRef.current;
+      const ctx = archiveCtxRef.current;
+      if (a && Object.keys(a).length && ctx) saveProjectMeta(ctx.dir, ctx.id, ctx.name, { ...a });
+    }
+    onEnterPlayer();
+  };
+
+  const openResume = async () => {
+    setResumeErr("");
+    setResumeOpen(true);
+    const ok = await archiveHealth();
+    setArchiveOk(ok);
+    if (!ok) {
+      setResumeErr("存档服务未启动，请先运行桌面快捷入口");
+      return;
+    }
+    setResumeBusy(true);
+    setResumeProjects([]);
+    const projects = await listProjects(archiveDir);
+    setResumeProjects(projects);
+    setResumeBusy(false);
+  };
+
   const handleFiles = async (files: FileList | File[]) => {
     setErr("");
     const list = Array.from(files).filter((f) => /\.(docx|txt|md)$/i.test(f.name));
@@ -229,6 +335,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setSegments(segs);
     setStructureCandidates(Array.from(new Set(structCands)));
     setFileInfo(ordered.length + " 个文件 · 共 " + v.length + " 字");
+    setFileName(ordered[0]?.file.name || "");
   };
 
   const assignVoicesFor = (ps: Profile[]): CharacterVoice[] => {
@@ -590,6 +697,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const start = async () => {
     if (!units || !charVoices.length) return;
+    onArchiveNew();
     const healthUrl = source === "qwen" ? qwenUrl : edgeUrl;
     if (!(await checkHealth(healthUrl))) {
       setErr(source === "qwen"
@@ -625,6 +733,30 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       }
     }
     const project: Project = { scriptText: text, units, voices: fullVoices };
+
+    let archiveInfo: { dir: string; id: string; name: string } | null = null;
+    let existingAudio: Record<number, { url: string; durationMs: number }> = {};
+    archiveAudioRef.current = {};
+    archiveCtxRef.current = null;
+    const archiveUp = archiveOk === true || await archiveHealth();
+    setArchiveOk(archiveUp);
+    if (archiveUp) {
+      const id = "sr-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+      const name = projectNameFor();
+      archiveInfo = { dir: archiveDir, id, name };
+      archiveCtxRef.current = archiveInfo;
+      project.archive = archiveInfo;
+      onArchiveActive();
+      saveProjectMeta(archiveDir, id, name, {});
+      const meta = await loadMeta(archiveDir, id);
+      if (meta && meta.audio) {
+        for (const [uid, a] of Object.entries(meta.audio)) {
+          const n = Number(uid);
+          existingAudio[n] = { url: archiveAudioUrl(archiveDir, id, n), durationMs: a.durationMs };
+          archiveAudioRef.current[n] = { durationMs: a.durationMs };
+        }
+      }
+    }
     setProject(project);
 
     const descMap: Record<string, string> = {};
@@ -644,18 +776,35 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           setEta(Math.max(0, Math.round((elapsed / p.done) * (p.total - p.done))));
         }
       },
-      synthFn: (t, v, idx) => (
-        source === "qwen"
+      existing: Object.keys(existingAudio).length ? existingAudio : undefined,
+      synthFn: async (t, v, idx, unitId) => {
+        const r = source === "qwen"
           ? (cloneMap[v]
-              ? qwenCloneSynthOne(qwenUrl, t, cloneMap[v].b64, cloneMap[v].refText)
-              : qwenSynthOne(qwenUrl, t, descMap[v] || ""))
-          : edgeSynthOne(edgeUrl, t, v)
-      )
+              ? await qwenCloneSynthOne(qwenUrl, t, cloneMap[v].b64, cloneMap[v].refText)
+              : await qwenSynthOne(qwenUrl, t, descMap[v] || ""))
+          : await edgeSynthOne(edgeUrl, t, v);
+        if (archiveInfo && unitId != null) {
+          const ok = await saveAudio(archiveInfo.dir, archiveInfo.id, unitId, r.blob);
+          if (ok) {
+            archiveAudioRef.current[unitId] = { durationMs: r.durationMs };
+            flushMetaSoon(archiveInfo.dir, archiveInfo.id, archiveInfo.name);
+            return { ...r, url: archiveAudioUrl(archiveInfo.dir, archiveInfo.id, unitId) };
+          }
+        }
+        return r;
+      }
     });
     stream.firstReady.then(() => setCanEnter(true));
     stream.done.then((s) => {
       setSummary(s);
       setSyncing(false);
+      if (archiveInfo) {
+        if (metaSaveTimerRef.current) {
+          window.clearTimeout(metaSaveTimerRef.current);
+          metaSaveTimerRef.current = null;
+        }
+        saveProjectMeta(archiveInfo.dir, archiveInfo.id, archiveInfo.name, { ...archiveAudioRef.current });
+      }
       markSynthDone();
     });
   };
@@ -725,7 +874,9 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
             />
             {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
             <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
+            <button className="lib-entry" onClick={openResume}>继续上次围读</button>
           </div>
+          {archiveOk === false && <div className="prog warn">存档服务未启动，本次不会保存音频。请先运行桌面快捷入口。</div>}
         </section>
 
         {phase !== "upload" && (
@@ -916,7 +1067,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               {canEnter && (
                 <div className="enter-box">
                   <span>{progress && progress.done > 0 ? "已合成 " + progress.done + " 句" : "可开始围读"}</span>
-                  <button onClick={onEnterPlayer} className="primary">进入围读</button>
+                  <button onClick={enterPlayer} className="primary">进入围读</button>
                 </div>
               )}
               {summary && <div className="prog">合成完成：成功 {summary.ok} 句，失败 {summary.failed} 句</div>}
@@ -967,6 +1118,18 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 <label>DeepSeek Key</label>
                 <input value={dsKey} onChange={(e) => { setDsKey(e.target.value); saveDsKey(e.target.value); }} placeholder="可选" />
               </div>
+              <div className="field">
+                <label>存档目录</label>
+                <input
+                  value={archiveDir}
+                  onChange={(e) => { setArchiveDir(e.target.value); saveArchiveDir(e.target.value); }}
+                  placeholder="~/Documents/剧本围读存档"
+                />
+                <span
+                  className={"svc-dot " + (archiveOk === null ? "unknown" : archiveOk ? "ok" : "down")}
+                  title={"存档服务 " + (archiveOk === null ? "检测中" : archiveOk ? "正常" : "未启动")}
+                />
+              </div>
               <label className="check">
                 <input
                   type="checkbox"
@@ -979,6 +1142,60 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               <div className="row">
                 <button className="settings-link" onClick={() => { setDsKey(""); saveDsKey(""); }}>清除 Key</button>
                 <button className="settings-link" onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {resumeOpen && (
+        <div className="modal-mask" onClick={() => setResumeOpen(false)}>
+          <div className="modal settings-modal resume-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="lib-top">
+              <span className="lib-title">继续上次围读</span>
+              <button className="lib-close" onClick={() => setResumeOpen(false)} aria-label="关闭">✕</button>
+            </header>
+            <div className="settings-body">
+              <div className="field">
+                <label>存档目录</label>
+                <input
+                  value={archiveDir}
+                  onChange={(e) => { setArchiveDir(e.target.value); saveArchiveDir(e.target.value); }}
+                />
+                <button
+                  disabled={resumeBusy}
+                  onClick={async () => {
+                    setResumeErr("");
+                    const ok = await archiveHealth();
+                    setArchiveOk(ok);
+                    if (!ok) { setResumeErr("存档服务未启动"); return; }
+                    setResumeBusy(true);
+                    setResumeProjects(await listProjects(archiveDir));
+                    setResumeBusy(false);
+                  }}
+                >
+                  {resumeBusy ? "读取中…" : "刷新"}
+                </button>
+              </div>
+              {resumeErr && <div className="err">{resumeErr}</div>}
+              {!resumeBusy && resumeProjects.length === 0 && !resumeErr && (
+                <p className="settings-hint">这个目录里还没有存档项目</p>
+              )}
+              <div className="resume-list">
+                {resumeProjects.map((p) => (
+                  <button
+                    key={p.id}
+                    className="resume-item"
+                    onClick={async () => {
+                      setResumeErr("");
+                      const ok = await onResume(archiveDir, p.id, p.name);
+                      if (ok) setResumeOpen(false);
+                      else setResumeErr("存档读取失败，请检查目录和存档文件");
+                    }}
+                  >
+                    <span className="resume-name">{p.name}</span>
+                    <span className="resume-time">{p.updatedAt}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>

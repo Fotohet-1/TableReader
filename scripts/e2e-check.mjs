@@ -32,6 +32,7 @@ await new Promise((r) => { ws.onopen = r; });
 await send("Page.enable");
 await send("Runtime.enable");
 await send("Page.navigate", { url: PAGE_URL });
+await new Promise((r) => setTimeout(r, 1500));
 await evalJs(`localStorage.setItem("sr_has_onboarded", "1"); localStorage.setItem("sr_tts_source", "edge")`);
 await send("Page.navigate", { url: PAGE_URL });
 await new Promise((r) => setTimeout(r, 2500));

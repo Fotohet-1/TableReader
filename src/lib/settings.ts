@@ -6,7 +6,8 @@ const KEYS = {
   aiRoles: "sr_ai_roles",
   onboarded: "sr_has_onboarded",
   edgeUrl: "sr_edge_url",
-  qwenUrl: "sr_qwen_url"
+  qwenUrl: "sr_qwen_url",
+  archiveDir: "sr_archive_dir"
 };
 
 export function loadSource(): TtsSource {
@@ -59,4 +60,12 @@ export function loadQwenUrl(): string {
 
 export function saveQwenUrl(v: string): void {
   localStorage.setItem(KEYS.qwenUrl, v);
+}
+
+export function loadArchiveDir(): string {
+  return localStorage.getItem(KEYS.archiveDir) || "~/Documents/剧本围读存档";
+}
+
+export function saveArchiveDir(v: string): void {
+  localStorage.setItem(KEYS.archiveDir, v);
 }
