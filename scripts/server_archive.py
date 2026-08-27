@@ -128,6 +128,8 @@ class Handler(BaseHTTPRequestHandler):
                             continue
                         try:
                             m = read_combined(base, name)
+                            if not (m.get("units") or []):
+                                continue
                             out.append({
                                 "id": name,
                                 "name": m.get("name", name),

@@ -446,7 +446,12 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     let mapping: Record<string, string> = {};
     if (aiEnabled && dsKey.trim()) {
       try {
-        const llm = await analyzeRolesWithLLM(dsKey.trim(), rawNames, text);
+        const dialogueContext = us
+          .filter((u) => u.type === "dialogue")
+          .map((u) => (u.character || "旁白") + "：" + u.text)
+          .join("\n")
+          .trim() || text;
+        const llm = await analyzeRolesWithLLM(dsKey.trim(), rawNames, dialogueContext);
         profiles = llm.profiles.map((p) => ({
           name: p.name,
           gender: p.gender as Gender,
