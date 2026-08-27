@@ -1,3 +1,8 @@
 node_modules/
 dist/
+logs/
+.venv-edge/
+.venv-qwen/
+models/
+__pycache__/
 .DS_Store

@@ -20,6 +20,17 @@
 
 ## 启动
 
+### 外发版（给其他 Mac 用户）
+
+```bash
+./setup.command      # 首次安装：装两个 Python venv + 下载 Qwen3 模型（约 4.5GB）
+./start.command      # 以后每次：一键启动四个本地服务并打开浏览器
+```
+
+`start.command` 启动：前端静态服务 5174（直接用 `dist/` 构建产物，不需要 Node）、edge-tts 9882、Qwen3 9883、存档服务 9884。日志在 `logs/`，已运行的端口会自动跳过。
+
+### 开发模式
+
 ```bash
 npm install
 npm run dev
@@ -29,11 +40,12 @@ npm run dev
 
 TTS 是本地 HTTP 服务，需要先启动其中一个：
 
-- edge-tts（推荐，快）：`/Users/hetan/Documents/剧本围读/edge-tts-tool/start.sh`，地址 `http://127.0.0.1:9882`
-- 本地 Qwen3 1.7B VoiceDesign（自然语言生成音色）：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/.venv/bin/python scripts/server_qwen_tts.py`，地址 `http://127.0.0.1:9883`
+- edge-tts（推荐，快）：`./.venv-edge/bin/python scripts/server_edge_tts.py`，地址 `http://127.0.0.1:9882`
+- 本地 Qwen3 1.7B VoiceDesign（自然语言生成音色）：`./.venv-qwen/bin/python scripts/server_qwen_tts.py`，地址 `http://127.0.0.1:9883`
 - 存档服务：`python3 scripts/server_archive.py`，地址 `http://127.0.0.1:9884`，不依赖外部网络
 
 Qwen3 服务默认每种模型只保留 1 个实例以控制内存；内存充足时可用环境变量 `QWEN_DESIGN_POOL`、`QWEN_CLONE_POOL` 调大。
+模型路径默认取仓库内 `models/`，也可用 `QWEN_VD_MODEL`、`QWEN_BASE_MODEL` 覆盖；生成超时用 `QWEN_JOB_TIMEOUT` 调整（默认 180 秒）。
 
 服务地址和 DeepSeek Key 都只存在浏览器 localStorage，不会上传。
 

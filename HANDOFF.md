@@ -19,22 +19,22 @@ Vite + React + TS 的本地“剧本围读”应用 + 3 个 Python 本地服务�
 
 | 端口 | 服务 | 说明 |
 |---|---|---|
-| 5174 | 前端 dev | `npm run dev` |
-| 9882 | edge-tts | `..剧本围读/edge-tts-tool/.venv/bin/python scripts/server_edge_tts.py` |
-| 9883 | Qwen3 1.7B | **必须用** `..剧本围读/qwen3-tts-test/.venv/bin/python`，见下“坑” |
+| 5174 | 前端 | 外发版用 `python3 scripts/server_web.py`（托管 `dist/`）；开发用 `npm run dev` |
+| 9882 | edge-tts | `./.venv-edge/bin/python scripts/server_edge_tts.py`（退回老机器绝对路径） |
+| 9883 | Qwen3 1.7B | `./.venv-qwen/bin/python scripts/server_qwen_tts.py`，**必须用 venv Python**，见下“坑” |
 | 9884 | 存档服务 | `python3 scripts/server_archive.py`（stdlib 即可） |
 
 ## ⚠️ 关键“坑”（新对话必读）
 
 1. **Qwen 必须用 venv Python**：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/.venv/bin/python`。若用框架 Python（`/opt/homebrew/Cellar/python@3.11/.../Python`）启动，`/tts` 会 `ModuleNotFoundError: mlx_audio`，前端“生成音色”报 500。
-2. **服务要用“脱离开会话”的方式启动**，否则 exec 结束会被回收：
+2. **服务要用“脱离开会话”的方式启动**，否则 exec 结束会被回收。`scripts/start_all.sh` 现在用 `nohup + disown` 处理；若自己用 Python 拉起，仍要 `start_new_session=True`：
    ```python
    subprocess.Popen([py, "scripts/server_qwen_tts.py"],
        stdout=open("/tmp/sr_qwen.log","wb"), stderr=subprocess.STDOUT,
        stdin=subprocess.DEVNULL, start_new_session=True)
    ```
 3. **存档目录不是启动建的**，是第一次“保存/合成”时由存档服务 `os.makedirs` 懒创建。默认路径 `~/Documents/剧本围读存档`（`expanduser` 解析成用户自己的家目录）。**给别人用＝他自己的空存档，不会带走你的存档**；想共享存档需手动拷 `~/Documents/剧本围读存档` 整个文件夹给对方。
-4. **Qwen 服务偶发挂起**：服务里反复生成时（尤其第二次请求）可能卡住（0% CPU，模型隔离测试正常，仅 HTTP 服务偶发）。已用 `acquire` 超时（默认 300s，`QWEN_ACQUIRE_TIMEOUT` 可调）兜底，不会永久堵死，但挂起那次仍占池 300s。是外发前值得深挖的残余风险（可考虑单一 worker 线程）。
+4. **Qwen 服务偶发挂起**：历史现象是反复生成时（尤其第二次请求）可能卡住（0% CPU，模型隔离测试正常，仅 HTTP 服务偶发）。现已改成**单 worker 线程**：模型加载/生成只在固定线程里串行执行，避免 MLX 模型实例跨线程复用；某次生成超时（默认 180s，`QWEN_JOB_TIMEOUT` 可调，兼容旧名 `QWEN_ACQUIRE_TIMEOUT`）会重建 worker，不会永久占死队列。若再复现，优先怀疑模型实例复用，其次才是线程竞争。
 
 ## 架构要点
 
@@ -95,6 +95,7 @@ npm run build       # 通过；mammoth/jszip 懒加载
 ## 外发相关（下个会话重点）
 
 - 应用是“本地工具 + 3 个本地 Python 服务”，外发需打包这几部分（前端 build 产物 + 三个 server + 各自 venv/模型/edge 依赖 + 模型路径）。
-- Qwen 的 `MODEL_DIR`/`CLONE_MODEL_DIR` 默认指向 `..剧本围读/qwen3-tts-test/models/...`，可用 `QWEN_VD_MODEL`/`QWEN_BASE_MODEL` 覆盖；并发池 `QWEN_DESIGN_POOL`/`QWEN_CLONE_POOL`、超时 `QWEN_ACQUIRE_TIMEOUT`。
+- 外发入口：`setup.command`（一键安装 venv + 从 hf-mirror 拉 Qwen 模型）+ `start.command`（一键启动），接收方说明见 `外发说明.md`。
+- Qwen 模型默认取仓库内 `models/`，可用 `QWEN_VD_MODEL`/`QWEN_BASE_MODEL` 覆盖；并发池 `QWEN_DESIGN_POOL`/`QWEN_CLONE_POOL`、生成超时 `QWEN_JOB_TIMEOUT`。
 - 存档目录按用户懒创建（见上“坑”3），外发时对方拿到的默认就是自己的空存档。
 - 想让你之外的人看到你的存档，需手动拷贝 `~/Documents/剧本围读存档`。
