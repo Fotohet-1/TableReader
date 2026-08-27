@@ -913,6 +913,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   gap: 12px;
   padding: 14px 22px;
   z-index: 10;
+  box-shadow: 0 -10px 30px rgba(16, 19, 26, 0.18);
   animation: srBarUp .5s cubic-bezier(.22, .8, .32, 1);
 }
 .pb-btn {
