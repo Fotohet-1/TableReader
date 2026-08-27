@@ -734,6 +734,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   line-height: 30px;
   flex-shrink: 0;
 }
+.pb-rate:focus { outline: none; }
 .wait-banner {
   position: fixed;
   bottom: 82px;
