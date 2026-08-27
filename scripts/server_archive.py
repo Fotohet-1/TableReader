@@ -187,6 +187,8 @@ class Handler(BaseHTTPRequestHandler):
                     existing = read_meta(base, pid)
                     if existing and "playback" not in meta:
                         meta["playback"] = existing.get("playback", {"currentIdx": 0, "globalMs": 0})
+                    if existing and isinstance(existing.get("audio"), dict) and isinstance(meta.get("audio"), dict):
+                        meta["audio"] = {**existing["audio"], **meta["audio"]}
                     write_project(base, pid, meta)
                     write_meta(base, pid, meta)
                 self._json({"ok": True})

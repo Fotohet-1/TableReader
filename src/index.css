@@ -109,8 +109,8 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   min-height: 100dvh;
   background: var(--bg);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
   padding: 24px;
   position: relative;
 }
@@ -128,6 +128,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   width: 100%;
   max-width: 620px;
   text-align: center;
+  margin: auto;
   animation: srFadeUp .55s cubic-bezier(.22, .8, .32, 1);
 }
 .choose-eyebrow {
@@ -342,6 +343,8 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 
 /* ---------- 工作台 ---------- */
 .work { min-height: 100vh; min-height: 100dvh; padding-bottom: 40px; }
+.work-top { position: sticky; top: 0; }
+.work-top-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .work-back {
   position: absolute;
   top: 22px;
@@ -355,13 +358,13 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 }
 .work.upload-only {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
   min-height: 100vh;
   min-height: 100dvh;
   padding-bottom: 0;
 }
-.work.upload-only .work-grid.solo { margin: 0; }
+.work.upload-only .work-grid.solo { margin: auto; }
 .work:not(.upload-only) .work-grid.solo { margin-top: 64px; }
 @keyframes srFadeUp {
   from { transform: translateY(22px); opacity: 0; }
@@ -553,6 +556,15 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .gender-pick { display: flex; gap: 6px; margin-left: auto; }
 .gender-pick button { padding: 7px 14px; font-size: 14px; border-radius: 999px; }
 .gender-pick button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.age-select, .variant-select {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--paper);
+  font-size: 14px;
+  color: var(--ink);
+}
+.variant-select { max-width: 150px; color: var(--muted); }
 .flow-card .cv-row,
 .flow-card .design-row {
   animation: srFadeUp .45s cubic-bezier(.22, .8, .32, 1) backwards;
@@ -858,13 +870,23 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   font-size: 14px;
 }
 .tb-meta {
-  margin-left: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 5px;
 }
 .tb-info { color: var(--muted); font-size: 14px; letter-spacing: -0.224px; }
+.tb-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.tb-regen { display: flex; align-items: center; gap: 8px; }
+.tb-regen select {
+  max-width: 150px;
+  padding: 6px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 13px;
+  color: var(--ink);
+}
 .tb-progress {
   width: 100%;
   height: 3px;

@@ -98,6 +98,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const [descGen, setDescGen] = useState<{ total: number; done: number } | null>(null);
   const [seedGen, setSeedGen] = useState<{ total: number; done: number } | null>(null);
   const [genderSel, setGenderSel] = useState<Record<string, Gender>>({});
+  const [ageSel, setAgeSel] = useState<Record<string, string>>({});
   const [edgeVoices, setEdgeVoices] = useState<Record<string, BaseVoiceInfo>>({});
   const [aiState, setAiState] = useState<"idle" | "running" | "done">("idle");
   const [syncing, setSyncing] = useState(false);
@@ -242,7 +243,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const projectNameFor = () => {
     if (fileName) {
-      const base = fileName.replace(/\.(docx|txt|md)$/i, "");
+      const base = fileName.replace(/\.(docx|txt)$/i, "");
       return segments && segments.length > 1 ? base + "（" + segments.length + "集）" : base;
     }
     const first = text.trim().split("\n")[0]?.slice(0, 24) || "剧本";
@@ -265,7 +266,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const handleFiles = async (files: FileList | File[]) => {
     setErr("");
-    const list = Array.from(files).filter((f) => /\.(docx|txt|md)$/i.test(f.name));
+    const list = Array.from(files).filter((f) => /\.(docx|txt)$/i.test(f.name));
     if (!list.length) {
       setErr("未找到支持的剧本文件（.docx / .txt / .md）");
       return;
@@ -426,7 +427,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     nextProfiles.sort((a, b) => (b.lines || 0) - (a.lines || 0) || a.name.localeCompare(b.name, "zh-Hans-CN"));
     setUnits(us2);
     setProfiles(nextProfiles);
-    setGenderSel(Object.fromEntries(nextProfiles.map((p) => [p.name, p.gender])));
+    setGenderSel(Object.fromEntries(nextProfiles.map((p) => [p.name, p.gender === "男" ? "男" : "女"])));
+    setAgeSel(Object.fromEntries(nextProfiles.map((p) => [p.name, ["少年", "青年", "中年", "老年"].includes(p.age || "") ? (p.age as string) : "中年"])));
   };
 
   const analyze = async () => {
@@ -505,7 +507,11 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   };
 
   const confirmGender = () => {
-    const confirmed = profiles.map((p) => ({ ...p, gender: genderSel[p.name] || p.gender }));
+    const confirmed = profiles.map((p) => ({
+      ...p,
+      gender: (genderSel[p.name] === "男" ? "男" : "女") as Gender,
+      age: ageSel[p.name] || p.age || "中年"
+    }));
     setProfiles(confirmed);
     if (source === "qwen") {
       const descs: Record<string, string> = {};
@@ -823,19 +829,39 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   return (
     <div className={"work" + (phase === "upload" ? " upload-only" : "")}>
-      <button className="work-back" onClick={onBack}>← 返回</button>
+      <header className="topbar work-top">
+        <button className="tb-btn" onClick={onBack}>← 返回</button>
+        <div className="work-top-tools">
+          <select
+            className="source-select"
+            value={source}
+            onChange={(e) => switchSource(e.target.value as Source)}
+            title="声音来源"
+          >
+            <option value="qwen">Qwen3 1.7B</option>
+            <option value="edge">edge-tts</option>
+          </select>
+          <span
+            className={"svc-dot " + (serviceOk === null ? "unknown" : serviceOk ? "ok" : "down")}
+            title={source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl)}
+          />
+          {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
+          <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
+        </div>
+      </header>
       <div className="work-grid solo">
+        {phase === "upload" && (
         <section className="card" ref={cardRef}>
           <div className="upload-zone upload-hero" onClick={() => fileRef.current?.click()}>
             <div className="uz-icon">📄</div>
             <div className="uz-main">点击选择剧本文件</div>
-            <div className="uz-sub">可多选；文件夹里的文件全选后一起导入（.docx / .txt）</div>
+            <div className="uz-sub">支持选择多个文件<br />文件格式支持.docx/.txt</div>
           </div>
           <input
             ref={fileRef}
             type="file"
             multiple
-            accept=".docx,.doc,.txt,.md"
+            accept=".docx,.doc,.txt"
             style={{ display: "none" }}
             onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
           />
@@ -845,40 +871,32 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
               {aiState === "running" ? "解析中…" : "解析剧本"}
             </button>
           </div>
-          <div className="upload-options">
-            <select
-              className="source-select"
-              value={source}
-              onChange={(e) => switchSource(e.target.value as Source)}
-              title="声音来源"
-            >
-              <option value="qwen">Qwen3 1.7B</option>
-              <option value="edge">edge-tts</option>
-            </select>
-            <span
-              className={"svc-dot " + (serviceOk === null ? "unknown" : serviceOk ? "ok" : "down")}
-              title={source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl)}
-            />
-            {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
-            <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
-          </div>
         </section>
+        )}
 
         {phase !== "upload" && (
         <>
           {phase === "gender" && units && (
             <section className="card flow-card">
-              <h2>确认角色性别 · {profiles.length} 人</h2>
+              <h2>确认角色 · {profiles.length} 人</h2>
               {profiles.map((p) => (
                 <div className="cv-row" key={p.name}>
                   <span className="cv-name">{p.name}</span>
                   {p.lines ? <span className="cv-tag">{p.lines} 句</span> : null}
-                  {p.merged && p.merged.length > 1 && <span className="cv-merged">{p.merged.length} 种写法</span>}
+                  {p.merged && p.merged.length > 1 && (
+                    <select className="variant-select" value={p.name} onChange={() => {}} title={"角色写法 " + p.merged.length + " 种"}>
+                      <option value={p.name}>{p.name}</option>
+                      {p.merged.filter((v) => v !== p.name).map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  )}
                   <div className="gender-pick">
-                    {(["男", "女", "未知"] as const).map((g) => (
+                    {(["男", "女"] as const).map((g) => (
                       <button key={g} className={genderSel[p.name] === g ? "on" : ""} onClick={() => setGenderSel((s) => ({ ...s, [p.name]: g }))}>{g}</button>
                     ))}
                   </div>
+                  <select className="age-select" value={ageSel[p.name] || "中年"} onChange={(e) => setAgeSel((s) => ({ ...s, [p.name]: e.target.value }))} title="年龄">
+                    {["少年", "青年", "中年", "老年"].map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
                 </div>
               ))}
               <button onClick={confirmGender} className="primary big">确认并分配音色</button>

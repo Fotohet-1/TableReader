@@ -2,8 +2,23 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Project, Unit, UnitAudio } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
 import { toChineseNumber } from "../lib/parser";
+import { qwenSynthOne, qwenCloneSynthOne } from "../lib/tts";
+import { describeRoleVoice } from "../lib/llm";
+import { defaultVoiceDescFor } from "../lib/voices";
+import { saveAudio, saveMeta, archiveAudioUrl } from "../lib/archive";
+import { loadQwenUrl, loadDsKey, loadAiEnabled, loadSource } from "../lib/settings";
 
 const MAX_SIMUL = 3;
+
+async function blobToB64(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)));
+  }
+  return btoa(binary);
+}
 
 interface Slot {
   items: UnitAudio[];
@@ -90,7 +105,7 @@ function retryPlay(a: HTMLAudioElement) {
   }
 }
 
-export default function PlayerPage({ project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition }: {
+export default function PlayerPage({ project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems }: {
   project: Project;
   items: UnitAudio[];
   synthDone: boolean;
@@ -99,6 +114,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
   initialRate?: number;
   onBack: () => void;
   onPosition?: (currentIdx: number, globalMs: number, rate: number) => void;
+  onUpdateItems?: (updates: Record<number, { url: string; durationMs: number }>) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -118,6 +134,23 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
   const curBlobsRef = useRef<Set<string>>(new Set());
   const synthDoneRef = useRef(synthDone);
   synthDoneRef.current = synthDone;
+  const regenAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [regenRole, setRegenRole] = useState("");
+  const [regenOpen, setRegenOpen] = useState(false);
+  const [regenDesc, setRegenDesc] = useState("");
+  const [regenSample, setRegenSample] = useState("");
+  const [regenBusy, setRegenBusy] = useState(false);
+  const [regenProgress, setRegenProgress] = useState<{ done: number; total: number } | null>(null);
+  const [regenErr, setRegenErr] = useState("");
+
+  const qwenUrl = loadQwenUrl();
+  const dsKey = loadDsKey();
+  const aiEnabled = loadAiEnabled();
+  const source = loadSource();
+  const roleNames = useMemo(
+    () => Array.from(new Set(project.units.filter((u) => u.type === "dialogue").map((u) => u.character).filter(Boolean))),
+    [project]
+  );
 
   const groupByUnit = useMemo(() => {
     const m = new Map<number, number>();
@@ -333,6 +366,102 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
     if (onPosition && slotIdxRef.current >= 0) onPosition(slotIdxRef.current, Math.round(ms), rateRef.current);
   };
 
+  const nearestDialogue = (role: string) => {
+    const roleUnits = project.units.filter((u) => u.type === "dialogue" && u.character === role);
+    if (!roleUnits.length) return "夜色渐深，街角的咖啡店还亮着灯。";
+    const curId = activeUnitIds[0] ?? roleUnits[0].id;
+    return roleUnits.reduce((a, b) => (Math.abs(a.id - curId) <= Math.abs(b.id - curId) ? a : b)).text;
+  };
+
+  const openRegen = () => {
+    const role = regenRole;
+    if (!role) return;
+    const cv = project.voices.find((v) => v.name === role);
+    setRegenDesc(cv?.voiceDesc || defaultVoiceDescFor({ name: role, gender: cv?.gender, age: cv?.age }));
+    setRegenSample(nearestDialogue(role));
+    setRegenErr("");
+    setRegenProgress(null);
+    setRegenOpen(true);
+  };
+
+  const aiDesc = async () => {
+    if (!dsKey.trim()) { setRegenErr("未配置 DeepSeek Key"); return; }
+    setRegenBusy(true);
+    setRegenErr("");
+    try {
+      const d = await describeRoleVoice(dsKey.trim(), { name: regenRole }, [regenSample]);
+      setRegenDesc(d);
+    } catch {
+      setRegenErr("AI 生成描述失败");
+    } finally {
+      setRegenBusy(false);
+    }
+  };
+
+  const previewSeed = async () => {
+    if (!regenDesc.trim()) { setRegenErr("请先填写声音描述"); return; }
+    setRegenBusy(true);
+    setRegenErr("");
+    try {
+      const r = await qwenSynthOne(qwenUrl, regenSample, regenDesc.trim());
+      const a = regenAudioRef.current;
+      if (a) {
+        if (a.src.startsWith("blob:")) URL.revokeObjectURL(a.src);
+        a.src = URL.createObjectURL(r.blob);
+        a.play().catch(() => {});
+      }
+    } catch (e) {
+      setRegenErr("试听失败：" + String(e));
+    } finally {
+      setRegenBusy(false);
+    }
+  };
+
+  const applyRegen = async () => {
+    if (!regenRole || !regenDesc.trim()) { setRegenErr("请先填写声音描述"); return; }
+    setRegenBusy(true);
+    setRegenErr("");
+    try {
+      const refText = regenSample;
+      const seed = await qwenSynthOne(qwenUrl, refText, regenDesc.trim());
+      const b64 = await blobToB64(seed.blob);
+      const roleUnits = project.units.filter((u) => u.type === "dialogue" && u.character === regenRole);
+      const updates: Record<number, { url: string; durationMs: number }> = {};
+      const durations: Record<number, { durationMs: number }> = {};
+      const ar = project.archive;
+      let cursor = 0;
+      const worker = async () => {
+        while (true) {
+          const idx = cursor++;
+          if (idx >= roleUnits.length) break;
+          const u = roleUnits[idx];
+          const r = await qwenCloneSynthOne(qwenUrl, u.text, b64, refText);
+          let url: string;
+          if (ar) {
+            await saveAudio(ar.dir, ar.id, u.id, r.blob);
+            url = archiveAudioUrl(ar.dir, ar.id, u.id);
+            durations[u.id] = { durationMs: r.durationMs };
+          } else {
+            url = URL.createObjectURL(r.blob);
+          }
+          updates[u.id] = { url, durationMs: r.durationMs };
+          setRegenProgress({ done: idx + 1, total: roleUnits.length });
+        }
+      };
+      await Promise.all([worker(), worker()]);
+      if (ar) {
+        await saveMeta(ar.dir, ar.id, { id: ar.id, name: ar.name, source: "qwen", audio: durations });
+      }
+      onUpdateItems?.(updates);
+      setRegenProgress(null);
+      setRegenOpen(false);
+    } catch (e) {
+      setRegenErr("重新生成失败：" + String(e));
+    } finally {
+      setRegenBusy(false);
+    }
+  };
+
   return (
     <div className="player-page">
       <div style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
@@ -340,15 +469,26 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       </div>
       <header className="topbar">
         <button onClick={() => { saveNow(); onBack(); }} className="tb-btn">← 返回</button>
-        <div className="tb-meta">
-          <span className="tb-info">
-            {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
-          </span>
-          {!synthDone && (
-            <div className="tb-progress">
-              <div className="tb-progress-fill" style={{ width: synthPct + "%" }} />
+        <div className="tb-right">
+          {source === "qwen" && (
+            <div className="tb-regen">
+              <select value={regenRole} onChange={(e) => setRegenRole(e.target.value)} title="选择角色">
+                <option value="">角色音色</option>
+                {roleNames.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <button className="tb-btn" disabled={!regenRole} onClick={openRegen}>重生成</button>
             </div>
           )}
+          <div className="tb-meta">
+            <span className="tb-info">
+              {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
+            </span>
+            {!synthDone && (
+              <div className="tb-progress">
+                <div className="tb-progress-fill" style={{ width: synthPct + "%" }} />
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <div className="script-scroll" ref={scrollRef} onWheel={onManualScroll} onTouchStart={onManualScroll}>
@@ -373,6 +513,35 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
         onJump={jump}
         onRate={setPlaybackRate}
       />
+      {regenOpen && (
+        <div className="modal-mask" onClick={() => setRegenOpen(false)}>
+          <div className="modal settings-modal regen-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="lib-top">
+              <span className="lib-title">重新生成音色 · {regenRole || ""}</span>
+              <button className="lib-close" onClick={() => setRegenOpen(false)} aria-label="关闭">✕</button>
+            </header>
+            <div className="settings-body">
+              <div className="field">
+                <label>声音描述</label>
+                <textarea
+                  className="design-desc"
+                  rows={3}
+                  value={regenDesc}
+                  onChange={(e) => setRegenDesc(e.target.value)}
+                />
+              </div>
+              <div className="design-actions">
+                <button disabled={regenBusy} onClick={aiDesc}>AI 生成描述</button>
+                <button disabled={regenBusy} onClick={previewSeed}>试听</button>
+              </div>
+              {regenProgress && <div className="prog">正在重新合成… {regenProgress.done}/{regenProgress.total}</div>}
+              {regenErr && <div className="err">{regenErr}</div>}
+              <button className="primary" disabled={regenBusy} onClick={applyRegen}>生成并应用到全部台词</button>
+            </div>
+            <audio ref={regenAudioRef} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

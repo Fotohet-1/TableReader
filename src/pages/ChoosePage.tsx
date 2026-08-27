@@ -5,7 +5,9 @@ export default function ChoosePage({ onUpload, onContinue, onBack }: {
 }) {
   return (
     <div className="choose-page">
-      <button className="choose-back" onClick={onBack}>← 返回</button>
+      <header className="topbar">
+        <button className="tb-btn" onClick={onBack}>← 返回</button>
+      </header>
       <div className="choose-inner">
         <span className="choose-eyebrow">SCREENPLAY READING STUDIO</span>
         <h1 className="choose-title">开始围读</h1>

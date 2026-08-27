@@ -32,6 +32,10 @@ export default function App() {
 
   const markSynthDone = useCallback(() => setSynthDone(true), []);
 
+  const updateItems = useCallback((updates: Record<number, { url: string; durationMs: number }>) => {
+    setItems((prev) => prev.map((it) => updates[it.unitId] ? { ...it, ...updates[it.unitId] } : it));
+  }, []);
+
   const enter = () => setView(hasOnboarded() ? "choose" : "onboard");
 
   const resumeArchive = useCallback(async (dir: string, id: string, name: string) => {
@@ -137,6 +141,7 @@ export default function App() {
             initialRate={playerInit.rate}
             onBack={() => setView(playerFromRef.current === "archive" ? "archive" : "work")}
             onPosition={handlePosition}
+            onUpdateItems={updateItems}
           />
         )
       )}
