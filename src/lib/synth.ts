@@ -31,6 +31,7 @@ export function synthesizeStream(
     onProgress?: (p: Progress) => void;
     synthFn: SynthFn;
     existing?: Record<number, { url: string; durationMs: number }>;
+    concurrency?: number;
   }
 ): { firstReady: Promise<void>; done: Promise<SynthSummary> } {
   const units = project.units.filter((u) => u.text.trim());
@@ -51,7 +52,7 @@ export function synthesizeStream(
   let resolveDone!: (s: SynthSummary) => void;
   const done = new Promise<SynthSummary>((r) => (resolveDone = r));
 
-  const CONCURRENCY = 3;
+  const CONCURRENCY = opts.concurrency ?? 3;
   const firstTarget = Math.min(opts.firstBatchSize, total);
 
   function flush() {

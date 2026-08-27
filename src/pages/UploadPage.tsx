@@ -748,6 +748,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
     const stream = synthesizeStream(project, {
       firstBatchSize: 25,
+      concurrency: source === "qwen" ? 2 : 3,
       onUnitReady: registerUnit,
       onProgress: (p) => {
         setProgress(p);

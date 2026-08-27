@@ -137,6 +137,7 @@ class Handler(BaseHTTPRequestHandler):
                             })
                         except Exception:
                             pass
+                out.sort(key=lambda x: x.get("updatedAt", ""), reverse=True)
                 self._json({"projects": out})
                 return
             if self.path.startswith("/meta"):
