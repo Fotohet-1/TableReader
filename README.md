@@ -33,11 +33,13 @@ TTS 是本地 HTTP 服务，需要先启动其中一个：
 - 本地 Qwen3 1.7B VoiceDesign（自然语言生成音色）：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/.venv/bin/python scripts/server_qwen_tts.py`，地址 `http://127.0.0.1:9883`
 - 存档服务：`python3 scripts/server_archive.py`，地址 `http://127.0.0.1:9884`，不依赖外部网络
 
+Qwen3 服务默认每种模型只保留 1 个实例以控制内存；内存充足时可用环境变量 `QWEN_DESIGN_POOL`、`QWEN_CLONE_POOL` 调大。
+
 服务地址和 DeepSeek Key 都只存在浏览器 localStorage，不会上传。
 
 ## 存档与续读
 
-- 合成开始时自动在存档目录建一个项目（默认 `~/Documents/剧本围读存档/`），每句合成完的音频立即写入 `项目/audio/`，元数据写 `meta.json`，浏览器内存里不留大缓存
+- 合成开始时自动在存档目录建一个项目（默认 `~/Documents/剧本围读存档/`），每句合成完的音频立即写入 `项目/audio/`；剧本结构写 `project.json`（只写一次），进度与音频记录写 `meta.json`，浏览器内存里不留大缓存
 - 存档目录可在续读页或上传页“设置”里修改，路径每次可自选；换目录后“继续围读”会按当前目录列出项目
 - 围读中每几秒、暂停或点返回时都会把当前位置写回存档；下次打开网页，选择页点“继续围读”，选项目即可从上次位置接续播放
 - 存档服务未启动时，合成会继续但音频不落盘；上传页会给出提示，不会静默失败

@@ -25,8 +25,8 @@ REF_DIR = "/tmp/qwen3-tts-server/refs"
 os.makedirs(REF_DIR, exist_ok=True)
 
 POOL_LOCK = threading.Lock()
-DESIGN_POOL_SIZE = int(os.environ.get("QWEN_DESIGN_POOL", "2"))
-CLONE_POOL_SIZE = int(os.environ.get("QWEN_CLONE_POOL", "2"))
+DESIGN_POOL_SIZE = int(os.environ.get("QWEN_DESIGN_POOL", "1"))
+CLONE_POOL_SIZE = int(os.environ.get("QWEN_CLONE_POOL", "1"))
 _design_pool: list = []
 _clone_pool: list = []
 

@@ -779,6 +779,8 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .tb-info { margin-left: auto; color: var(--muted); font-size: 13px; }
 .script-scroll { flex: 1; overflow-y: auto; background: var(--bg); padding: 40px 0 170px; }
 .unit {
+  content-visibility: auto;
+  contain-intrinsic-block-size: 48px;
   max-width: 680px;
   margin: 0 auto;
   padding: 6px 28px;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Project, Unit, UnitAudio } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
 import { toChineseNumber } from "../lib/parser";
@@ -11,6 +11,45 @@ function colorFor(name: string): string {
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return PALETTE[h % PALETTE.length];
 }
+
+const UnitLine = memo(function UnitLine({ u, project, isActive, setLineRef }: {
+  u: Unit;
+  project: Project;
+  isActive: boolean;
+  setLineRef: (id: number) => (el: HTMLDivElement | null) => void;
+}) {
+  const original = project.scriptText.slice(u.start, u.end);
+  const color = u.type === "dialogue" ? colorFor(u.character) : "#8a8578";
+  if (u.type === "scene") {
+    const m = (u.sceneNo || "").match(/\d+/);
+    const sceneLabel = (u.episode ? "第" + toChineseNumber(u.episode) + "集 · " : "")
+      + (m ? "第" + toChineseNumber(parseInt(m[0], 10)) + "场" : u.sceneNo);
+    return (
+      <div ref={setLineRef(u.id)} className={"unit unit-scene" + (isActive ? " active" : "")}>
+        {sceneLabel && <span className="scene-no">{sceneLabel}</span>}
+        {original}
+      </div>
+    );
+  }
+  if (u.type === "dialogue") {
+    const m = original.match(DIALOGUE_RE);
+    return (
+      <div
+        ref={setLineRef(u.id)}
+        className={"unit unit-dialogue" + (isActive ? " active" : "")}
+        style={isActive ? { borderLeftColor: color, background: color + "1f" } : { borderLeftColor: color }}
+      >
+        {m && <span className="char-tag" style={{ color }}>{m[1]}</span>}
+        <span className="char-line">{m ? m[2] : original}</span>
+      </div>
+    );
+  }
+  return (
+    <div ref={setLineRef(u.id)} className={"unit unit-narration" + (isActive ? " active" : "")}>
+      {original}
+    </div>
+  );
+});
 
 export default function PlayerPage({ project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition }: {
   project: Project;
@@ -218,46 +257,10 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
 
   const onManualScroll = () => { followLockUntil.current = performance.now() + 4000; };
 
-  const setLineRef = (id: number) => (el: HTMLDivElement | null) => {
+  const setLineRef = useCallback((id: number) => (el: HTMLDivElement | null) => {
     if (el) lineRefs.current.set(id, el);
     else lineRefs.current.delete(id);
-  };
-
-  const renderUnit = (u: Unit) => {
-    const isActive = u.id === activeUnitId;
-    const original = project.scriptText.slice(u.start, u.end);
-    const color = u.type === "dialogue" ? colorFor(u.character) : "#8a8578";
-    if (u.type === "scene") {
-      const m = (u.sceneNo || "").match(/\d+/);
-      const sceneLabel = (u.episode ? "第" + toChineseNumber(u.episode) + "集 · " : "")
-        + (m ? "第" + toChineseNumber(parseInt(m[0], 10)) + "场" : u.sceneNo);
-      return (
-        <div key={u.id} ref={setLineRef(u.id)} className={"unit unit-scene" + (isActive ? " active" : "")}>
-          {sceneLabel && <span className="scene-no">{sceneLabel}</span>}
-          {original}
-        </div>
-      );
-    }
-    if (u.type === "dialogue") {
-      const m = original.match(DIALOGUE_RE);
-      return (
-        <div
-          key={u.id}
-          ref={setLineRef(u.id)}
-          className={"unit unit-dialogue" + (isActive ? " active" : "")}
-          style={isActive ? { borderLeftColor: color, background: color + "1f" } : { borderLeftColor: color }}
-        >
-          {m && <span className="char-tag" style={{ color }}>{m[1]}</span>}
-          <span className="char-line">{m ? m[2] : original}</span>
-        </div>
-      );
-    }
-    return (
-      <div key={u.id} ref={setLineRef(u.id)} className={"unit unit-narration" + (isActive ? " active" : "")}>
-        {original}
-      </div>
-    );
-  };
+  }, []);
 
   return (
     <div className="player-page">
@@ -276,7 +279,9 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       <div className="script-scroll" ref={scrollRef} onWheel={onManualScroll} onTouchStart={onManualScroll}>
         {!hasPlayable && synthDone ? (
           <div className="player-empty">没有可播放的音频，合成可能失败，请返回检查服务状态</div>
-        ) : project.units.map(renderUnit)}
+        ) : project.units.map((u) => (
+          <UnitLine key={u.id} u={u} project={project} isActive={u.id === activeUnitId} setLineRef={setLineRef} />
+        ))}
       </div>
       {waiting && <div className="wait-banner">正在合成下一句…</div>}
       <PlayerBar

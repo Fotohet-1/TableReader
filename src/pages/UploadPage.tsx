@@ -212,7 +212,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setErr("");
   };
 
-  const saveProjectMeta = (dir: string, id: string, name: string, audio: Record<number, { durationMs: number }>) => {
+  const saveProjectBase = (dir: string, id: string, name: string) => {
     const meta: Partial<ArchiveMeta> = {
       id,
       name,
@@ -220,9 +220,13 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       scriptText: text,
       units: units || [],
       voices: charVoices,
-      audio
+      audio: {}
     };
     void saveMeta(dir, id, meta);
+  };
+
+  const saveStateOnly = (dir: string, id: string, name: string, audio: Record<number, { durationMs: number }>) => {
+    void saveMeta(dir, id, { id, name, source, audio });
   };
 
   const flushMetaSoon = (dir: string, id: string, name: string) => {
@@ -232,7 +236,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       metaSaveTimerRef.current = null;
       if (!metaDirtyRef.current) return;
       metaDirtyRef.current = false;
-      saveProjectMeta(dir, id, name, { ...archiveAudioRef.current });
+      saveStateOnly(dir, id, name, { ...archiveAudioRef.current });
     }, 2000);
   };
 
@@ -254,7 +258,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       metaDirtyRef.current = false;
       const a = archiveAudioRef.current;
       const ctx = archiveCtxRef.current;
-      if (a && Object.keys(a).length && ctx) saveProjectMeta(ctx.dir, ctx.id, ctx.name, { ...a });
+      if (a && Object.keys(a).length && ctx) saveStateOnly(ctx.dir, ctx.id, ctx.name, { ...a });
     }
     onEnterPlayer();
   };
@@ -426,7 +430,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   };
 
   const analyze = async () => {
-    if (!text.trim()) { setErr("请先上传或粘贴剧本"); return; }
+    if (!text.trim()) { setErr("请先上传剧本"); return; }
     setErr("");
     setAiState("running");
     let us: Unit[];
@@ -723,7 +727,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       archiveCtxRef.current = archiveInfo;
       project.archive = archiveInfo;
       onArchiveActive();
-      saveProjectMeta(archiveDir, id, name, {});
+      saveProjectBase(archiveDir, id, name);
       const meta = await loadMeta(archiveDir, id);
       if (meta && meta.audio) {
         for (const [uid, a] of Object.entries(meta.audio)) {
@@ -779,7 +783,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
           window.clearTimeout(metaSaveTimerRef.current);
           metaSaveTimerRef.current = null;
         }
-        saveProjectMeta(archiveInfo.dir, archiveInfo.id, archiveInfo.name, { ...archiveAudioRef.current });
+        saveStateOnly(archiveInfo.dir, archiveInfo.id, archiveInfo.name, { ...archiveAudioRef.current });
       }
       markSynthDone();
     });

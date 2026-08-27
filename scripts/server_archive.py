@@ -16,6 +16,8 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 META_LOCK = threading.Lock()
+PROJECT_FIELDS = ("scriptText", "units", "voices")
+STATE_FIELDS = ("id", "name", "source", "audio", "playback")
 
 
 def safe_child(base: str, *parts: str) -> str:
@@ -34,14 +36,49 @@ def read_meta(base: str, pid: str):
         return json.load(f)
 
 
+def read_project(base: str, pid: str):
+    p = safe_child(base, pid, "project.json")
+    if not os.path.exists(p):
+        return None
+    with open(p, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def read_combined(base: str, pid: str):
+    state = read_meta(base, pid) or {}
+    project = read_project(base, pid)
+    if project:
+        return {**project, **state}
+    return state
+
+
+def atomic_write(path: str, obj: dict):
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)
+
+
 def write_meta(base: str, pid: str, meta: dict):
     folder = safe_child(base, pid)
     os.makedirs(folder, exist_ok=True)
-    p = os.path.join(folder, "meta.json")
-    tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, p)
+    state = {k: meta[k] for k in STATE_FIELDS if k in meta}
+    state["updatedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    atomic_write(os.path.join(folder, "meta.json"), state)
+
+
+def write_project(base: str, pid: str, meta: dict):
+    folder = safe_child(base, pid)
+    os.makedirs(folder, exist_ok=True)
+    p = os.path.join(folder, "project.json")
+    project = {}
+    if os.path.exists(p):
+        with open(p, "r", encoding="utf-8") as f:
+            project = json.load(f)
+    for k in PROJECT_FIELDS:
+        if k in meta:
+            project[k] = meta[k]
+    atomic_write(p, project)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -94,10 +131,10 @@ class Handler(BaseHTTPRequestHandler):
             if self.path.startswith("/meta"):
                 base = q.get("dir", [""])[0] or "~/Documents/剧本围读存档"
                 pid = q.get("id", [""])[0]
-                m = read_meta(base, pid)
-                if m is None:
+                if read_meta(base, pid) is None:
                     self._json({"ok": False, "error": "not found"}, 404)
                 else:
+                    m = read_combined(base, pid)
                     self._json({"ok": True, "meta": m})
                 return
             if self.path.startswith("/audio"):
@@ -136,6 +173,7 @@ class Handler(BaseHTTPRequestHandler):
                     existing = read_meta(base, pid)
                     if existing and "playback" not in meta:
                         meta["playback"] = existing.get("playback", {"currentIdx": 0, "globalMs": 0})
+                    write_project(base, pid, meta)
                     write_meta(base, pid, meta)
                 self._json({"ok": True})
                 return
