@@ -19,6 +19,8 @@ export interface ArchiveProject {
   id: string;
   name: string;
   updatedAt: string;
+  units?: number;
+  audio?: number;
 }
 
 export async function archiveHealth(): Promise<boolean> {

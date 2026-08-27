@@ -72,7 +72,9 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
                 }}
               >
                 <span className="resume-name">{loadingId === p.id ? "载入中…" : p.name}</span>
-                <span className="resume-time">{p.updatedAt}</span>
+                <span className="resume-time">
+                  {typeof p.units === "number" && p.units > 0 ? p.units + " 句 · " : ""}{p.updatedAt}
+                </span>
               </button>
             ))}
           </div>

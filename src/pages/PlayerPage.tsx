@@ -276,7 +276,11 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       </header>
       <div className="script-scroll" ref={scrollRef} onWheel={onManualScroll} onTouchStart={onManualScroll}>
         {!hasPlayable && synthDone ? (
-          <div className="player-empty">没有可播放的音频，合成可能失败，请返回检查服务状态</div>
+          <div className="player-empty">
+            {project.units.length === 0
+              ? "这个存档缺少剧本数据，可能来自旧版本，请返回后重新上传或选择其他存档"
+              : "没有可播放的音频，合成可能失败，请返回检查服务状态"}
+          </div>
         ) : project.units.map((u) => (
           <UnitLine key={u.id} u={u} project={project} isActive={u.id === activeUnitId} setLineRef={setLineRef} />
         ))}

@@ -63,6 +63,12 @@ def write_meta(base: str, pid: str, meta: dict):
     folder = safe_child(base, pid)
     os.makedirs(folder, exist_ok=True)
     state = {k: meta[k] for k in STATE_FIELDS if k in meta}
+    # 旧版单文件存档没有 project.json，写入进度时保留剧本字段，避免数据丢失
+    if read_project(base, pid) is None:
+        existing = read_meta(base, pid) or {}
+        for k in PROJECT_FIELDS:
+            if k in existing:
+                state[k] = existing[k]
     state["updatedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
     atomic_write(os.path.join(folder, "meta.json"), state)
 
@@ -121,9 +127,14 @@ class Handler(BaseHTTPRequestHandler):
                         if not os.path.isfile(mp):
                             continue
                         try:
-                            with open(mp, "r", encoding="utf-8") as f:
-                                m = json.load(f)
-                            out.append({"id": name, "name": m.get("name", name), "updatedAt": m.get("updatedAt", "")})
+                            m = read_combined(base, name)
+                            out.append({
+                                "id": name,
+                                "name": m.get("name", name),
+                                "updatedAt": m.get("updatedAt", ""),
+                                "units": len(m.get("units") or []),
+                                "audio": len(m.get("audio") or {})
+                            })
                         except Exception:
                             pass
                 self._json({"projects": out})
