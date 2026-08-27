@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<!-- ==================================================================
+     LONG DOCUMENT TEMPLATE · parchment design system
+     多页 A4 白皮书/技术报告/年度总结
+     结构：封面 -> 目录 -> 执行摘要 -> 正文章节 -> 附录
+     ================================================================== -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>剧本围读助手 · 核心功能与使用技巧</title>
+<meta name="author" content="剧本围读助手">
+<meta name="description" content="把剧本变成可听的围读：从上传解析、音色设计到续读存档的完整指南，覆盖核心功能、整体流程与使用技巧。">
+<meta name="keywords" content="剧本围读, 配音, 音色库, 流式合成, 存档续读">
+<meta name="generator" content="Kami">
+<style>
+  /* Regular weight */
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("fonts/TsangerJinKai02-W04.ttf") format("truetype"),
+       url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  /* Bold weight - W05 for all bold variants */
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("fonts/TsangerJinKai02-W05.ttf") format("truetype"),
+       url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @page {
+    size: A4;
+    margin: 20mm 22mm 22mm 22mm;
+    background: #f5f4ed;
+
+    @top-right {
+      content: string(section-title);
+      font-family: "TsangerJinKai02", "Source Han Serif SC",
+                   "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+      font-size: 8pt;
+      color: #6b6a64;
+    }
+
+    @bottom-center {
+      content: counter(page) "  ·  剧本围读助手 · 核心功能与使用技巧";
+      font-family: "TsangerJinKai02", "Source Han Serif SC",
+                   "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+      font-size: 9pt;
+      color: #6b6a64;
+    }
+  }
+
+  @page:first {
+    @top-right { content: ""; }
+    @bottom-center { content: ""; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+    --sans: var(--serif);
+
+    --rhythm-module:  14pt;
+    --rhythm-section: 18pt;
+  }
+
+  html, body { background: var(--parchment); }
+
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 20mm 22mm 22mm 22mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 10.5pt;
+    line-height: 1.55;
+    letter-spacing: 0.3pt;
+    widows: 3;
+    orphans: 3;
+  }
+
+  .sans {
+    font-family: var(--sans);
+  }
+
+  /* ========== COVER ========== */
+  .cover {
+    min-height: 240mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 40mm 0 0 0;
+    break-after: page;
+  }
+  .cover-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8pt;
+    font-family: var(--sans);
+    font-size: 10pt;
+    color: var(--brand);
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-bottom: 18pt;
+  }
+  .cover-eyebrow::before {
+    content: "";
+    width: 9pt;
+    height: 1.5pt;
+    border-radius: 0.75pt;
+    background: var(--brand);
+    flex-shrink: 0;
+  }
+  .cover-title {
+    font-size: 36pt;
+    font-weight: 500;
+    color: var(--near-black);
+    line-height: 1.15;
+    letter-spacing: 0.3pt;
+    margin-bottom: 16pt;
+  }
+  .cover-sub {
+    font-family: var(--sans);
+    font-size: 14pt;
+    color: var(--olive);
+    line-height: 1.5;
+    max-width: 85%;
+    margin-bottom: 30pt;
+  }
+  .cover-meta {
+    font-family: var(--sans);
+    font-size: 10pt;
+    color: var(--stone);
+    line-height: 1.5;
+  }
+  .cover-meta strong {
+    color: var(--dark-warm);
+    font-weight: 500;
+  }
+
+  /* ========== TOC（目录）========== */
+  .toc { break-after: page; }
+  .toc h2 {
+    font-size: 22pt;
+    font-weight: 500;
+    margin-bottom: var(--rhythm-module);
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+  }
+  .toc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+    font-size: 11pt;
+  }
+  .toc-item:last-of-type { border-bottom: none; }
+  .toc-num {
+    color: var(--brand);
+    font-weight: 500;
+    min-width: 30pt;
+  }
+  .toc-title {
+    flex: 1;
+    color: var(--near-black);
+    padding-left: 6pt;
+    text-decoration: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 12pt;
+  }
+  .toc-title[href]::after {
+    content: target-counter(attr(href), page);
+    color: var(--stone);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+
+  /* ========== HEADINGS ========== */
+  h1 {
+    font-size: 22pt;
+    font-weight: 500;
+    line-height: 1.2;
+    margin: 0 0 10pt 0;
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    color: var(--near-black);
+    break-after: avoid;
+    string-set: section-title content();
+  }
+
+  .running-title { string-set: section-title content(); }
+
+  h2 {
+    font-size: 16pt;
+    font-weight: 500;
+    line-height: 1.25;
+    margin: 24pt 0 8pt 0;
+    color: var(--near-black);
+    break-after: avoid;
+  }
+
+  h3 {
+    font-size: 13pt;
+    font-weight: 500;
+    line-height: 1.3;
+    margin: 18pt 0 6pt 0;
+    color: var(--dark-warm);
+    break-after: avoid;
+  }
+
+  .chapter-num {
+    font-family: var(--sans);
+    font-size: 10pt;
+    color: var(--brand);
+    letter-spacing: 1pt;
+    text-transform: uppercase;
+    margin-bottom: 6pt;
+  }
+
+  /* ========== PARAGRAPHS ========== */
+  p {
+    margin: 0 0 10pt 0;
+    line-height: 1.55;
+    color: var(--near-black);
+    widows: 2;
+    orphans: 2;
+  }
+
+  .lead {
+    font-size: 12pt;
+    line-height: 1.55;
+    color: var(--dark-warm);
+    margin-bottom: var(--rhythm-module);
+  }
+
+  .hl { color: var(--brand); font-weight: 500; }
+  strong { font-weight: 500; }
+
+  /* ========== LISTS ========== */
+  ul, ol {
+    margin: 6pt 0 10pt 0;
+    padding-left: 20pt;
+    line-height: 1.55;
+  }
+  ul li::marker { color: var(--brand); }
+  ol li::marker { color: var(--brand); font-weight: 500; }
+
+  /* ========== QUOTE ========== */
+  blockquote, .quote {
+    border-left: 2pt solid var(--brand);
+    margin: 12pt 0;
+    padding: 4pt 0 4pt 16pt;
+    color: var(--olive);
+    line-height: 1.55;
+    break-inside: avoid;
+  }
+  blockquote .cite, .quote .cite {
+    display: block;
+    font-size: 9pt;
+    color: var(--stone);
+    margin-top: 4pt;
+  }
+
+  /* ========== CODE ========== */
+  /* Mono first for English glyphs, then CJK fallback so Chinese comments
+     inside code/pre render correctly. A mono-only chain causes missing
+     glyphs rendered as "?" or missing-glyph boxes in WeasyPrint when the system lacks
+     a mono font with CJK coverage. */
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas,
+                 "TsangerJinKai02", "Source Han Serif SC",
+                 "Noto Serif CJK SC", "Songti SC", monospace;
+    font-size: 9pt;
+    background: var(--ivory);
+    padding: 1pt 4pt;
+    border-radius: 2pt;
+    color: var(--dark-warm);
+  }
+  pre {
+    font-family: "JetBrains Mono", "SF Mono", Consolas,
+                 "TsangerJinKai02", "Source Han Serif SC",
+                 "Noto Serif CJK SC", "Songti SC", monospace;
+    font-size: 9pt;
+    line-height: 1.5;
+    background: var(--ivory);
+    border-radius: 4pt;
+    padding: 10pt 14pt;
+    margin: 10pt 0;
+    white-space: pre-wrap;
+    color: var(--near-black);
+    break-inside: avoid;
+  }
+  pre code { background: transparent; padding: 0; font-size: inherit; }
+
+  /* ========== TABLE (kami-table) ========== */
+  table, .kami-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin: 12pt 0;
+    break-inside: avoid;
+  }
+  table th, .kami-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--dark-warm);
+    padding: 6pt 8pt;
+    border-bottom: 1pt solid var(--border);
+    background: transparent;
+  }
+  table td, .kami-table td {
+    padding: 5pt 8pt;
+    border-bottom: 0.3pt solid var(--border-soft);
+    vertical-align: top;
+  }
+  table.compact th, .kami-table.compact th { padding: 3pt 6pt; font-size: 8pt; }
+  table.compact td, .kami-table.compact td { padding: 2pt 6pt; font-size: 8pt; line-height: 1.4; }
+  table.financial td:not(:first-child), .kami-table.financial td:not(:first-child) {
+    text-align: right; font-variant-numeric: tabular-nums;
+  }
+  table.financial th:not(:first-child), .kami-table.financial th:not(:first-child) { text-align: right; }
+  table.striped tbody tr:nth-child(even) td, .kami-table.striped tbody tr:nth-child(even) td {
+    background: var(--ivory);
+  }
+  table .total td, .kami-table .total td {
+    font-weight: 500; border-top: 1pt solid var(--brand); border-bottom: none; color: var(--near-black);
+  }
+
+  /* ========== CALLOUT ========== */
+  .callout {
+    background: var(--ivory);
+    border-left: 2pt solid var(--brand);
+    padding: 10pt 14pt;
+    border-radius: 3pt;
+    margin: 12pt 0;
+    line-height: 1.55;
+    break-inside: avoid;
+  }
+  .callout blockquote,
+  .callout .quote {
+    border-left: none;
+    padding-left: 0;
+    margin: 6pt 0;
+    color: var(--olive);
+  }
+  .callout blockquote:first-child,
+  .callout .quote:first-child { margin-top: 0; }
+  .callout blockquote:last-child,
+  .callout .quote:last-child  { margin-bottom: 0; }
+
+  .takeaway {
+    background: var(--ivory);
+    border-radius: 4pt;
+    padding: 10pt 14pt;
+    margin: 14pt 0;
+    break-inside: avoid;
+  }
+  .takeaway-label {
+    font-family: var(--sans);
+    font-size: 9pt;
+    color: var(--brand);
+    letter-spacing: 0.5pt;
+    text-transform: uppercase;
+    margin-bottom: 4pt;
+  }
+
+  /* ========== TAG ========== */
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--brand);
+    font-family: var(--sans);
+    font-size: 9pt;
+    font-weight: 500;
+    padding: 1pt 6pt;
+    border-radius: 3pt;
+    margin-right: 4pt;
+  }
+
+  /* ========== FIGURE ========== */
+  figure {
+    margin: 14pt 0;
+    break-inside: avoid;
+  }
+  figure img {
+    max-width: 100%;
+    border-radius: 4pt;
+  }
+  /* Inline diagrams (e.g. a Mermaid-sourced SVG via scripts/mermaid_normalize.py):
+     center and cap width so the figure never bleeds past the text column. */
+  figure svg {
+    display: block;
+    margin: 0 auto;
+    max-width: 78%;
+    height: auto;
+  }
+  figcaption {
+    font-family: var(--sans);
+    font-size: 9pt;
+    color: var(--stone);
+    margin-top: 6pt;
+    text-align: center;
+  }
+
+  /* ========== EXECUTIVE SUMMARY ========== */
+  .exec-summary {
+    background: var(--ivory);
+    border-left: 1.4pt solid var(--brand);
+    border-radius: 6pt;
+    padding: 16pt 20pt;
+    margin: 14pt 0;
+    break-inside: avoid;
+  }
+  .exec-summary h2 {
+    margin-top: 0;
+    font-size: 13pt;
+  }
+
+  /* ========== CHAPTER BREAK ========== */
+  .chapter { break-before: page; }
+</style>
+</head>
+<body>
+
+<!-- ═════════════ COVER ═════════════ -->
+<section class="cover">
+  <div>
+    <div class="cover-eyebrow">使用指南 · 本地剧本围读工具</div>
+    <div class="cover-title">剧本围读助手 · 核心功能与使用技巧</div>
+    <div class="cover-sub">把剧本变成可听的围读：从上传解析、音色设计到续读存档的完整指南，写给第一次使用它的创作者与剧组成员。</div>
+  </div>
+  <div class="cover-meta">
+    <strong>剧本围读助手</strong><br>
+    V1.0  ·  2026.08<br>
+    本地多角色剧本围读工具
+  </div>
+</section>
+
+<!-- ═════════════ 目录 ═════════════ -->
+<section class="toc">
+  <h2>目录</h2>
+  <div class="toc-item">
+    <span class="toc-num">01</span>
+    <a class="toc-title" href="#ch-executive-summary">执行摘要</a>
+  </div>
+  <div class="toc-item">
+    <span class="toc-num">02</span>
+    <a class="toc-title" href="#ch-background">产品定位与整体流程</a>
+  </div>
+  <div class="toc-item">
+    <span class="toc-num">03</span>
+    <a class="toc-title" href="#ch-methodology">核心功能详解</a>
+  </div>
+  <div class="toc-item">
+    <span class="toc-num">04</span>
+    <a class="toc-title" href="#ch-conclusions">使用技巧与避坑</a>
+  </div>
+  <div class="toc-item">
+    <span class="toc-num">05</span>
+    <a class="toc-title" href="#ch-appendix">附录：术语、环境与常见问题</a>
+  </div>
+</section>
+
+<!-- ═════════════ Chapter 01：执行摘要 ═════════════ -->
+<section class="chapter" id="ch-executive-summary">
+  <div class="chapter-num">01 · Executive Summary</div>
+  <h1>执行摘要</h1>
+
+  <p class="lead">
+    剧本围读助手把“读剧本”变成“听剧本”：上传剧本后自动拆出角色、分配音色、合成配音，并按角色朗读、随时续读。这份指南用五个章节讲清
+    <span class="hl">核心功能、操作顺序与最容易踩的坑</span>，读完即可独立完成一集围读。
+  </p>
+
+  <h2>核心 Takeaways</h2>
+  <ul>
+    <li>一次可上传多集 <span class="hl">.docx / .txt / .md</span>，自动识别剧名与集号，跨集角色音色保持统一。</li>
+    <li>两条合成路线：<span class="hl">edge-tts</span> 快、需联网；<span class="hl">Qwen</span> 全本地、可按自然语言设计音色。</li>
+    <li>流式合成满 <span class="hl">25 句</span>即可先进入围读，后台继续生成，不用等全部完成。</li>
+    <li>存档按“剧 → 集”<span class="hl">两级落盘</span>，换天、关浏览器后都能从上次位置续读。</li>
+    <li>音色库提供 <span class="hl">14 个中文基础音色 × 5 档语调</span>，共 70 个可独立配置的音色位。</li>
+  </ul>
+
+  <div class="takeaway">
+    <div class="takeaway-label">本文档回答的问题</div>
+    如何把一份剧本变成可听的围读？两条合成路线怎么选？多集项目如何保持角色音色统一？存档与续读又该怎么用？
+  </div>
+</section>
+
+<!-- ═════════════ Chapter 02：背景 ═════════════ -->
+<section class="chapter" id="ch-background">
+  <div class="chapter-num">02 · Product Flow</div>
+  <h1>产品定位与整体流程</h1>
+
+  <p class="lead">
+    传统剧本围读依赖线下凑人、凑时间、逐句分配角色，本工具把这条流水线压缩成本地四个服务。先理解整体流程，才能知道每一步设置到底影响什么。
+  </p>
+
+  <h2>为什么需要本地围读</h2>
+  <p>
+    剧本围读本是剧组最直观的排练方式，但组织成本不低：要凑齐人数、分配角色、逐句念稿，个人创作者更是很难一个人把整部戏“读”出来。本工具把这件事变成浏览器里的本地工作流，上传剧本后由程序完成大部分重复劳动。
+  </p>
+
+  <h2>七个阶段的完整流程</h2>
+  <p>
+    整体流程共七步：首页进入选择页 → 上传新剧本或继续围读 → 场标预览 → 确认角色 → 声音设计或分配音色 → 流式合成 → 围读播放。每一步都有对应设置项，但默认值已经能跑通，用户可以<span class="hl">先走一遍再逐步调细</span>。
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>阶段</th>
+        <th>做什么</th>
+        <th>关键设置</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>上传</td>
+        <td>拖入 .docx / .txt / .md，可多选多集</td>
+        <td>文件名带集号，自动排序</td>
+      </tr>
+      <tr>
+        <td>场标预览</td>
+        <td>确认疑似漏识别的行</td>
+        <td>一键设为场标或忽略</td>
+      </tr>
+      <tr>
+        <td>确认角色</td>
+        <td>归并同义写法，预判性别年龄</td>
+        <td>可选 DeepSeek 精修</td>
+      </tr>
+      <tr>
+        <td>声音设计</td>
+        <td>Qwen 生成种子音色；Edge 直接分配</td>
+        <td>试听后进入下一步</td>
+      </tr>
+      <tr>
+        <td>合成</td>
+        <td>逐句流式生成音频</td>
+        <td>满 25 句可提前进入</td>
+      </tr>
+      <tr>
+        <td>围读</td>
+        <td>播放、倍速、跳转</td>
+        <td>空格 / Esc 快捷键</td>
+      </tr>
+      <tr>
+        <td>续读</td>
+        <td>选择剧集继续围读</td>
+        <td>换目录等于换存档</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    数据默认留在本机：剧本与音频只写入本地存档，唯一依赖外部网络的是 edge-tts 在线合成和可选的 DeepSeek 角色精修；Qwen 模式与存档服务全程离线。
+  </div>
+
+  <p>下图给出完整的流程示意，七个阶段按顺序推进，存档贯穿始终。</p>
+
+  <figure>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 240" width="840" height="240" style="background:#f5f4ed">
+      <style>
+        text { font-family: "TsangerJinKai02", "Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "STSong", "SimSun", Charter, Georgia, serif; }
+      </style>
+      <defs>
+        <marker id="flow-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+          <polygon points="0 0, 8 2.5, 0 5" fill="#1b365d" />
+        </marker>
+      </defs>
+      <g fill="#faf9f5" stroke="#e8e6dc" stroke-width="1">
+        <rect x="20" y="60" width="120" height="56" rx="6" ry="6" />
+        <rect x="160" y="60" width="120" height="56" rx="6" ry="6" />
+        <rect x="300" y="60" width="120" height="56" rx="6" ry="6" />
+        <rect x="440" y="60" width="120" height="56" rx="6" ry="6" />
+        <rect x="580" y="60" width="120" height="56" rx="6" ry="6" />
+        <rect x="720" y="60" width="120" height="56" rx="6" ry="6" />
+      </g>
+      <g stroke="#1b365d" stroke-width="1.5" marker-end="url(#flow-arrow)">
+        <line x1="140" y1="88" x2="156" y2="88" />
+        <line x1="280" y1="88" x2="296" y2="88" />
+        <line x1="420" y1="88" x2="436" y2="88" />
+        <line x1="560" y1="88" x2="576" y2="88" />
+        <line x1="700" y1="88" x2="716" y2="88" />
+      </g>
+      <g font-size="14" text-anchor="middle" fill="#141413">
+        <text x="80" y="91">上传剧本</text>
+        <text x="220" y="91">场标预览</text>
+        <text x="360" y="91">确认角色</text>
+        <text x="500" y="91">声音设计</text>
+        <text x="640" y="91">流式合成</text>
+        <text x="780" y="91">围读播放</text>
+      </g>
+      <text x="420" y="176" font-size="15" text-anchor="middle" fill="#504e49">存档贯穿全程：音频与进度逐句落盘，可随时续读</text>
+    </svg>
+    <figcaption>图 1：一次完整的围读流程，上传到播放七步走完，存档在每一步之后自动更新</figcaption>
+  </figure>
+</section>
+
+<!-- ═════════════ Chapter 03：方法 ═════════════ -->
+<section class="chapter" id="ch-methodology">
+  <div class="chapter-num">03 · Core Features</div>
+  <h1>核心功能详解</h1>
+
+  <p class="lead">
+    核心功能集中在五个环节：上传解析、角色与音色、流式合成、围读播放、跨集存档。每个环节都有对应设置，理解它们能省下大量返工。上传解析与音色库是使用频率最高的两个界面，先确认场标与角色，再决定音色，以下结合界面截图逐环节说明。
+  </p>
+
+  <h2>上传与解析</h2>
+  <p>
+    上传页支持单个大文件或一次多选多集剧本，格式为 <span class="hl">.docx / .txt / .md</span>。解析器按行区分场标、对白、动作与旁白，并在页面上先给出场标预览，疑似漏识别的行可一键设为场标或忽略；docx 还会读取加粗与空行结构辅助识别。
+  </p>
+
+  <figure>
+    <img src="assets/sr_upload_v2_20260826.png" alt="上传与场标预览界面">
+    <figcaption>图 2：上传后先经过场标预览，把疑似漏识别的行交给用户确认，减少后续错场</figcaption>
+  </figure>
+
+  <h2>角色确认</h2>
+  <p>
+    角色确认页把同义写法归并（如“熊黑严肃”归为“熊黑”），用规则预判性别与年龄段，可选 DeepSeek 精修。排序规则是<span class="hl">无音色种子的新角色在前</span>、可复用角色在后，方便先处理需要设计的角色。
+  </p>
+
+  <h2>音色库</h2>
+  <p>
+    音色库提供 <span class="hl">14 个中文基础音色</span>、每档 5 种语调，共 <span class="hl">70 个音色位</span>。每个音色位可单独设置性别、年龄、方言标签，支持批量设置、试听、导出与导入 JSON，锁定后防止误改。
+  </p>
+
+  <figure>
+    <img src="assets/sr_library_v4_20260826.png" alt="音色库界面">
+    <figcaption>图 3：音色库的标签与启用状态决定自动分配结果，先配好音色位再进入合成</figcaption>
+  </figure>
+
+  <h2>流式合成</h2>
+  <p>
+    合成采用流式方式：按剧本顺序逐句生成，每完成一句就进入时间轴，满 <span class="hl">25 句</span>（或整剧不足 25 句时全部完成）即可提前进入围读，后台继续合成；失败句以空音频占位，播放时自动跳过。
+  </p>
+
+  <div class="callout">
+    两条合成路线的取舍：edge-tts 接近实时、适合快速听节奏，但需要联网；Qwen 全本地、首次要等模型加载，但可以用自然语言设计并固定每个角色的声音。
+  </div>
+
+  <h2>围读播放</h2>
+  <p>
+    围读页支持当前句高亮、自动滚动、<span class="hl">0.5x-3x</span> 倍速、±5s / ±10s 跳转与进度条拖动；空格播放/暂停，Esc 保存并返回，右上角开关切换深色与浅色。
+  </p>
+
+  <h2>跨集存档</h2>
+  <p>
+    存档采用<span class="hl">两级结构</span>：剧集之下再分集，每集独立保存剧本、音频与播放进度。跨集音色库按 <span class="hl">roleBase</span> 身份键合并，第二集解析到已有角色时默认复用音色，<span class="hl">音源锁</span>在剧级，避免同一部剧混用 edge 与 Qwen。
+  </p>
+</section>
+
+<!-- ═════════════ Chapter 04：结论 ═════════════ -->
+<section class="chapter" id="ch-conclusions">
+  <div class="chapter-num">04 · Tips &amp; Pitfalls</div>
+  <h1>使用技巧与避坑</h1>
+
+  <p class="lead">
+    大部分使用问题集中在角色识别、音色统一与存档路径三处。按这组技巧操作，首集配音通常一次成型，多集项目也不会出现声音漂移。本章把高频技巧按“上传前、合成前、续读前”三个阶段排列，最后给一组排查信号。
+  </p>
+
+  <h2>上传前</h2>
+  <ol>
+    <li>文件名里带集号（如“第1集”“第一集”），上传多集时工具会按数字顺序排列并独立计场，否则多集文件容易被当成同集内容处理。</li>
+    <li>先用一集测试剧本跑通全流程，确认场标与角色识别无误，再批量上传后续集数，返工成本最低。</li>
+  </ol>
+
+  <h2>合成前</h2>
+  <ol start="3">
+    <li>Qwen 模式下先为每个角色生成一次种子音色并试听，满意后再批量合成；种子音色决定全剧音色统一，之后所有台词都基于它克隆。</li>
+    <li>Edge 模式速度快但需要联网，适合先听节奏；Qwen 适合定最终声音，两者在同一部剧内不要混用。</li>
+    <li>音色库标签按性别、年龄、方言筛选，自动分配只在“已启用”的音色池里找；角色多时先启用更多档位，避免“可用音色不足”。</li>
+    <li>同一个音色被多个角色占用时，界面会显示占用数；想释放就把角色改回“未分配”。</li>
+  </ol>
+
+  <h2>续读与存档</h2>
+  <ol start="7">
+    <li>跨集续读时不要在同一部剧内切换音源：音源锁在剧级，切换后复用会跳过，可能导致角色声音不一致。</li>
+    <li>默认存档目录是 <code>~/Documents/剧本围读存档</code>，第一次保存时自动创建；改目录等于换一套存档，共享存档需要手动拷贝整个文件夹。</li>
+  </ol>
+
+  <h2>遇到卡住怎么办</h2>
+  <p>
+    Qwen 首次生成要加载模型，等几十秒正常；服务已加入 <span class="hl">180 秒</span>超时与 worker 重建，卡住后重试即可，不需要反复重启电脑。排查时先看三个信号：上传页是否提示存档服务不可用、Qwen 生成是否返回超时、logs 目录下对应服务日志是否有异常。
+  </p>
+
+  <div class="takeaway">
+    <div class="takeaway-label">建议的首次操作</div>
+    上传一集测试剧本 → 检查场标预览 → 确认角色 → 用 edge 快速合成试听 → 再切换到 Qwen 为关键角色设计种子音色 → 进入围读并保存进度。
+  </div>
+</section>
+
+<!-- ═════════════ Chapter 05：附录 ═════════════ -->
+<section class="chapter" id="ch-appendix">
+  <div class="chapter-num">05 · Appendix</div>
+  <h1>附录：术语、环境与常见问题</h1>
+
+  <p class="lead">
+    附录整理高频术语、运行环境与常见问题，供读者在遇到报错时快速对照。环境部分只覆盖外发版默认形态。
+  </p>
+
+  <h2>A. 术语表</h2>
+  <p><strong>roleBase</strong> 是角色的稳定身份键，会剥掉头衔、OS、括注与情绪后缀，保证“聂九罗 董事长”与“聂九罗”在跨集音色库里指向同一角色。</p>
+  <p><strong>种子音色</strong>：Qwen 模式下每个角色的参考音频，之后所有台词都基于它克隆，决定全剧声音统一性。</p>
+  <p><strong>音源锁</strong>：一部剧锁定 edge 或 Qwen 其中一种音源，跨集复用不会混用两种声音。</p>
+  <p><strong>流式合成</strong>：按剧本顺序逐句生成音频，每完成一句就进入时间轴，不必等全部完成。</p>
+  <p><strong>两级存档</strong> 指“剧 → 集”的目录结构：剧集下有 project.json、音色目录与各集音频，每集独立保存 meta.json 与播放进度。</p>
+
+  <h2>B. 运行环境</h2>
+  <p>
+    外发版运行环境：Apple Silicon Mac、Python 3.11、约 7GB 磁盘空间。四个本地服务分别占用 <code>5174 / 9882 / 9883 / 9884</code> 端口，前端使用 dist 静态产物，不需要安装 Node。
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>端口</th>
+        <th>服务</th>
+        <th>依赖</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>5174</td>
+        <td>前端静态服务</td>
+        <td>dist 构建产物</td>
+      </tr>
+      <tr>
+        <td>9882</td>
+        <td>edge-tts</td>
+        <td>联网</td>
+      </tr>
+      <tr>
+        <td>9883</td>
+        <td>Qwen3</td>
+        <td>本地模型</td>
+      </tr>
+      <tr>
+        <td>9884</td>
+        <td>存档服务</td>
+        <td>Python 标准库</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>C. 常见问题</h2>
+  <ol>
+    <li><strong>Qwen 返回 500 或 mlx_audio 报错</strong>：服务没有用 <code>.venv-qwen/bin/python</code> 启动，重新运行 setup.command 即可。</li>
+    <li><strong>前端打不开</strong>：确认四个端口健康、dist 存在；服务日志在 logs/ 目录。</li>
+    <li><strong>存档找不到</strong>：默认目录是 <code>~/Documents/剧本围读存档</code>，第一次保存时创建；改目录等于换一套存档。</li>
+    <li><strong>edge 合成失败</strong>：微软在线 TTS 需要联网，检查网络后重试。</li>
+    <li><strong>端口被占用</strong>：启动脚本会自动跳过已在运行的端口，不影响使用。</li>
+  </ol>
+
+  <h2>D. 参考资料</h2>
+  <ul>
+    <li>README.md：项目功能与开发模式说明</li>
+    <li>HANDOFF.md：架构、端口与已知坑</li>
+    <li>外发说明.md：接收方的安装与使用说明</li>
+    <li>AGENT_SETUP_RECIPIENT.md：接收方 AI agent 安装施工单</li>
+  </ul>
+</section>
+
+</body>
+</html>
