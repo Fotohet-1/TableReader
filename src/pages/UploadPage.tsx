@@ -1295,11 +1295,17 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
               </div>
               <div className="field">
                 <label>外观</label>
-                <select value={theme} onChange={(e) => onTheme(e.target.value as Theme)}>
-                  <option value="system">跟随系统</option>
-                  <option value="light">浅色</option>
-                  <option value="dark">深色</option>
-                </select>
+                <div className="seg" role="group" aria-label="外观">
+                  {([["system", "跟随系统"], ["light", "浅色"], ["dark", "深色"]] as const).map(([v, label]) => (
+                    <button
+                      key={v}
+                      className={"seg-btn" + (theme === v ? " on" : "")}
+                      onClick={() => onTheme(v)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <label className="check">
                 <input

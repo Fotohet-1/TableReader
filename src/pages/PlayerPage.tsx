@@ -76,7 +76,6 @@ const UnitLine = memo(function UnitLine({ u, project, isActive, setLineRef }: {
       <div
         ref={setLineRef(u.id)}
         className={"unit unit-dialogue" + (isActive ? " active" : "")}
-        style={isActive ? { borderLeftColor: "#0066cc", background: "rgba(0,102,204,.07)" } : { borderLeftColor: "#e0e0e0" }}
       >
         <span className="char-tag">{u.character}</span>
         <span className="char-line">{u.text}</span>
@@ -498,12 +497,11 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
         <button onClick={() => { saveNow(); onBack(); }} className="tb-btn">← 返回</button>
         <div className="tb-right">
           <button
-            className="tb-btn"
+            className={"ios-switch" + (isDark(theme) ? " on" : "")}
             onClick={() => onTheme(isDark(theme) ? "light" : "dark")}
+            aria-label={isDark(theme) ? "切换到浅色" : "切换到深色"}
             title={isDark(theme) ? "切换到浅色" : "切换到深色"}
-          >
-            {isDark(theme) ? "☀️" : "🌙"}
-          </button>
+          />
           {source === "qwen" && (
             <div className="tb-regen">
               <select value={regenRole} onChange={(e) => setRegenRole(e.target.value)} title="选择角色">

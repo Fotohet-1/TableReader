@@ -120,13 +120,14 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   color: #ffffff;
   font-size: 17px;
   line-height: 1;
-  transition: box-shadow .3s;
+  box-shadow: 0 8px 24px rgba(140, 140, 150, 0.3);
+  transition: box-shadow .3s, transform .2s;
 }
 .home-cta:hover, .home-cta:focus {
   background: var(--accent);
   border-color: transparent;
   color: #ffffff;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 12px 30px rgba(140, 140, 150, 0.42);
   outline: none;
 }
 .home-cta:active { transform: scale(.95); }
@@ -673,6 +674,32 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .settings-body .field label { width: 104px; }
 .settings-body .row { margin-top: 2px; justify-content: flex-end; }
 .settings-hint { font-size: 11px; color: var(--muted); margin: 0; }
+/* 分段控件（外观三选） */
+.seg {
+  flex: 1;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--fill-soft);
+}
+.seg-btn {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--muted-strong);
+  padding: 6px 0;
+  font-size: 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color .2s, color .2s;
+  text-align: center;
+}
+.seg-btn.on {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 3px var(--fill-sub);
+}
 .regen-body { padding: 24px 28px 28px; display: flex; flex-direction: column; gap: 14px; }
 .regen-label { font-size: 14px; color: var(--muted); }
 .regen-actions { display: flex; gap: 10px; align-items: center; }
@@ -918,6 +945,32 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   z-index: 5;
   animation: srFadeDown .45s cubic-bezier(.22, .8, .32, 1);
 }
+.ios-switch {
+  width: 44px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(120, 120, 128, 0.32);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background-color .2s;
+}
+.ios-switch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: transform .2s;
+}
+.ios-switch.on { background: var(--accent); }
+.ios-switch.on::before { transform: translateX(18px); }
 .tb-btn {
   padding: 6px 10px;
   border: 0;
