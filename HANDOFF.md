@@ -96,6 +96,7 @@ npm run build       # 通过；mammoth/jszip 懒加载
 
 - 应用是“本地工具 + 3 个本地 Python 服务”，外发需打包这几部分（前端 build 产物 + 三个 server + 各自 venv/模型/edge 依赖 + 模型路径）。
 - 外发入口：`setup.command`（一键安装 venv + 从 hf-mirror 拉 Qwen 模型）+ `start.command`（一键启动），接收方说明见 `外发说明.md`。
+- 接收方若由 AI agent 代装，把 `AGENT_SETUP_RECIPIENT.md` 交给对方 agent 执行。
 - Qwen 模型默认取仓库内 `models/`，可用 `QWEN_VD_MODEL`/`QWEN_BASE_MODEL` 覆盖；并发池 `QWEN_DESIGN_POOL`/`QWEN_CLONE_POOL`、生成超时 `QWEN_JOB_TIMEOUT`。
 - 存档目录按用户懒创建（见上“坑”3），外发时对方拿到的默认就是自己的空存档。
 - 想让你之外的人看到你的存档，需手动拷贝 `~/Documents/剧本围读存档`。

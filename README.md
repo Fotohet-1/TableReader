@@ -27,6 +27,8 @@
 ./start.command      # 以后每次：一键启动四个本地服务并打开浏览器
 ```
 
+对方如果由 AI agent 代装，让它直接读 `AGENT_SETUP_RECIPIENT.md`。
+
 `start.command` 启动：前端静态服务 5174（直接用 `dist/` 构建产物，不需要 Node）、edge-tts 9882、Qwen3 9883、存档服务 9884。日志在 `logs/`，已运行的端口会自动跳过。
 
 ### 开发模式
