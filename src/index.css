@@ -607,7 +607,9 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   align-items: center;
   gap: 14px;
   padding: 12px 22px;
-  background: var(--bg);
+  background: rgba(245, 244, 237, 0.72);
+  backdrop-filter: blur(6px) saturate(1.2);
+  -webkit-backdrop-filter: blur(6px) saturate(1.2);
   border-bottom: 1px solid var(--line);
   z-index: 5;
 }
@@ -682,8 +684,40 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   border: 0;
 }
 .pb-play:hover { background: #fff; color: var(--bar); }
-.pb-range { flex: 1; accent-color: var(--bar-text); min-width: 60px; }
-.pb-time { font-size: 12px; color: #c2c7d0; white-space: nowrap; }
+.pb-range {
+  flex: 1;
+  min-width: 60px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  outline: none;
+}
+.pb-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bar-text);
+  border: 0;
+  margin-top: -5px;
+  cursor: pointer;
+}
+.pb-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+.pb-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bar-text);
+  border: 0;
+}
+.pb-time { font-size: 12px; color: #ffffff; white-space: nowrap; }
 .pb-rate {
   width: auto;
   height: 32px;

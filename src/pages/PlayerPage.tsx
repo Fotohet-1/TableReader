@@ -52,9 +52,30 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     setCurrentIdx(idx);
     setWaiting(false);
     audio.src = item.url;
-    audio.currentTime = atMs / 1000;
-    audio.playbackRate = rateRef.current;
-    audio.play().catch(() => {});
+    audio.load();
+    const start = () => {
+      audio.currentTime = atMs / 1000;
+      audio.playbackRate = rateRef.current;
+      const p = audio.play();
+      if (p) {
+        p.catch(() => {
+          setTimeout(() => { audio.play().catch(() => {}); }, 80);
+        });
+      }
+    };
+    if (audio.readyState >= 2) {
+      start();
+    } else {
+      const onReady = () => {
+        audio.removeEventListener("loadeddata", onReady);
+        start();
+      };
+      audio.addEventListener("loadeddata", onReady);
+      window.setTimeout(() => {
+        audio.removeEventListener("loadeddata", onReady);
+        if (audio.paused) start();
+      }, 800);
+    }
     setPlaying(true);
     return true;
   };
@@ -74,12 +95,6 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     if (i < items2.length) {
       idxRef.current = i;
       setCurrentIdx(i);
-      const audio = audioRef.current;
-      if (audio && items2[i].url) {
-        audio.src = items2[i].url;
-        audio.currentTime = 0;
-        audio.playbackRate = rateRef.current;
-      }
     }
   }, []);
 
