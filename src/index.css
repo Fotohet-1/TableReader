@@ -548,7 +548,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .design-actions button { padding: 7px 12px; font-size: 14px; flex-shrink: 0; }
 
 .gender-pick { display: flex; gap: 6px; margin-left: auto; align-items: stretch; }
-.gender-pick button, .gender-pick select { min-width: 72px; padding: 7px 12px; font-size: 14px; border-radius: 999px; text-align: center; }
+.gender-pick button, .gender-pick select { flex: 0 0 72px; width: 72px; min-width: 72px; padding: 7px 12px; font-size: 14px; border-radius: 999px; text-align: center; }
 .gender-pick select { text-align-last: center; background: var(--paper); }
 .gender-pick button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .age-select, .variant-select {
@@ -566,6 +566,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   text-align-last: center;
   color: var(--muted-strong);
 }
+.cv-row > .variant-select { flex: 0 0 100px; }
 .flow-card .cv-row,
 .flow-card .design-row {
   animation: srFadeUp .45s cubic-bezier(.22, .8, .32, 1) backwards;
