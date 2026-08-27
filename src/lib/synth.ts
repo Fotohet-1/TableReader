@@ -42,6 +42,7 @@ export function synthesizeStream(
   let acc = 0;
   let doneCount = 0;
   let failed = 0;
+  let playableCount = 0;
   let cursor = 0;
   let firstFired = false;
   let firstResolve!: () => void;
@@ -60,7 +61,8 @@ export function synthesizeStream(
       item.endMs = acc;
       opts.onUnitReady(item);
       readyCursor++;
-      if (!firstFired && readyCursor >= firstTarget) {
+      if (item.url && item.durationMs > 0) playableCount++;
+      if (!firstFired && playableCount > 0 && playableCount >= firstTarget) {
         firstFired = true;
         firstResolve();
       }
@@ -106,7 +108,7 @@ export function synthesizeStream(
 
   Promise.all(Array.from({ length: Math.min(CONCURRENCY, Math.max(total, 1)) }, () => worker())).then(() => {
     flush();
-    if (!firstFired) {
+    if (!firstFired && playableCount > 0) {
       firstFired = true;
       firstResolve();
     }

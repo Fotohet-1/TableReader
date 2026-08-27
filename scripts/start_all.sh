@@ -18,8 +18,15 @@ echo "启动 edge-tts (9882) ..."
 "$EDGE_PY" "$ROOT/scripts/server_edge_tts.py" >/tmp/sr_edge.log 2>&1 &
 echo "启动 Qwen3 (9883) ..."
 "$QWEN_PY" "$ROOT/scripts/server_qwen_tts.py" >/tmp/sr_qwen.log 2>&1 &
-sleep 2
+sleep 3
+for port in 9882 9883; do
+  if curl -s -X POST "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
+    echo "服务 $port: OK"
+  else
+    echo "警告: $port 未启动，请查看 /tmp/sr_edge.log 或 /tmp/sr_qwen.log"
+  fi
+done
 cd "$ROOT"
-# 等服务就绪后自动打开浏览器
+# 等前端就绪后自动打开浏览器
 ( sleep 3; open "http://127.0.0.1:5174/" 2>/dev/null ) &
 npm run dev

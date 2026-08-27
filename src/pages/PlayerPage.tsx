@@ -42,6 +42,7 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
   }, [items]);
 
   const totalMs = items.length ? items[items.length - 1].endMs : 0;
+  const hasPlayable = items.some((i) => i.url && i.durationMs > 0);
   const activeUnitId = currentIdx >= 0 && items[currentIdx] ? items[currentIdx].unitId : null;
 
   const playFrom = (idx: number, atMs = 0) => {
@@ -56,7 +57,8 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     audio.playbackRate = rateRef.current;
     const p = audio.play();
     if (p) {
-      p.catch(() => {
+      p.catch((e) => {
+        (window as unknown as Record<string, unknown>).__playErr = e && e.name ? e.name + ": " + e.message : String(e);
         let tries = 0;
         const retry = () => {
           tries++;
@@ -131,7 +133,8 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
         setPlaying(true);
         const p = audio.play();
         if (p) {
-          p.catch(() => {
+          p.catch((e) => {
+            (window as unknown as Record<string, unknown>).__playErr = e && e.name ? e.name + ": " + e.message : String(e);
             let tries = 0;
             const retry = () => {
               tries++;
@@ -234,7 +237,9 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
         </span>
       </header>
       <div className="script-scroll" ref={scrollRef} onWheel={onManualScroll} onTouchStart={onManualScroll}>
-        {project.units.map(renderUnit)}
+        {!hasPlayable && synthDone ? (
+          <div className="player-empty">没有可播放的音频，合成可能失败，请返回检查服务状态</div>
+        ) : project.units.map(renderUnit)}
       </div>
       {waiting && <div className="wait-banner">正在合成下一句…</div>}
       <PlayerBar

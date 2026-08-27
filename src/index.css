@@ -650,6 +650,14 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   background: var(--accent-soft);
   border-left-color: var(--accent);
 }
+.player-empty {
+  max-width: 680px;
+  margin: 80px auto;
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--serif);
+  font-size: 16px;
+}
 
 .player-bar {
   position: fixed;

@@ -590,6 +590,13 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
 
   const start = async () => {
     if (!units || !charVoices.length) return;
+    const healthUrl = source === "qwen" ? qwenUrl : edgeUrl;
+    if (!(await checkHealth(healthUrl))) {
+      setErr(source === "qwen"
+        ? "Qwen3 服务未启动，请先运行桌面快捷入口，或检查设置里的服务地址"
+        : "edge-tts 服务未启动，请先运行桌面快捷入口，或检查设置里的服务地址");
+      return;
+    }
     resetItems();
     setSyncing(true);
     setErr("");
