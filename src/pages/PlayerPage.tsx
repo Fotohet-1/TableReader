@@ -3,6 +3,40 @@ import type { Project, Unit, UnitAudio } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
 import { toChineseNumber } from "../lib/parser";
 
+const MAX_SIMUL = 3;
+
+interface Slot {
+  items: UnitAudio[];
+  unitIds: number[];
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+}
+
+function buildSlots(items: UnitAudio[], groupByUnit: Map<number, number>): Slot[] {
+  const slots: Slot[] = [];
+  let acc = 0;
+  let i = 0;
+  while (i < items.length) {
+    const it = items[i];
+    const g = groupByUnit.get(it.unitId);
+    let j = i;
+    const group = [it];
+    if (g != null) {
+      while (j + 1 < items.length && groupByUnit.get(items[j + 1].unitId) === g) {
+        j++;
+        group.push(items[j]);
+      }
+    }
+    const duration = group.reduce((m, x) => Math.max(m, x.durationMs), 0);
+    const startMs = acc;
+    acc += duration;
+    slots.push({ items: group, unitIds: group.map((x) => x.unitId), startMs, endMs: acc, durationMs: duration });
+    i = j + 1;
+  }
+  return slots;
+}
+
 const UnitLine = memo(function UnitLine({ u, project, isActive, setLineRef }: {
   u: Unit;
   project: Project;
@@ -40,6 +74,22 @@ const UnitLine = memo(function UnitLine({ u, project, isActive, setLineRef }: {
   );
 });
 
+function retryPlay(a: HTMLAudioElement) {
+  const p = a.play();
+  if (p) {
+    p.catch((e) => {
+      (window as unknown as Record<string, unknown>).__playErr = e && e.name ? e.name + ": " + e.message : String(e);
+      let tries = 0;
+      const retry = () => {
+        tries++;
+        const p2 = a.play();
+        if (p2) p2.catch(() => { if (tries < 4) setTimeout(retry, 150); });
+      };
+      setTimeout(retry, 100);
+    });
+  }
+}
+
 export default function PlayerPage({ project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition }: {
   project: Project;
   items: UnitAudio[];
@@ -50,179 +100,202 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
   onBack: () => void;
   onPosition?: (currentIdx: number, globalMs: number, rate: number) => void;
 }) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const [currentIdx, setCurrentIdx] = useState(initialIndex);
+  const audioElsRef = useRef<(HTMLAudioElement | null)[]>([]);
+  const masterElRef = useRef<HTMLAudioElement | null>(null);
+  const [slotIdx, setSlotIdx] = useState(initialIndex >= 0 ? initialIndex : 0);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [rate, setRate] = useState(initialRate);
   const [globalMs, setGlobalMs] = useState(initialMs);
   const followLockUntil = useRef(0);
   const jumpMode = useRef(false);
-  const idxRef = useRef(-1);
+  const slotIdxRef = useRef(-1);
   const rateRef = useRef(initialRate);
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
   const lastPosRef = useRef(0);
   const posRef = useRef(initialMs);
-  const currentBlobRef = useRef("");
+  const curBlobsRef = useRef<Set<string>>(new Set());
   const synthDoneRef = useRef(synthDone);
   synthDoneRef.current = synthDone;
 
-  const itemByUnit = useMemo(() => {
-    const m = new Map<number, UnitAudio>();
-    for (const it of items) m.set(it.unitId, it);
+  const groupByUnit = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const u of project.units) if (u.group != null) m.set(u.id, u.group);
     return m;
-  }, [items]);
+  }, [project]);
 
-  const totalMs = items.length ? items[items.length - 1].endMs : 0;
-  const hasPlayable = items.some((i) => i.url && i.durationMs > 0);
-  const activeUnitId = currentIdx >= 0 && items[currentIdx] ? items[currentIdx].unitId : null;
+  const slots = useMemo(() => buildSlots(items, groupByUnit), [items, groupByUnit]);
+  const slotsRef = useRef(slots);
+  slotsRef.current = slots;
+
+  const totalMs = slots.length ? slots[slots.length - 1].endMs : 0;
+  const hasPlayable = slots.some((s) => s.items.some((x) => x.url && x.durationMs > 0));
+  const activeUnitIds = slotIdx >= 0 && slots[slotIdx] ? slots[slotIdx].unitIds : [];
+  const activeUnitId = activeUnitIds[0] ?? null;
   const totalUnits = useMemo(() => project.units.filter((u) => u.text.trim()).length, [project]);
   const synthPct = totalUnits ? Math.min(100, Math.round((items.length / totalUnits) * 100)) : 0;
 
-  const playFrom = (idx: number, atMs = 0) => {
-    const audio = audioRef.current;
-    const item = itemsRef.current[idx];
-    if (!audio || !item || !item.url || item.durationMs <= 0) return false;
-    idxRef.current = idx;
-    setCurrentIdx(idx);
+  const setAudioRef = useCallback((k: number) => (el: HTMLAudioElement | null) => {
+    audioElsRef.current[k] = el;
+  }, []);
+
+  const playFromSlot = useCallback((si: number, atMs = 0) => {
+    const ss = slotsRef.current;
+    if (si < 0 || si >= ss.length) return false;
+    const slot = ss[si];
+    const playable = slot.items.filter((x) => x.url && x.durationMs > 0);
+    if (!playable.length) return false;
+    slotIdxRef.current = si;
+    setSlotIdx(si);
     setWaiting(false);
-    if (currentBlobRef.current && currentBlobRef.current !== item.url) {
-      URL.revokeObjectURL(currentBlobRef.current);
-      currentBlobRef.current = "";
+
+    const prev = curBlobsRef.current;
+    const next = new Set<string>();
+    let master: HTMLAudioElement | null = null;
+    let masterDur = -1;
+    playable.forEach((it, k) => {
+      const a = audioElsRef.current[k];
+      if (!a) return;
+      if (prev.has(it.url)) prev.delete(it.url);
+      if (it.url.startsWith("blob:")) next.add(it.url);
+      a.src = it.url;
+      a.load();
+      a.currentTime = Math.min(atMs / 1000, it.durationMs / 1000);
+      a.playbackRate = rateRef.current;
+      if (it.durationMs > masterDur) { masterDur = it.durationMs; master = a; }
+    });
+    for (let k = playable.length; k < MAX_SIMUL; k++) {
+      const a = audioElsRef.current[k];
+      if (a) { a.pause(); a.removeAttribute("src"); a.load(); }
     }
-    audio.src = item.url;
-    if (item.url.startsWith("blob:")) currentBlobRef.current = item.url;
-    audio.currentTime = atMs / 1000;
-    audio.playbackRate = rateRef.current;
-    const p = audio.play();
-    if (p) {
-      p.catch((e) => {
-        (window as unknown as Record<string, unknown>).__playErr = e && e.name ? e.name + ": " + e.message : String(e);
-        let tries = 0;
-        const retry = () => {
-          tries++;
-          const p2 = audio.play();
-          if (p2) p2.catch(() => { if (tries < 4) setTimeout(retry, 150); });
-        };
-        setTimeout(retry, 100);
-      });
-    }
+    for (const u of prev) { try { URL.revokeObjectURL(u); } catch {} }
+    curBlobsRef.current = next;
+    masterElRef.current = master;
+    playable.forEach((it, k) => {
+      const a = audioElsRef.current[k];
+      if (a) retryPlay(a);
+    });
     setPlaying(true);
     return true;
-  };
+  }, []);
 
-  const advance = () => {
-    const items2 = itemsRef.current;
-    let i = idxRef.current + 1;
-    while (i < items2.length && (!items2[i].url || items2[i].durationMs <= 0)) i++;
-    if (i < items2.length) playFrom(i);
+  const advance = useCallback(() => {
+    const ss = slotsRef.current;
+    let i = slotIdxRef.current + 1;
+    while (i < ss.length && !ss[i].items.some((x) => x.url && x.durationMs > 0)) i++;
+    if (i < ss.length) playFromSlot(i);
     else if (!synthDoneRef.current) setWaiting(true);
-  };
+  }, [playFromSlot]);
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
 
   useEffect(() => {
-    const items2 = itemsRef.current;
-    let i = initialIndex >= 0 ? initialIndex : 0;
-    while (i < items2.length && (!items2[i].url || items2[i].durationMs <= 0)) i++;
-    if (i < items2.length) {
-      idxRef.current = i;
-      setCurrentIdx(i);
-      const audio = audioRef.current;
-      if (audio && items2[i].url) {
-        audio.preload = "auto";
-        audio.src = items2[i].url;
-        audio.load();
-        audio.currentTime = initialMs > 0 ? Math.min(initialMs / 1000, items2[i].durationMs / 1000) : 0;
-        audio.playbackRate = rateRef.current;
-        if (items2[i].url.startsWith("blob:")) currentBlobRef.current = items2[i].url;
+    const els = audioElsRef.current;
+    const onEnded = (i: number) => () => {
+      if (audioElsRef.current?.[i] === masterElRef.current) {
+        setPlaying(false);
+        advanceRef.current();
       }
-    }
-  }, [initialIndex, initialMs]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onEnded = () => { setPlaying(false); advance(); };
+    };
     const onPause = () => setPlaying(false);
     const onPlay = () => setPlaying(true);
-    const onTime = () => {
-      const item = itemsRef.current[idxRef.current];
-      if (!item) return;
-      const ms = item.startMs + audio.currentTime * 1000;
+    const onTime = (i: number) => () => {
+      if (audioElsRef.current?.[i] !== masterElRef.current) return;
+      const a = audioElsRef.current[i];
+      if (!a) return;
+      const slot = slotsRef.current[slotIdxRef.current];
+      if (!slot) return;
+      const ms = slot.startMs + a.currentTime * 1000;
       setGlobalMs(ms);
       posRef.current = ms;
       if (onPosition && ms - lastPosRef.current > 2000) {
         lastPosRef.current = ms;
-        onPosition(idxRef.current, Math.round(ms), rateRef.current);
+        onPosition(slotIdxRef.current, Math.round(ms), rateRef.current);
       }
     };
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("timeupdate", onTime);
+    els.forEach((a, i) => {
+      if (!a) return;
+      a.addEventListener("ended", onEnded(i));
+      a.addEventListener("pause", onPause);
+      a.addEventListener("play", onPlay);
+      a.addEventListener("timeupdate", onTime(i));
+    });
     return () => {
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("timeupdate", onTime);
+      els.forEach((a, i) => {
+        if (!a) return;
+        a.removeEventListener("ended", onEnded(i));
+        a.removeEventListener("pause", onPause);
+        a.removeEventListener("play", onPlay);
+        a.removeEventListener("timeupdate", onTime(i));
+      });
     };
   }, [onPosition]);
 
   useEffect(() => {
-    return () => {
-      const item = itemsRef.current[idxRef.current];
-      const ms = item && audioRef.current ? item.startMs + audioRef.current.currentTime * 1000 : posRef.current;
-      if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms), rateRef.current);
-    };
-  }, [onPosition]);
+    const ss = slotsRef.current;
+    let i = initialIndex >= 0 ? initialIndex : 0;
+    while (i < ss.length && !ss[i].items.some((x) => x.url && x.durationMs > 0)) i++;
+    if (i < ss.length) {
+      slotIdxRef.current = i;
+      setSlotIdx(i);
+      const slot = ss[i];
+      let master: HTMLAudioElement | null = null;
+      let masterDur = -1;
+      const offset = initialMs > slot.startMs ? (initialMs - slot.startMs) / 1000 : 0;
+      slot.items.filter((x) => x.url && x.durationMs > 0).forEach((it, k) => {
+        const a = audioElsRef.current[k];
+        if (!a) return;
+        a.preload = "auto";
+        a.src = it.url;
+        a.load();
+        a.currentTime = Math.min(offset, it.durationMs / 1000);
+        a.playbackRate = rateRef.current;
+        if (it.url.startsWith("blob:")) curBlobsRef.current.add(it.url);
+        if (it.durationMs > masterDur) { masterDur = it.durationMs; master = a; }
+      });
+      masterElRef.current = master;
+      setGlobalMs(slot.startMs + Math.max(0, initialMs - slot.startMs));
+    }
+  }, [initialIndex, initialMs]);
 
   useEffect(() => {
-    if (waiting && itemsRef.current.length > idxRef.current + 1) advance();
-  }, [items.length]);
+    if (waiting && slots.length > slotIdxRef.current + 1) advanceRef.current();
+  }, [slots.length, waiting]);
 
   const toggle = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      if (!audio.src && idxRef.current >= 0) playFrom(idxRef.current);
-      else {
-        setPlaying(true);
-        const p = audio.play();
-        if (p) {
-          p.catch((e) => {
-            (window as unknown as Record<string, unknown>).__playErr = e && e.name ? e.name + ": " + e.message : String(e);
-            let tries = 0;
-            const retry = () => {
-              tries++;
-              const p2 = audio.play();
-              if (p2) p2.catch(() => { if (tries < 4) setTimeout(retry, 150); });
-            };
-            setTimeout(retry, 100);
-          });
-        }
-      }
-    } else audio.pause();
+    const els = audioElsRef.current;
+    const anyPlaying = els.some((a) => a && a.src && !a.paused);
+    if (anyPlaying) {
+      els.forEach((a) => a && a.pause());
+      setPlaying(false);
+      return;
+    }
+    const anySrc = els.some((a) => a && a.src);
+    if (anySrc) {
+      els.forEach((a) => { if (a && a.src) retryPlay(a); });
+      setPlaying(true);
+    } else if (slotIdxRef.current >= 0) {
+      playFromSlot(slotIdxRef.current);
+    }
   };
 
   const seekTo = (ms: number) => {
-    const items2 = itemsRef.current;
-    if (!items2.length) return;
-    const t = Math.max(0, Math.min(ms, items2[items2.length - 1].endMs));
-    let idx = 0;
-    for (let i = 0; i < items2.length; i++) {
-      if (t < items2[i].endMs) { idx = i; break; }
-      idx = i;
+    const ss = slotsRef.current;
+    if (!ss.length) return;
+    const t = Math.max(0, Math.min(ms, ss[ss.length - 1].endMs));
+    let si = 0;
+    for (let i = 0; i < ss.length; i++) {
+      if (t < ss[i].endMs) { si = i; break; }
+      si = i;
     }
-    const item = items2[idx];
-    if (!item || !item.url || item.durationMs <= 0) return;
     jumpMode.current = true;
-    playFrom(idx, t - item.startMs);
+    playFromSlot(si, t - ss[si].startMs);
   };
 
   useEffect(() => () => {
-    if (currentBlobRef.current) URL.revokeObjectURL(currentBlobRef.current);
+    for (const u of curBlobsRef.current) { try { URL.revokeObjectURL(u); } catch {} }
+    curBlobsRef.current = new Set();
   }, []);
 
   const jump = (sec: number) => seekTo(globalMs + sec * 1000);
@@ -230,11 +303,11 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
   const setPlaybackRate = (r: number) => {
     setRate(r);
     rateRef.current = r;
-    if (audioRef.current) audioRef.current.playbackRate = r;
+    audioElsRef.current.forEach((a) => { if (a) a.playbackRate = r; });
   };
 
   useEffect(() => {
-    if (activeUnitId == null || idxRef.current === -1) return;
+    if (activeUnitId == null || slotIdxRef.current === -1) return;
     const now = performance.now();
     if (now < followLockUntil.current) return;
     const el = lineRefs.current.get(activeUnitId);
@@ -253,16 +326,20 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
     else lineRefs.current.delete(id);
   }, []);
 
+  const saveNow = () => {
+    const slot = slotsRef.current[slotIdxRef.current];
+    const master = masterElRef.current;
+    const ms = slot && master ? slot.startMs + master.currentTime * 1000 : posRef.current;
+    if (onPosition && slotIdxRef.current >= 0) onPosition(slotIdxRef.current, Math.round(ms), rateRef.current);
+  };
+
   return (
     <div className="player-page">
-      <audio ref={audioRef} preload="auto" />
+      <div style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+        {Array.from({ length: MAX_SIMUL }).map((_, k) => <audio key={k} ref={setAudioRef(k)} preload="auto" />)}
+      </div>
       <header className="topbar">
-        <button onClick={() => {
-          const item = itemsRef.current[idxRef.current];
-          const ms = item && audioRef.current ? item.startMs + audioRef.current.currentTime * 1000 : posRef.current;
-          if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms), rateRef.current);
-          onBack();
-        }} className="tb-btn">← 返回</button>
+        <button onClick={() => { saveNow(); onBack(); }} className="tb-btn">← 返回</button>
         <div className="tb-meta">
           <span className="tb-info">
             {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
@@ -282,7 +359,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
               : "没有可播放的音频，合成可能失败，请返回检查服务状态"}
           </div>
         ) : project.units.map((u) => (
-          <UnitLine key={u.id} u={u} project={project} isActive={u.id === activeUnitId} setLineRef={setLineRef} />
+          <UnitLine key={u.id} u={u} project={project} isActive={activeUnitIds.includes(u.id)} setLineRef={setLineRef} />
         ))}
       </div>
       {waiting && <div className="wait-banner">正在合成下一句…</div>}

@@ -204,7 +204,62 @@ export function parseScript(
     u.raw = trimmed;
     units.push(u);
   }
-  return units;
+
+  // 联动说话人：A/B、A、B、A和B、AB异口同声 等，拆成同组多人，并重排 id
+  const namePool = new Set<string>();
+  for (const u of units) {
+    if (u.type !== "dialogue") continue;
+    const n = u.character;
+    if (!n) continue;
+    if (/[\/／、，,＋+&\s和]/.test(n)) {
+      for (const s of n.split(/[\/／、，,＋+&\s]+|\s*和\s*/)) {
+        const p = normalizeRoleName(s);
+        if (p && p.length >= 2 && p.length <= 4) namePool.add(p);
+      }
+    } else if (n.length >= 2 && n.length <= 4) {
+      namePool.add(n);
+    }
+  }
+  const singleNames = Array.from(namePool);
+  const resolved: Unit[] = [];
+  for (const u of units) {
+    if (u.type === "dialogue") {
+      const parts = splitCombinedSpeakers(u.character, singleNames);
+      if (parts && parts.length >= 2) {
+        const g = 1000000000 + u.id;
+        for (const p of parts) {
+          resolved.push({ ...u, id: u.id, character: p, group: g, simul: true });
+        }
+        continue;
+      }
+    }
+    resolved.push(u);
+  }
+  resolved.forEach((u, i) => { u.id = i; });
+  return resolved;
+}
+
+function splitCombinedSpeakers(name: string, singleNames: string[]): string[] | null {
+  const t = name.trim();
+  if (!t) return null;
+  if (/[\/／、，,＋+&\s]/.test(t) || t.includes("和")) {
+    const parts = t
+      .split(/[\/／、，,＋+&\s]+|\s*和\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => normalizeRoleName(s))
+      .filter((s) => s.length > 0);
+    if (parts.length >= 2) return Array.from(new Set(parts));
+  }
+  for (const a of singleNames) {
+    for (const b of singleNames) {
+      if (a === b) continue;
+      if (t === a + b) {
+        return [a, b];
+      }
+    }
+  }
+  return null;
 }
 
 /** 找出疑似场标但可能未被规则识别的短行（含时间+内外，或空镜） */

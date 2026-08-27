@@ -8,6 +8,8 @@ export interface Unit {
   raw?: string;
   start: number;
   end: number;
+  group?: number;
+  simul?: boolean;
 }
 
 export interface CharacterVoice {
