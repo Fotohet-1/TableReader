@@ -232,7 +232,7 @@ input, textarea, select { font: inherit; }
 .work-grid.solo {
   max-width: 560px;
   width: 560px;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   padding: 0;
 }
 @media (max-width: 900px) {
@@ -607,9 +607,9 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   align-items: center;
   gap: 14px;
   padding: 12px 22px;
-  background: rgba(245, 244, 237, 0.72);
-  backdrop-filter: blur(6px) saturate(1.2);
-  -webkit-backdrop-filter: blur(6px) saturate(1.2);
+  background: rgba(245, 244, 237, 0.55);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
   border-bottom: 1px solid var(--line);
   z-index: 5;
 }
@@ -678,7 +678,8 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .pb-btn:hover { border-color: #fff; color: #fff; }
 .pb-play {
   font-size: 15px;
-  padding: 7px 18px;
+  width: 40px;
+  padding: 7px 0;
   background: var(--bar-text);
   color: var(--bar);
   border: 0;
@@ -691,7 +692,6 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   appearance: none;
   height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.28);
   outline: none;
 }
 .pb-range::-webkit-slider-thumb {
@@ -702,7 +702,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   border-radius: 50%;
   background: var(--bar-text);
   border: 0;
-  margin-top: -5px;
+  margin-top: -6px;
   cursor: pointer;
 }
 .pb-range::-moz-range-track {

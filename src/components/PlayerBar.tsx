@@ -17,6 +17,7 @@ export default function PlayerBar({ playing, globalMs, totalMs, rate, onToggle, 
   onJump: (sec: number) => void;
   onRate: (r: number) => void;
 }) {
+  const pct = totalMs > 0 ? Math.min(100, Math.round((globalMs / totalMs) * 100)) : 0;
   return (
     <div className="player-bar">
       <button onClick={onToggle} className="pb-btn pb-play" aria-label={playing ? "暂停" : "播放"}>
@@ -31,6 +32,7 @@ export default function PlayerBar({ playing, globalMs, totalMs, rate, onToggle, 
         max={totalMs || 1}
         value={Math.min(globalMs, totalMs || 1)}
         onChange={(e) => onSeek(Number(e.target.value))}
+        style={{ background: "linear-gradient(to right, #ffffff " + pct + "%, rgba(255,255,255,.28) " + pct + "%)" }}
       />
       <span className="pb-time">{fmtMs(globalMs)} / {fmtMs(totalMs)}</span>
       <button onClick={() => onJump(5)} className="pb-btn">+5s</button>
