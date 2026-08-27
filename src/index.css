@@ -26,6 +26,7 @@
   --focus-ring: rgba(0, 113, 227, 0.35);
   --danger-soft: rgba(215, 0, 21, 0.06);
   --danger-soft-strong: rgba(215, 0, 21, 0.08);
+  --select-arrow: var(--select-arrow);
   --serif: "SF Pro Display", "PingFang SC", "Source Han Sans SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
@@ -57,6 +58,7 @@
   --focus-ring: rgba(64, 156, 255, 0.5);
   --danger-soft: rgba(255, 69, 58, 0.12);
   --danger-soft-strong: rgba(255, 69, 58, 0.16);
+  --select-arrow: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%23f5f5f7'/></svg>");
   color-scheme: dark;
 }
 
@@ -952,6 +954,12 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 :root[data-theme="dark"] .topbar {
   background: var(--bar-frost);
 }
+.player-page .topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+}
 .ios-switch {
   width: 44px;
   height: 26px;
@@ -1004,7 +1012,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   color: var(--ink);
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%231d1d1f'/></svg>");
+  background-image: var(--select-arrow);
   background-repeat: no-repeat;
   background-position: right 10px center;
   padding-right: 30px;
@@ -1026,7 +1034,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   flex: 1;
   overflow-y: auto;
   background: var(--bg);
-  padding: 40px 0 170px;
+  padding: 52px 0 170px;
   animation: srFadeUp .5s cubic-bezier(.22, .8, .32, 1);
 }
 .unit {
@@ -1163,7 +1171,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   height: 36px;
   padding: 0 28px 0 14px;
   background: var(--fill-sub);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%231d1d1f'/></svg>");
+  background-image: var(--select-arrow);
   background-repeat: no-repeat;
   background-position: right 9px center;
   color: var(--bar-text);
@@ -1178,7 +1186,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 select {
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%231d1d1f'/></svg>") !important;
+  background-image: var(--select-arrow) !important;
   background-repeat: no-repeat !important;
   background-position: right 10px center !important;
 }
