@@ -884,8 +884,8 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                   <span className="cv-name">{p.name}</span>
                   {p.lines ? <span className="cv-tag">{p.lines} 句</span> : null}
                   {p.merged && p.merged.length > 1 && (
-                    <select className="variant-select" value={p.name} onChange={() => {}} title={"角色写法 " + p.merged.length + " 种"}>
-                      <option value={p.name}>{p.name}</option>
+                    <select className="variant-select" value="" onChange={() => {}} title={"角色写法 " + p.merged.length + " 种"}>
+                      <option value="">多种表述</option>
                       {p.merged.filter((v) => v !== p.name).map((v) => <option key={v} value={v}>{v}</option>)}
                     </select>
                   )}
@@ -1019,6 +1019,12 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                       <span className="cv-tag">
                         {cv.gender}{cv.age ? " · " + cv.age : ""}{cv.lines ? " · " + cv.lines + " 句" : ""}
                       </span>
+                    )}
+                    {cv.merged && cv.merged.length > 1 && (
+                      <select className="variant-select" value="" onChange={() => {}} title={"角色写法 " + cv.merged.length + " 种"}>
+                        <option value="">多种表述</option>
+                        {cv.merged.filter((v) => v !== cv.name).map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
                     )}
                   </div>
                   {source === "edge" ? (

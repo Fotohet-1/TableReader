@@ -128,6 +128,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
   const followLockUntil = useRef(0);
   const jumpMode = useRef(false);
   const slotIdxRef = useRef(-1);
+  const toggleRef = useRef<() => void>(() => {});
   const rateRef = useRef(initialRate);
   const lastPosRef = useRef(0);
   const posRef = useRef(initialMs);
@@ -299,6 +300,12 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { saveNow(); onBack(); }
+      if (e.code === "Space") {
+        const t = e.target as HTMLElement | null;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+        e.preventDefault();
+        toggleRef.current();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -320,6 +327,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       playFromSlot(slotIdxRef.current);
     }
   };
+  toggleRef.current = toggle;
 
   const seekTo = (ms: number) => {
     const ss = slotsRef.current;

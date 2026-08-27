@@ -53,16 +53,6 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   cursor: pointer;
   overflow: hidden;
 }
-.home::before {
-  content: "";
-  position: absolute;
-  top: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120px;
-  height: 1px;
-  background: var(--line);
-}
 .home-inner { text-align: center; z-index: 2; animation: homeFade .8s ease; }
 .home-eyebrow {
   display: inline-block;
@@ -109,8 +99,8 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   min-height: 100dvh;
   background: var(--bg);
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
+  justify-content: center;
   padding: 24px;
   position: relative;
 }
@@ -128,7 +118,6 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   width: 100%;
   max-width: 620px;
   text-align: center;
-  margin: auto;
   animation: srFadeUp .55s cubic-bezier(.22, .8, .32, 1);
 }
 .choose-eyebrow {
@@ -390,6 +379,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 .source-select {
   width: auto;
   padding: 6px 10px;
+  padding-right: 30px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -569,7 +559,13 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   font-size: 14px;
   color: var(--ink);
 }
-.variant-select { max-width: 150px; color: var(--muted); }
+.variant-select {
+  margin-left: auto;
+  width: 110px;
+  text-align: center;
+  text-align-last: center;
+  color: var(--muted-strong);
+}
 .flow-card .cv-row,
 .flow-card .design-row {
   animation: srFadeUp .45s cubic-bezier(.22, .8, .32, 1) backwards;
@@ -1080,6 +1076,7 @@ select {
   background-repeat: no-repeat !important;
   background-position: right 10px center !important;
 }
+select:not(.pb-rate) { padding-right: 26px; }
 .wait-banner {
   position: fixed;
   bottom: 82px;

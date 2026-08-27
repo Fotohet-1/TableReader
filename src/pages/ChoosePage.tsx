@@ -4,7 +4,6 @@ export default function ChoosePage({ onUpload, onContinue }: {
 }) {
   return (
     <div className="choose-page">
-      <header className="topbar" />
       <div className="choose-inner">
         <span className="choose-eyebrow">SCREENPLAY READING STUDIO</span>
         <h1 className="choose-title">开始围读</h1>
