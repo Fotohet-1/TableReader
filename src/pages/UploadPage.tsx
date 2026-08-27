@@ -883,19 +883,21 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                 <div className="cv-row" key={p.name}>
                   <span className="cv-name">{p.name}</span>
                   {p.lines ? <span className="cv-tag">{p.lines} 句</span> : null}
-                  {p.merged && p.merged.length > 1 && (
-                    <select className="variant-select" value="" onChange={() => {}} title={"角色写法 " + p.merged.length + " 种"}>
-                      <option value="">多种表述</option>
-                      {p.merged.filter((v) => v !== p.name).map((v) => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                  )}
-                  <div className="gender-pick">
-                    {(["男", "女"] as const).map((g) => (
-                      <button key={g} className={genderSel[p.name] === g ? "on" : ""} onClick={() => setGenderSel((s) => ({ ...s, [p.name]: g }))}>{g}</button>
-                    ))}
-                    <select className="age-select" value={ageSel[p.name] || "中年"} onChange={(e) => setAgeSel((s) => ({ ...s, [p.name]: e.target.value }))} title="年龄">
-                      {["少年", "青年", "中年", "老年"].map((a) => <option key={a} value={a}>{a}</option>)}
-                    </select>
+                  <div className="cv-controls">
+                    {p.merged && p.merged.length > 1 && (
+                      <select className="variant-select" value="" onChange={() => {}} title={"角色写法 " + p.merged.length + " 种"}>
+                        <option value="">多种表述</option>
+                        {p.merged.filter((v) => v !== p.name).map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    )}
+                    <div className="gender-pick">
+                      {(["男", "女"] as const).map((g) => (
+                        <button key={g} className={genderSel[p.name] === g ? "on" : ""} onClick={() => setGenderSel((s) => ({ ...s, [p.name]: g }))}>{g}</button>
+                      ))}
+                      <select className="age-select" value={ageSel[p.name] || "中年"} onChange={(e) => setAgeSel((s) => ({ ...s, [p.name]: e.target.value }))} title="年龄">
+                        {["少年", "青年", "中年", "老年"].map((a) => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
               ))}

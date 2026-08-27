@@ -211,8 +211,8 @@ export function parseScript(
     if (u.type !== "dialogue") continue;
     const n = u.character;
     if (!n) continue;
-    if (/[\/／、，,＋+&\s和]/.test(n)) {
-      for (const s of n.split(/[\/／、，,＋+&\s]+|\s*和\s*/)) {
+    if (/[\/／、，,＋+&和]/.test(n)) {
+      for (const s of n.split(/[\/／、，,＋+&]+|\s*和\s*/)) {
         const p = normalizeRoleName(s);
         if (p && p.length >= 2 && p.length <= 4) namePool.add(p);
       }
@@ -242,9 +242,9 @@ export function parseScript(
 function splitCombinedSpeakers(name: string, singleNames: string[]): string[] | null {
   const t = name.trim();
   if (!t) return null;
-  if (/[\/／、，,＋+&\s]/.test(t) || t.includes("和")) {
+  if (/[\/／、，,＋+&]/.test(t) || t.includes("和")) {
     const parts = t
-      .split(/[\/／、，,＋+&\s]+|\s*和\s*/)
+      .split(/[\/／、，,＋+&]+|\s*和\s*/)
       .map((s) => s.trim())
       .filter(Boolean)
       .map((s) => normalizeRoleName(s))
