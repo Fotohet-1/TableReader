@@ -12,14 +12,15 @@ function colorFor(name: string): string {
   return PALETTE[h % PALETTE.length];
 }
 
-export default function PlayerPage({ project, items, synthDone, initialIndex = -1, initialMs = 0, onBack, onPosition }: {
+export default function PlayerPage({ project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition }: {
   project: Project;
   items: UnitAudio[];
   synthDone: boolean;
   initialIndex?: number;
   initialMs?: number;
+  initialRate?: number;
   onBack: () => void;
-  onPosition?: (currentIdx: number, globalMs: number) => void;
+  onPosition?: (currentIdx: number, globalMs: number, rate: number) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -27,16 +28,17 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
   const [currentIdx, setCurrentIdx] = useState(initialIndex);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  const [rate, setRate] = useState(1);
+  const [rate, setRate] = useState(initialRate);
   const [globalMs, setGlobalMs] = useState(initialMs);
   const followLockUntil = useRef(0);
   const jumpMode = useRef(false);
   const idxRef = useRef(-1);
-  const rateRef = useRef(1);
+  const rateRef = useRef(initialRate);
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const lastPosRef = useRef(0);
   const posRef = useRef(initialMs);
+  const currentBlobRef = useRef("");
   const synthDoneRef = useRef(synthDone);
   synthDoneRef.current = synthDone;
 
@@ -57,7 +59,12 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
     idxRef.current = idx;
     setCurrentIdx(idx);
     setWaiting(false);
+    if (currentBlobRef.current && currentBlobRef.current !== item.url) {
+      URL.revokeObjectURL(currentBlobRef.current);
+      currentBlobRef.current = "";
+    }
     audio.src = item.url;
+    if (item.url.startsWith("blob:")) currentBlobRef.current = item.url;
     audio.currentTime = atMs / 1000;
     audio.playbackRate = rateRef.current;
     const p = audio.play();
@@ -99,6 +106,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
         audio.load();
         audio.currentTime = initialMs > 0 ? Math.min(initialMs / 1000, items2[i].durationMs / 1000) : 0;
         audio.playbackRate = rateRef.current;
+        if (items2[i].url.startsWith("blob:")) currentBlobRef.current = items2[i].url;
       }
     }
   }, [initialIndex, initialMs]);
@@ -117,7 +125,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       posRef.current = ms;
       if (onPosition && ms - lastPosRef.current > 2000) {
         lastPosRef.current = ms;
-        onPosition(idxRef.current, Math.round(ms));
+        onPosition(idxRef.current, Math.round(ms), rateRef.current);
       }
     };
     audio.addEventListener("ended", onEnded);
@@ -136,7 +144,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
     return () => {
       const item = itemsRef.current[idxRef.current];
       const ms = item && audioRef.current ? item.startMs + audioRef.current.currentTime * 1000 : posRef.current;
-      if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms));
+      if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms), rateRef.current);
     };
   }, [onPosition]);
 
@@ -182,6 +190,10 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
     jumpMode.current = true;
     playFrom(idx, t - item.startMs);
   };
+
+  useEffect(() => () => {
+    if (currentBlobRef.current) URL.revokeObjectURL(currentBlobRef.current);
+  }, []);
 
   const jump = (sec: number) => seekTo(globalMs + sec * 1000);
 
@@ -254,7 +266,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
         <button onClick={() => {
           const item = itemsRef.current[idxRef.current];
           const ms = item && audioRef.current ? item.startMs + audioRef.current.currentTime * 1000 : posRef.current;
-          if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms));
+          if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms), rateRef.current);
           onBack();
         }} className="tb-btn">← 返回</button>
         <span className="tb-info">

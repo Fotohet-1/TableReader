@@ -133,6 +133,9 @@ class Handler(BaseHTTPRequestHandler):
                 meta = body.get("meta") or {}
                 meta["updatedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
                 with META_LOCK:
+                    existing = read_meta(base, pid)
+                    if existing and "playback" not in meta:
+                        meta["playback"] = existing.get("playback", {"currentIdx": 0, "globalMs": 0})
                     write_meta(base, pid, meta)
                 self._json({"ok": True})
                 return
@@ -142,7 +145,11 @@ class Handler(BaseHTTPRequestHandler):
                 pid = str(body.get("id", ""))
                 with META_LOCK:
                     m = read_meta(base, pid) or {}
-                    m["playback"] = {"currentIdx": int(body.get("currentIdx", 0)), "globalMs": int(body.get("globalMs", 0))}
+                    m["playback"] = {
+                        "currentIdx": int(body.get("currentIdx", 0)),
+                        "globalMs": int(body.get("globalMs", 0)),
+                        "rate": float(body.get("rate", 1)),
+                    }
                     m["updatedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
                     write_meta(base, pid, m)
                 self._json({"ok": True})

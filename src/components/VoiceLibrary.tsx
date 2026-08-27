@@ -146,6 +146,7 @@ export default function VoiceLibrary({
       const r = await edgeSynthOne(edgeUrl, previewText, key);
       const audio = audioRef.current;
       if (!audio) return;
+      if (audio.src.startsWith("blob:")) URL.revokeObjectURL(audio.src);
       audio.src = URL.createObjectURL(r.blob);
       setPlayingKey(key);
       audio.play().catch(() => {});

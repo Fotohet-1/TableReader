@@ -123,8 +123,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   const archiveAudioRef = useRef<Record<number, { durationMs: number }>>({});
   const metaSaveTimerRef = useRef<number | null>(null);
   const metaDirtyRef = useRef(false);
-  const playbackRef = useRef({ currentIdx: 0, globalMs: 0 });
-  const inPlayerRef = useRef(false);
   const archiveCtxRef = useRef<{ dir: string; id: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -222,8 +220,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       scriptText: text,
       units: units || [],
       voices: charVoices,
-      audio,
-      playback: inPlayerRef.current ? playbackRef.current : { currentIdx: 0, globalMs: 0 }
+      audio
     };
     void saveMeta(dir, id, meta);
   };
@@ -249,7 +246,6 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
   };
 
   const enterPlayer = () => {
-    inPlayerRef.current = true;
     if (metaSaveTimerRef.current) {
       window.clearTimeout(metaSaveTimerRef.current);
       metaSaveTimerRef.current = null;
@@ -385,6 +381,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
     setPreviewErr("");
     try {
       const r = await edgeSynthOne(edgeUrl, "夜色渐深，街角的咖啡店还亮着灯。", cv.voiceId);
+      if (audio.src.startsWith("blob:")) URL.revokeObjectURL(audio.src);
       audio.src = URL.createObjectURL(r.blob);
       setPreviewRole(cv.name);
       audio.play().catch(() => {});
@@ -613,6 +610,7 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
       const r = await qwenSynthOne(qwenUrl, text, desc || defaultVoiceDescFor({ name }));
       const b64 = await blobToB64(r.blob);
       const url = URL.createObjectURL(r.blob);
+      if (audio.src.startsWith("blob:")) URL.revokeObjectURL(audio.src);
       setSeedByRole((prev) => ({ ...prev, [name]: { b64, refText: text, url, descUsed: desc } }));
       audio.src = url;
       setPreviewRole(name);

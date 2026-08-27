@@ -10,7 +10,7 @@ export interface ArchiveMeta {
   units: Unit[];
   voices: CharacterVoice[];
   audio: Record<string, { durationMs: number }>;
-  playback: { currentIdx: number; globalMs: number };
+  playback: { currentIdx: number; globalMs: number; rate?: number };
 }
 
 const BASE = "http://127.0.0.1:9884";
@@ -86,12 +86,12 @@ export function archiveAudioUrl(dir: string, id: string, unitId: number): string
   return BASE + "/audio?dir=" + encodeURIComponent(dir) + "&id=" + encodeURIComponent(id) + "&unit=" + unitId;
 }
 
-export async function savePlayback(dir: string, id: string, currentIdx: number, globalMs: number): Promise<void> {
+export async function savePlayback(dir: string, id: string, currentIdx: number, globalMs: number, rate = 1): Promise<void> {
   try {
     await fetch(BASE + "/playback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dir, id, currentIdx, globalMs })
+      body: JSON.stringify({ dir, id, currentIdx, globalMs, rate })
     });
   } catch {
     /* 存档服务不可用时静默 */

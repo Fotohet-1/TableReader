@@ -15,7 +15,7 @@ export default function App() {
   const [items, setItems] = useState<UnitAudio[]>([]);
   const [synthDone, setSynthDone] = useState(false);
   const [lastSession, setLastSession] = useState<Session | null>(null);
-  const [playerInit, setPlayerInit] = useState({ idx: -1, ms: 0 });
+  const [playerInit, setPlayerInit] = useState({ idx: -1, ms: 0, rate: 1 });
   const archiveActiveRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
   const playerFromRef = useRef<"work" | "archive">("work");
@@ -63,16 +63,20 @@ export default function App() {
     setItems(items);
     setSynthDone(true);
     archiveActiveRef.current = true;
-    setPlayerInit({ idx: meta.playback?.currentIdx ?? 0, ms: meta.playback?.globalMs ?? 0 });
+    setPlayerInit({
+      idx: meta.playback?.currentIdx ?? 0,
+      ms: meta.playback?.globalMs ?? 0,
+      rate: meta.playback?.rate ?? 1
+    });
     playerFromRef.current = "archive";
     setView("player");
     return true;
   }, []);
 
-  const handlePosition = useCallback((idx: number, ms: number) => {
+  const handlePosition = useCallback((idx: number, ms: number, rate: number) => {
     const p = projectRef.current;
     if (!archiveActiveRef.current || !p?.archive) return;
-    void savePlayback(p.archive.dir, p.archive.id, idx, ms);
+    void savePlayback(p.archive.dir, p.archive.id, idx, ms, rate);
   }, []);
 
   const finishOnboard = (source: TtsSource, dsKey: string) => {
@@ -109,11 +113,11 @@ export default function App() {
           setProject={setProject}
           onArchiveNew={() => {
             archiveActiveRef.current = false;
-            setPlayerInit({ idx: -1, ms: 0 });
+            setPlayerInit({ idx: -1, ms: 0, rate: 1 });
           }}
           onArchiveActive={() => {
             archiveActiveRef.current = true;
-            setPlayerInit({ idx: -1, ms: 0 });
+            setPlayerInit({ idx: -1, ms: 0, rate: 1 });
           }}
           onEnterPlayer={() => {
             playerFromRef.current = "work";
@@ -130,6 +134,7 @@ export default function App() {
             synthDone={synthDone}
             initialIndex={playerInit.idx}
             initialMs={playerInit.ms}
+            initialRate={playerInit.rate}
             onBack={() => setView(playerFromRef.current === "archive" ? "archive" : "work")}
             onPosition={handlePosition}
           />
