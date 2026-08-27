@@ -88,8 +88,15 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   color: #ffffff;
   font-size: 17px;
   line-height: 1;
+  transition: box-shadow .3s;
 }
-.home-cta:hover { background: var(--accent-light); }
+.home-cta:hover, .home-cta:focus {
+  background: var(--accent);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0;
+  outline: none;
+}
 .home-cta:active { transform: scale(.95); }
 @keyframes homeFade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
