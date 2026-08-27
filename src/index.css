@@ -94,7 +94,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   background: var(--accent);
   border-color: transparent;
   color: #ffffff;
-  box-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0;
+  box-shadow: rgba(0, 0, 0, 0.3) 4px 6px 34px 0;
   outline: none;
 }
 .home-cta:active { transform: scale(.95); }
@@ -166,7 +166,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 .choose-card:focus, .choose-card:focus-visible { outline: none; }
 .choose-card:nth-child(2) { animation-delay: .1s; }
 .choose-card:hover {
-  box-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0;
+  box-shadow: rgba(0, 0, 0, 0.3) 4px 6px 34px 0;
 }
 .choose-card-mark {
   font-size: 13px;
