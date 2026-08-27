@@ -669,6 +669,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   max-width: 420px;
   height: auto;
   max-height: 92vh;
+  margin-bottom: 128px;
 }
 .settings-body {
   padding: 14px 18px 16px;
