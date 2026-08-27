@@ -57,11 +57,13 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     const p = audio.play();
     if (p) {
       p.catch(() => {
-        const onReady = () => {
-          audio.removeEventListener("loadeddata", onReady);
-          audio.play().catch(() => {});
+        let tries = 0;
+        const retry = () => {
+          tries++;
+          const p2 = audio.play();
+          if (p2) p2.catch(() => { if (tries < 4) setTimeout(retry, 150); });
         };
-        audio.addEventListener("loadeddata", onReady);
+        setTimeout(retry, 100);
       });
     }
     setPlaying(true);
@@ -125,7 +127,21 @@ export default function PlayerPage({ project, items, synthDone, onBack }: {
     if (!audio) return;
     if (audio.paused) {
       if (!audio.src && idxRef.current >= 0) playFrom(idxRef.current);
-      else audio.play().catch(() => {});
+      else {
+        setPlaying(true);
+        const p = audio.play();
+        if (p) {
+          p.catch(() => {
+            let tries = 0;
+            const retry = () => {
+              tries++;
+              const p2 = audio.play();
+              if (p2) p2.catch(() => { if (tries < 4) setTimeout(retry, 150); });
+            };
+            setTimeout(retry, 100);
+          });
+        }
+      }
     } else audio.pause();
   };
 
