@@ -929,7 +929,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(245, 245, 247, 0.45);
+  background: rgba(245, 245, 247, 0.32);
   backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
   color: var(--bar-text);
