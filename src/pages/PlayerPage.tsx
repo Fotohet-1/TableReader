@@ -484,6 +484,7 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
         {Array.from({ length: MAX_SIMUL }).map((_, k) => <audio key={k} ref={setAudioRef(k)} preload="auto" />)}
       </div>
       <header className="topbar">
+        <button onClick={() => { saveNow(); onBack(); }} className="tb-btn">← 返回</button>
         <div className="tb-right">
           {source === "qwen" && (
             <div className="tb-regen">

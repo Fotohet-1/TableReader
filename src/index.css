@@ -1073,6 +1073,13 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   flex-shrink: 0;
 }
 .pb-rate:focus { outline: none; }
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%231d1d1f'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+}
 .wait-banner {
   position: fixed;
   bottom: 82px;

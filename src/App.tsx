@@ -98,7 +98,6 @@ export default function App() {
         <ChoosePage
           onUpload={() => setView("work")}
           onContinue={() => setView("archive")}
-          onBack={() => setView("home")}
         />
       )}
       {view === "archive" && (

@@ -1,13 +1,10 @@
-export default function ChoosePage({ onUpload, onContinue, onBack }: {
+export default function ChoosePage({ onUpload, onContinue }: {
   onUpload: () => void;
   onContinue: () => void;
-  onBack: () => void;
 }) {
   return (
     <div className="choose-page">
-      <header className="topbar">
-        <button className="tb-btn" onClick={onBack}>← 返回</button>
-      </header>
+      <header className="topbar" />
       <div className="choose-inner">
         <span className="choose-eyebrow">SCREENPLAY READING STUDIO</span>
         <h1 className="choose-title">开始围读</h1>
