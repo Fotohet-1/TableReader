@@ -20,4 +20,6 @@ echo "启动 Qwen3 (9883) ..."
 "$QWEN_PY" "$ROOT/scripts/server_qwen_tts.py" >/tmp/sr_qwen.log 2>&1 &
 sleep 2
 cd "$ROOT"
+# 等服务就绪后自动打开浏览器
+( sleep 3; open "http://127.0.0.1:5174/" 2>/dev/null ) &
 npm run dev
