@@ -38,7 +38,7 @@ export default function PlayerBar({ playing, globalMs, totalMs, rate, onToggle, 
       <button onClick={() => onJump(5)} className="pb-btn">+5s</button>
       <button onClick={() => onJump(10)} className="pb-btn">+10s</button>
       <select className="pb-rate" value={rate} onChange={(e) => onRate(Number(e.target.value))}>
-        {RATES.map((r) => <option key={r} value={r}>{r}x</option>)}
+        {RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
       </select>
     </div>
   );
