@@ -882,7 +882,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   flex: 1;
   overflow-y: auto;
   background: var(--bg);
-  padding: 40px 0 170px;
+  padding: 40px 96px 170px;
   animation: srFadeUp .5s cubic-bezier(.22, .8, .32, 1);
 }
 .unit {
@@ -1047,6 +1047,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 
 @media (max-width: 720px) {
   .unit { font-size: 15px; padding: 7px 14px; }
+  .script-scroll { padding: 40px 14px 170px; }
   .unit-dialogue { display: block; position: static; }
   .char-tag {
     position: static;
