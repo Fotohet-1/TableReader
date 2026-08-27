@@ -561,7 +561,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 }
 .variant-select {
   margin-left: auto;
-  width: 110px;
+  width: 100px;
   text-align: center;
   text-align-last: center;
   color: var(--muted-strong);
