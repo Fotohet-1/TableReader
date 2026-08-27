@@ -10,6 +10,7 @@
   --accent-light: #0071e3;
   --accent-soft: rgba(0, 102, 204, 0.07);
   --bar: rgba(245, 245, 247, 0.78);
+  --bar-frost: rgba(245, 245, 247, 0.24);
   --bar-text: #1d1d1f;
   --danger: #d70015;
   --dark: #272729;
@@ -942,11 +943,14 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   padding: 0 28px;
   height: 52px;
   background: var(--bar);
-  backdrop-filter: blur(18px) saturate(1.8);
-  -webkit-backdrop-filter: blur(18px) saturate(1.8);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--border-line);
   z-index: 5;
   animation: srFadeDown .45s cubic-bezier(.22, .8, .32, 1);
+}
+:root[data-theme="dark"] .topbar {
+  background: var(--bar-frost);
 }
 .ios-switch {
   width: 44px;
@@ -1084,7 +1088,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(245, 245, 247, 0.24);
+  background: var(--bar-frost);
   backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
   color: var(--bar-text);
