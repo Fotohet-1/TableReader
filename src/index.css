@@ -26,7 +26,7 @@
   --focus-ring: rgba(0, 113, 227, 0.35);
   --danger-soft: rgba(215, 0, 21, 0.06);
   --danger-soft-strong: rgba(215, 0, 21, 0.08);
-  --select-arrow: var(--select-arrow);
+  --select-arrow: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%231d1d1f'/></svg>");
   --serif: "SF Pro Display", "PingFang SC", "Source Han Sans SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
@@ -951,14 +951,12 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   z-index: 5;
   animation: srFadeDown .45s cubic-bezier(.22, .8, .32, 1);
 }
-:root[data-theme="dark"] .topbar {
-  background: var(--bar-frost);
-}
 .player-page .topbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
+  background: var(--bar-frost);
 }
 .ios-switch {
   width: 44px;
