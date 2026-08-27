@@ -3,14 +3,7 @@ import type { Project, Unit, UnitAudio } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
 import { toChineseNumber } from "../lib/parser";
 
-const PALETTE = ["#d1495b", "#3d5a80", "#2a9d8f", "#e07a3f", "#9b5de5", "#f15bb5", "#00bbf9", "#7c3f58"];
 const DIALOGUE_RE = /^([\u4e00-\u9fa5A-Za-z0-9·．. ]{1,12})[:：](.*)$/;
-
-function colorFor(name: string): string {
-  let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return PALETTE[h % PALETTE.length];
-}
 
 const UnitLine = memo(function UnitLine({ u, project, isActive, setLineRef }: {
   u: Unit;
@@ -19,7 +12,7 @@ const UnitLine = memo(function UnitLine({ u, project, isActive, setLineRef }: {
   setLineRef: (id: number) => (el: HTMLDivElement | null) => void;
 }) {
   const original = project.scriptText.slice(u.start, u.end);
-  const color = u.type === "dialogue" ? colorFor(u.character) : "#8a8578";
+  const color = u.type === "dialogue" ? "#1d1d1f" : "#7a7a7a";
   if (u.type === "scene") {
     const m = (u.sceneNo || "").match(/\d+/);
     const sceneLabel = (u.episode ? "第" + toChineseNumber(u.episode) + "集 · " : "")
@@ -37,7 +30,7 @@ const UnitLine = memo(function UnitLine({ u, project, isActive, setLineRef }: {
       <div
         ref={setLineRef(u.id)}
         className={"unit unit-dialogue" + (isActive ? " active" : "")}
-        style={isActive ? { borderLeftColor: color, background: color + "1f" } : { borderLeftColor: color }}
+        style={isActive ? { borderLeftColor: "#0066cc", background: "rgba(0,102,204,.07)" } : { borderLeftColor: "#e0e0e0" }}
       >
         {m && <span className="char-tag" style={{ color }}>{m[1]}</span>}
         <span className="char-line">{m ? m[2] : original}</span>
