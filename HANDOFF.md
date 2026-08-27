@@ -4,82 +4,97 @@
 
 ## 项目是什么
 
-Vite + React + TS 的本地“剧本围读”应用。上传剧本 → 解析角色/场次 → 分配音色 → 合成配音 → 分角色朗读。TTS 走本地服务，音频落盘可续读。
+Vite + React + TS 的本地“剧本围读”应用 + 3 个 Python 本地服务。上传剧本 → 解析角色/场次 → 分配音色 → 合成配音 → 分角色朗读。TTS 走本地服务，音频落盘可续读。已实现**剧集级音色复用**（跨集角色音色统一）、**深色模式**、**跨集存档**。
 
 ## 当前流程
 
-1. 首页（欢迎页）→ “开始使用”按钮。
-2. 选择页：`上传新剧本` / `继续围读`。无返回键。
-3. 上传页（.docx/.txt，可多选）→ 顶部细条（返回 / 音源 / 设置）。解析后上传框隐藏。
-4. 场标预览 → 确认角色（男/女 + 年龄下拉 + “多种表述”变体检视）。
-5. Qwen：声音设计（描述、试听、固定音色）→ 角色与音色。Edge：直接分配音色。
-6. 合成（流式）→ 进入围读。围读页有返回键，`Esc` 保存并返回，空格播放/暂停。
-7. “继续围读”读存档，直接进朗读页。
+1. 首页 →“开始使用”→ 选择页（上传新剧本 / 继续围读）。
+2. 上传页（.docx/.txt/.md，可多选）→ 顶部细条（返回 / 音源 qwen|edge / 音色库 / 设置）。上传后自动识别剧名。
+3. 场标预览 → 确认角色（男/女 + 年龄下拉 + “多种表述”变体）。**排序：无音色种子（新角色）在前、可复用（有种子）在后，各自按台词句数降序**。
+4. Qwen：声音设计（描述、试听、固定音色）→ 角色与音色；Edge：直接分配音色。
+5. 合成（流式，满 25 句可提前进围读）→ 进入围读页。Esc 保存并返回，空格播放/暂停，右上角 iOS 开关切深浅色。
+6. “继续围读”→ 两级：先选剧集（项目）再选集。
 
-## 服务与端口
+## 服务与端口（四服务，均需在跑）
 
-- 前端 dev：`http://127.0.0.1:5174/`（`npm run dev`）
-- edge-tts：`9882`
-- Qwen3 1.7B：`9883`
-- 存档服务：`9884`
-- 一键启动：`./scripts/start_all.sh`
+| 端口 | 服务 | 说明 |
+|---|---|---|
+| 5174 | 前端 dev | `npm run dev` |
+| 9882 | edge-tts | `..剧本围读/edge-tts-tool/.venv/bin/python scripts/server_edge_tts.py` |
+| 9883 | Qwen3 1.7B | **必须用** `..剧本围读/qwen3-tts-test/.venv/bin/python`，见下“坑” |
+| 9884 | 存档服务 | `python3 scripts/server_archive.py`（stdlib 即可） |
+
+## ⚠️ 关键“坑”（新对话必读）
+
+1. **Qwen 必须用 venv Python**：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/.venv/bin/python`。若用框架 Python（`/opt/homebrew/Cellar/python@3.11/.../Python`）启动，`/tts` 会 `ModuleNotFoundError: mlx_audio`，前端“生成音色”报 500。
+2. **服务要用“脱离开会话”的方式启动**，否则 exec 结束会被回收：
+   ```python
+   subprocess.Popen([py, "scripts/server_qwen_tts.py"],
+       stdout=open("/tmp/sr_qwen.log","wb"), stderr=subprocess.STDOUT,
+       stdin=subprocess.DEVNULL, start_new_session=True)
+   ```
+3. **存档目录不是启动建的**，是第一次“保存/合成”时由存档服务 `os.makedirs` 懒创建。默认路径 `~/Documents/剧本围读存档`（`expanduser` 解析成用户自己的家目录）。**给别人用＝他自己的空存档，不会带走你的存档**；想共享存档需手动拷 `~/Documents/剧本围读存档` 整个文件夹给对方。
+4. **Qwen 服务偶发挂起**：服务里反复生成时（尤其第二次请求）可能卡住（0% CPU，模型隔离测试正常，仅 HTTP 服务偶发）。已用 `acquire` 超时（默认 300s，`QWEN_ACQUIRE_TIMEOUT` 可调）兜底，不会永久堵死，但挂起那次仍占池 300s。是外发前值得深挖的残余风险（可考虑单一 worker 线程）。
+
+## 架构要点
+
+### 两级存档（剧 → 集）+ 剧集音色库
+```
+{存档目录}/{剧名}/
+  project.json      # 剧集元数据: id/name/source/episodes[]
+  音色/bank.json    # 跨集音色库，按 roleBase 角色身份键索引
+  音色/seeds/{角色}.wav  # Qwen 种子音频
+  {集}/project.json # 该集剧本结构(只写一次)
+  {集}/meta.json    # 该集音频+播放进度
+  {集}/audio/{unit}.wav
+```
+- 音源锁在剧级：同剧不同音源的复用会跳过。
+- 音色库**合并**而非整库替换（`mergeVoiceBanks`），保证前几集角色不丢。
+
+### 解析器（`src/lib/parser.ts`）
+- `roleBase`：跨集稳定身份键，剥头衔/OS/括注/情绪/状态片刻，保证 `聂九罗 董事长→聂九罗`。
+- `isPersona`：过滤“字幕/画面/内容/第一张”等非人描述行。
+- 剥“对X”称谓、`僵住/迟疑片刻` 等状态尾缀。
+
+### 系列识别（`src/lib/series.ts`）
+- `seriesKeyFromFile` 从文件名剥 集标/注解/稿次/版本/日期，抽出剧名；`slugify` 做安全剧集 id。
+
+### 深色模式（`src/lib/theme.ts`）
+- 三态 `system|light|dark`，默认跟系统，localStorage 持久化，`data-theme` 挂在 `<html>`。
+- Apple 系深色（黑底/深卡片/浅字/蓝 accent `#0a84ff`），大量硬编码颜色已抽成 CSS 变量（`--bar-frost`/`--select-arrow`/`--mask`/`--fill-*`/`--border-*`/`--shadow-card` 等）。
+- 设置面板“外观”= 分段控件；围读页顶部 = iOS 滑块开关（点它会把“跟随系统”切到显式浅/深，回系统要去设置）。
+
+### TTS
+- 前端所有 TTS 调用带硬超时（edge 60s、Qwen 120s），`src/lib/tts.ts`。
+- Qwen 服务 `server_qwen_tts.py`：信号量（上限=池大小 1）+ `acquire` 超时 + 成功/异常都释放。
 
 ## 关键文件
 
-- `src/pages/UploadPage.tsx`：上传/解析/确认角色/声音设计/角色与音色/合成。
-- `src/pages/PlayerPage.tsx`：朗读页，时间槽驱动，支持联动说话，Qwen 重生成音色。
-- `src/pages/ChoosePage.tsx`、`HomePage.tsx`、`ArchiveContinuePage.tsx`。
-- `src/lib/parser.ts`：解析、场次、角色名归一、联动说话拆分。
-- `src/lib/synth.ts`：流式合成。
-- `src/lib/archive.ts` + `scripts/server_archive.py`：音频/进度落盘。
-- `src/index.css`：Apple 规范（`:root` 色板、SF Pro/苹方、无边框卡片、悬停阴影）。
-
-## 存档结构
-
-- 存档目录 = 工作区，采用两级：`{工作区}/{剧集}/`。
-- `{工作区}/{剧集}/project.json`：剧集元数据（剧名/音源/集列表）。
-- `{工作区}/{剧集}/音色/bank.json`：跨集音色库，按 `roleBase` 角色身份键索引。
-- `{工作区}/{剧集}/音色/seeds/{角色}.wav`：Qwen 种子音频（edge 无）。
-- `{工作区}/{剧集}/{集}/project.json`：该集剧本结构，只写一次。
-- `{工作区}/{剧集}/{集}/meta.json`：该集音频记录 + 播放进度。
-- 音频：`{工作区}/{剧集}/{集}/audio/{unitId}.wav`。
-- 默认工作区 `~/Documents/剧本围读存档/`，可在设置改。
-
-## 跨集音色复用（新）
-
-- 上传剧本自动识别剧名（`series.ts` 的 `seriesKeyFromFile`），同名剧归到同一剧集，音色库共用。
-- 解析时用 `roleBase`（剥头衔/OS/括注）作为角色身份键；`isPersona` 过滤"字幕/画面/内容"等非人描述行，避免幽灵角色。
-- 第二集解析到已在音色库的角色时，默认复用：edge 用库里 `voiceId`，Qwen 用库里 `seed` 直接克隆，不再重新生成音色；界面标"已复用"。库里的角色可手动重新设计，改后覆盖库。
-- 每集确认角色后回写音色库（含 Qwen 种子上传），保证整部剧音色统一。
-- 音源锁在剧级：同剧不同音源的复用会跳过，避免混用。
-
-### 存档服务接口（两级）
-
-`/list-series`、`/series`、`/episodes`、`/meta`、`/audio`、`/playback`、`/voicebank`、`/seed`，均带 `dir`（工作区）；集相关接口再带 `series` + `id(集)`。
-
-## 重要机制
-
-- **联动说话**：解析拆 `A/B`、`A、B`、`A和B`、`AB异口同声` 等为同组多人；带空格的“角色名+头衔”（如 `聂九罗 董事长`）**不**拆分，按变体归并。同组在播放页用时间槽同步播放。
-- **重生成音色**（仅 Qwen）：围读页右上角“角色音色”下拉 + `重生成`。面板可改描述、AI 生成、试听（取当前时码最近的本角色台词）；应用后优先合成当前位置之后的该角色台词，满 5 句自动收起，后台补齐其余，再回填前面。
-- **角色名归一**：剥离动作/情绪后缀（严肃、说道、喊道、异口同声等），`熊黑严肃`→`熊黑`。
-
-## 已知限制 / 注意
-
-- `groupRoles` 前缀归并：只有当“短基底名”先于长变体出现时才合并；若长变体先出现（`炎拓 总裁` 在 `炎拓` 之前），会分成两个角色。可优化成双向归并。
-- Qwen 重生成完整多句合成未做端到端测试；UI 与流程已验证，实际合成建议真跑一遍。
-- 非存档模式（存档服务未启动）临时 blob 地址会累积；长会话建议走存档。
-- `--pearl` CSS 变量目前未使用。
+- `src/pages/UploadPage.tsx`（上传/解析/确认角色/声音设计/合成/设置/音色库，约 1330 行，最大）
+- `src/pages/PlayerPage.tsx`（围读页，时间槽驱动、联动说话、重生成音色、iOS 开关）
+- `src/lib/parser.ts`、`roles.ts`、`series.ts`、`tts.ts`、`synth.ts`、`archive.ts`、`theme.ts`、`settings.ts`、`voiceTags.ts`、`voices.ts`
+- `scripts/server_archive.py`（两级存档+音色库接口）、`server_qwen_tts.py`、`server_edge_tts.py`
+- `src/index.css`（约 1230 行，大量主题变量）
 
 ## 验证
 
 ```bash
-npm run build
-# 浏览器端 e2e（需本地 Chrome 远程调试 9225）
-CDP_URL=http://127.0.0.1:9225 node scripts/e2e-check.mjs
+npm run typecheck   # 零报错
+npm test            # 34/34（解析/角色/系列/声音模板/确认页排序/音色合并）
+npm run build       # 通过；mammoth/jszip 懒加载
 ```
 
-测试 Chrome 页面目标可能丢失，先 `curl -X PUT "http://127.0.0.1:9225/json/new?http://127.0.0.1:5174/"`。
+浏览器端 e2e：`CDP_URL=http://127.0.0.1:9225 PAGE_URL=http://127.0.0.1:5174/ node scripts/e2e-check.mjs`（需 Chrome 远程调试 9225，页面目标丢失时先 `curl -X PUT "http://127.0.0.1:9225/json/new?http://127.0.0.1:5174/"`）。
 
-## 近期主要提交主题
+## Git
 
-Apple 设计规范重构、选择页/顶部细条、存档拆分与续读、联动同组台词、确认角色年龄下拉、“多种表述”变体、Qwen 重生成音色、空格角色写法不再误拆。
+- 当前分支 `main`，工作区干净。最新提交 `c248f08`（上传页设置弹窗与上传卡片中心对齐）。
+- 最近 10 个提交覆盖：跨集音色复用、解析器增强、安全限流、测试、深色模式、主题细则、倍速乘号、弹窗对齐。
+- 每次改动后均已 `git commit`（用户要求：以后每次改动都 git）。
+
+## 外发相关（下个会话重点）
+
+- 应用是“本地工具 + 3 个本地 Python 服务”，外发需打包这几部分（前端 build 产物 + 三个 server + 各自 venv/模型/edge 依赖 + 模型路径）。
+- Qwen 的 `MODEL_DIR`/`CLONE_MODEL_DIR` 默认指向 `..剧本围读/qwen3-tts-test/models/...`，可用 `QWEN_VD_MODEL`/`QWEN_BASE_MODEL` 覆盖；并发池 `QWEN_DESIGN_POOL`/`QWEN_CLONE_POOL`、超时 `QWEN_ACQUIRE_TIMEOUT`。
+- 存档目录按用户懒创建（见上“坑”3），外发时对方拿到的默认就是自己的空存档。
+- 想让你之外的人看到你的存档，需手动拷贝 `~/Documents/剧本围读存档`。
