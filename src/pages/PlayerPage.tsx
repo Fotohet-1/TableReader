@@ -83,6 +83,8 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
   const totalMs = items.length ? items[items.length - 1].endMs : 0;
   const hasPlayable = items.some((i) => i.url && i.durationMs > 0);
   const activeUnitId = currentIdx >= 0 && items[currentIdx] ? items[currentIdx].unitId : null;
+  const totalUnits = useMemo(() => project.units.filter((u) => u.text.trim()).length, [project]);
+  const synthPct = totalUnits ? Math.min(100, Math.round((items.length / totalUnits) * 100)) : 0;
 
   const playFrom = (idx: number, atMs = 0) => {
     const audio = audioRef.current;
@@ -265,9 +267,16 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
           if (onPosition && idxRef.current >= 0) onPosition(idxRef.current, Math.round(ms), rateRef.current);
           onBack();
         }} className="tb-btn">← 返回</button>
-        <span className="tb-info">
-          {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
-        </span>
+        <div className="tb-meta">
+          <span className="tb-info">
+            {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
+          </span>
+          {!synthDone && (
+            <div className="tb-progress">
+              <div className="tb-progress-fill" style={{ width: synthPct + "%" }} />
+            </div>
+          )}
+        </div>
       </header>
       <div className="script-scroll" ref={scrollRef} onWheel={onManualScroll} onTouchStart={onManualScroll}>
         {!hasPlayable && synthDone ? (
