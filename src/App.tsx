@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Project, Session, UnitAudio } from "./lib/types";
 import HomePage from "./pages/HomePage";
 import OnboardingPage from "./pages/OnboardingPage";
@@ -9,6 +9,7 @@ import PlayerPage from "./pages/PlayerPage";
 import { archiveAudioUrl, loadMeta, savePlayback } from "./lib/archive";
 import type { ArchiveContext } from "./lib/types";
 import { hasOnboarded, markOnboarded, saveDsKey, saveSource, type TtsSource } from "./lib/settings";
+import { loadTheme, saveTheme, applyTheme, subscribeSystem, type Theme } from "./lib/theme";
 
 export default function App() {
   const [view, setView] = useState<"home" | "onboard" | "choose" | "archive" | "work" | "player">("home");
@@ -21,6 +22,17 @@ export default function App() {
   const projectRef = useRef<Project | null>(null);
   const playerFromRef = useRef<"work" | "archive">("work");
   projectRef.current = project;
+
+  const [theme, setThemeState] = useState<Theme>(loadTheme);
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme !== "system") return;
+    return subscribeSystem(() => applyTheme("system"));
+  }, [theme]);
+  const setTheme = useCallback((t: Theme) => {
+    setThemeState(t);
+    saveTheme(t);
+  }, []);
 
   const registerUnit = useCallback((item: UnitAudio) => {
     setItems((prev) => [...prev, item]);
@@ -123,6 +135,8 @@ export default function App() {
       )}
       {view === "work" && (
         <UploadPage
+          theme={theme}
+          onTheme={setTheme}
           lastSession={lastSession}
           onAnalyzed={setLastSession}
           resetItems={resetItems}
@@ -147,6 +161,8 @@ export default function App() {
       {view === "player" && (
         project && (
           <PlayerPage
+            theme={theme}
+            onTheme={setTheme}
             project={project}
             items={items}
             synthDone={synthDone}

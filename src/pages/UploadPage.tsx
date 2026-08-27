@@ -37,6 +37,7 @@ import {
   saveSource,
   type TtsSource
 } from "../lib/settings";
+import type { Theme } from "../lib/theme";
 import {
   archiveAudioUrl,
   archiveHealth,
@@ -65,7 +66,9 @@ interface Profile {
   merged?: string[];
 }
 
-export default function UploadPage({ lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack }: {
+export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack }: {
+  theme: Theme;
+  onTheme: (t: Theme) => void;
   lastSession: Session | null;
   onAnalyzed: (s: Session) => void;
   resetItems: () => void;
@@ -1289,6 +1292,14 @@ export default function UploadPage({ lastSession, onAnalyzed, resetItems, regist
                   className={"svc-dot " + (archiveOk === null ? "unknown" : archiveOk ? "ok" : "down")}
                   title={"存档服务 " + (archiveOk === null ? "检测中" : archiveOk ? "正常" : "未启动")}
                 />
+              </div>
+              <div className="field">
+                <label>外观</label>
+                <select value={theme} onChange={(e) => onTheme(e.target.value as Theme)}>
+                  <option value="system">跟随系统</option>
+                  <option value="light">浅色</option>
+                  <option value="dark">深色</option>
+                </select>
               </div>
               <label className="check">
                 <input

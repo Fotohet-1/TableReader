@@ -7,6 +7,7 @@ import { describeRoleVoice } from "../lib/llm";
 import { defaultVoiceDescFor } from "../lib/voices";
 import { saveAudio, saveMeta, archiveAudioUrl } from "../lib/archive";
 import { loadQwenUrl, loadDsKey, loadAiEnabled, loadSource } from "../lib/settings";
+import { isDark, type Theme } from "../lib/theme";
 
 const MAX_SIMUL = 3;
 
@@ -105,7 +106,9 @@ function retryPlay(a: HTMLAudioElement) {
   }
 }
 
-export default function PlayerPage({ project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems }: {
+export default function PlayerPage({ theme, onTheme, project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems }: {
+  theme: Theme;
+  onTheme: (t: Theme) => void;
   project: Project;
   items: UnitAudio[];
   synthDone: boolean;
@@ -494,6 +497,13 @@ export default function PlayerPage({ project, items, synthDone, initialIndex = -
       <header className="topbar">
         <button onClick={() => { saveNow(); onBack(); }} className="tb-btn">← 返回</button>
         <div className="tb-right">
+          <button
+            className="tb-btn"
+            onClick={() => onTheme(isDark(theme) ? "light" : "dark")}
+            title={isDark(theme) ? "切换到浅色" : "切换到深色"}
+          >
+            {isDark(theme) ? "☀️" : "🌙"}
+          </button>
           {source === "qwen" && (
             <div className="tb-regen">
               <select value={regenRole} onChange={(e) => setRegenRole(e.target.value)} title="选择角色">
