@@ -5,7 +5,8 @@ const mql = () => window.matchMedia("(prefers-color-scheme: dark)");
 
 export function loadTheme(): Theme {
   const v = localStorage.getItem(KEY);
-  return v === "light" || v === "dark" ? v : "system";
+  // 默认浅色：未显式选择过主题的新用户直接进入浅色模式。
+  return v === "light" || v === "dark" ? v : "light";
 }
 
 export function saveTheme(t: Theme): void {

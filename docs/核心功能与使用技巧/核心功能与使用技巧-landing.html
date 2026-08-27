@@ -68,9 +68,6 @@
   }
 
   html, body { background: var(--parchment); }
-  @media screen {
-    body { max-width: 210mm; margin: 0 auto; padding: 14mm 18mm; }
-  }
   body {
     color: var(--near-black);
     font-family: var(--serif);
@@ -130,12 +127,9 @@
 
   /* ========== 封面 ========== */
   .cover {
-    min-height: 248mm;
-    display: flex;
-    flex-direction: column;
+    min-height: 235mm;
     break-after: page;
   }
-  .cover-main { flex: 1; }
   .cover .eyebrow { margin-top: 4mm; }
   .cover h1 {
     font-size: 38pt;
@@ -182,9 +176,12 @@
     break-inside: avoid;
   }
   .cover-shot img {
-    width: 100%;
-    border-radius: 4pt;
     display: block;
+    width: 84%;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    border-radius: 4pt;
   }
   .cover-shot figcaption {
     font-size: 8.5pt;
