@@ -157,7 +157,11 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   transition: border-color .2s;
 }
 .choose-card:nth-child(2) { animation-delay: .1s; }
-.choose-card:hover { border-color: var(--accent); }
+.choose-card { transition: border-color .2s, box-shadow .3s; }
+.choose-card:hover {
+  border-color: var(--accent);
+  box-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0;
+}
 .choose-card-mark {
   font-size: 13px;
   color: var(--accent);
