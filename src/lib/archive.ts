@@ -57,6 +57,28 @@ export async function archiveHealth(): Promise<boolean> {
   }
 }
 
+export async function checkArchiveDir(dir: string): Promise<boolean | null> {
+  try {
+    const r = await fetch(BASE + "/check-dir?dir=" + enc(dir));
+    if (!r.ok) return null;
+    const j = await r.json();
+    return typeof j.ok === "boolean" ? j.ok : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function pickArchiveDir(): Promise<string | null> {
+  try {
+    const r = await fetch(BASE + "/pick-dir", { method: "POST" });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.ok && j.dir ? j.dir : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function listSeries(dir: string): Promise<SeriesListItem[]> {
   try {
     const r = await fetch(BASE + "/list-series?dir=" + enc(dir));

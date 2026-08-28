@@ -27,10 +27,13 @@
   POST /voicebank {dir,series,bank}
   POST /seed (raw wav) headers X-Archive-Dir / X-Series-Id / X-Role
   GET  /seed?dir&series&role        -> audio/wav
+  GET  /check-dir?dir               -> { ok, isDir, parentOk }
+  POST /pick-dir                    -> { ok, dir }（macOS 系统文件夹选择）
 """
 import json
 import os
 import re
+import subprocess
 import threading
 import time
 import urllib.parse
@@ -121,6 +124,15 @@ class Handler(BaseHTTPRequestHandler):
             q = self._query()
             if self.path.startswith("/health"):
                 self._json({"ok": True})
+                return
+            if self.path.startswith("/check-dir"):
+                base = self._base(q)
+                path = os.path.abspath(os.path.expanduser(base))
+                self._json({
+                    "ok": os.path.isdir(path) or os.path.isdir(os.path.dirname(path)),
+                    "isDir": os.path.isdir(path),
+                    "parentOk": os.path.isdir(os.path.dirname(path)),
+                })
                 return
             if self.path.startswith("/list-series"):
                 base = self._base(q)
@@ -219,6 +231,18 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.path.startswith("/health"):
                 self._json({"ok": True})
+                return
+            if self.path.startswith("/pick-dir"):
+                result = subprocess.run(
+                    ["osascript", "-e", 'POSIX path of (choose folder with prompt "选择剧本围读存档目录")'],
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+                if result.returncode != 0:
+                    self._json({"ok": False, "canceled": True})
+                    return
+                self._json({"ok": True, "dir": result.stdout.strip()})
                 return
             if self.path.startswith("/series"):
                 body = self._read_json()

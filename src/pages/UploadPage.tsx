@@ -22,6 +22,7 @@ import {
   type VoiceTag
 } from "../lib/voiceTags";
 import {
+  APP_VERSION,
   clearOnboarded,
   loadAiEnabled,
   loadArchiveDir,
@@ -41,6 +42,7 @@ import type { Theme } from "../lib/theme";
 import {
   archiveAudioUrl,
   archiveHealth,
+  checkArchiveDir,
   listSeries,
   loadMeta,
   loadVoiceBank,
@@ -51,6 +53,7 @@ import {
   saveVoiceBank,
   seedUrl,
   mergeVoiceBanks,
+  pickArchiveDir,
   type EpisodeMeta,
   type VoiceBankEntry
 } from "../lib/archive";
@@ -125,6 +128,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   const [serviceOk, setServiceOk] = useState<boolean | null>(null);
   const [archiveDir, setArchiveDir] = useState(loadArchiveDir);
   const [archiveOk, setArchiveOk] = useState<boolean | null>(null);
+  const [dirOk, setDirOk] = useState<boolean | null>(null);
   const [seriesId, setSeriesId] = useState("");
   const [seriesName, setSeriesName] = useState("");
   const [bank, setBank] = useState<Record<string, VoiceBankEntry>>({});
@@ -149,6 +153,12 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     }, 30000);
     return () => { alive = false; clearInterval(timer); };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    checkArchiveDir(archiveDir).then((ok) => { if (alive) setDirOk(ok); });
+    return () => { alive = false; };
+  }, [archiveDir]);
 
   useEffect(() => () => {
     if (metaSaveTimerRef.current) window.clearTimeout(metaSaveTimerRef.current);
@@ -206,6 +216,14 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   const saveQwenUrl = (v: string) => {
     setQwenUrlState(v);
     persistQwenUrl(v);
+  };
+
+  const pickDir = async () => {
+    const dir = await pickArchiveDir();
+    if (dir) {
+      setArchiveDir(dir);
+      saveArchiveDir(dir);
+    }
   };
 
   const switchSource = (s: Source) => {
@@ -1284,13 +1302,11 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
               <div className="field">
                 <label>存档目录</label>
                 <input
-                  value={archiveDir}
-                  onChange={(e) => { setArchiveDir(e.target.value); saveArchiveDir(e.target.value); }}
-                  placeholder="~/Documents/剧本围读存档"
-                />
-                <span
-                  className={"svc-dot " + (archiveOk === null ? "unknown" : archiveOk ? "ok" : "down")}
-                  title={"存档服务 " + (archiveOk === null ? "检测中" : archiveOk ? "正常" : "未启动")}
+                  className={"archive-dir" + (dirOk === false ? " bad" : "")}
+                  value={dirOk === false ? "路径丢失，请重新设置" : archiveDir}
+                  readOnly
+                  onClick={pickDir}
+                  title="点击选择文件夹"
                 />
               </div>
               <div className="field">
@@ -1320,7 +1336,10 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
                 <button className="settings-link" onClick={() => { setDsKey(""); saveDsKey(""); }}>清除 Key</button>
                 <button className="settings-link" onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
               </div>
-              <p className="settings-about">Made by 河忐</p>
+              <div className="settings-about">
+                <span>{APP_VERSION}</span>
+                <span>Made by 河忐</span>
+              </div>
             </div>
           </div>
         </div>

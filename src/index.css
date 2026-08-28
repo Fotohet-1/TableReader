@@ -144,8 +144,12 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 }
 .home-cta:active { transform: scale(.95); }
 .home-sig {
-  margin-top: 18px;
-  font-size: 12px;
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
   font-weight: 400;
   line-height: 1.4;
   color: var(--muted);
@@ -700,9 +704,20 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   margin-top: 14px;
   padding-top: 10px;
   border-top: 1px solid var(--divider);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   font-size: 11px;
   color: var(--muted);
-  text-align: right;
+}
+.settings-about span:last-child { color: var(--dark-warm); }
+.settings-body .archive-dir {
+  cursor: pointer;
+  color: var(--ink);
+}
+.settings-body .archive-dir.bad {
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 /* 分段控件（外观三选） */
 .seg {
