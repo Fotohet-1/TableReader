@@ -29,8 +29,6 @@
 
 对方如果由 AI agent 代装，让它直接读 `AGENT_SETUP_RECIPIENT.md`。
 
-配套使用指南（PDF）：`docs/核心功能与使用技巧/核心功能与使用技巧-landing.pdf`，用 kami 排版并沿用封面页的网页风格，界面截图已更新到最新版本。
-
 `start.command` 启动：前端静态服务 5174（直接用 `dist/` 构建产物，不需要 Node）、edge-tts 9882、Qwen3 9883、存档服务 9884。日志在 `logs/`，已运行的端口会自动跳过。
 
 ### 开发模式
