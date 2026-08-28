@@ -1320,6 +1320,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
                 <button className="settings-link" onClick={() => { setDsKey(""); saveDsKey(""); }}>清除 Key</button>
                 <button className="settings-link" onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
               </div>
+              <p className="settings-about">Made by 河忐</p>
             </div>
           </div>
         </div>

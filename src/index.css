@@ -143,6 +143,14 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   outline: none;
 }
 .home-cta:active { transform: scale(.95); }
+.home-sig {
+  margin-top: 18px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--muted);
+  letter-spacing: 0;
+}
 @keyframes homeFade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
 /* ---------- 选择页 ---------- */
@@ -688,6 +696,14 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .settings-body .field label { width: 104px; }
 .settings-body .row { margin-top: 2px; justify-content: flex-end; }
 .settings-hint { font-size: 11px; color: var(--muted); margin: 0; }
+.settings-about {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--divider);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
 /* 分段控件（外观三选） */
 .seg {
   flex: 1;
