@@ -19,9 +19,11 @@
   --fill-soft: rgba(0, 0, 0, 0.08);
   --border-line: rgba(0, 0, 0, 0.08);
   --border-sub: rgba(0, 0, 0, 0.12);
-  --card-shadow: rgba(0, 0, 0, 0.06) 0 6px 20px 0;
-  --shadow-card: rgba(0, 0, 0, 0.18) 4px 6px 28px 0;
+  --card-shadow: none;
+  --shadow-card: rgba(0, 0, 0, 0.3) 4px 6px 34px 0;
   --bar-shadow: 0 -4px 14px rgba(0, 0, 0, 0.05);
+  --cta-shadow: none;
+  --cta-shadow-hover: rgba(0, 0, 0, 0.3) 4px 6px 34px 0;
   --page-bg: #f5f5f7;
   --focus-ring: rgba(0, 113, 227, 0.35);
   --danger-soft: rgba(215, 0, 21, 0.06);
@@ -54,6 +56,8 @@
   --card-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 8px 30px rgba(255, 255, 255, 0.12);
   --bar-shadow: 0 -4px 14px rgba(0, 0, 0, 0.35);
+  --cta-shadow: 0 8px 24px rgba(140, 140, 150, 0.3);
+  --cta-shadow-hover: 0 12px 30px rgba(140, 140, 150, 0.42);
   --page-bg: #000000;
   --focus-ring: rgba(64, 156, 255, 0.5);
   --danger-soft: rgba(255, 69, 58, 0.12);
@@ -125,14 +129,14 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   color: #ffffff;
   font-size: 17px;
   line-height: 1;
-  box-shadow: 0 8px 24px rgba(140, 140, 150, 0.3);
+  box-shadow: var(--cta-shadow);
   transition: box-shadow .3s, transform .2s;
 }
 .home-cta:hover, .home-cta:focus {
   background: var(--accent);
   border-color: transparent;
   color: #ffffff;
-  box-shadow: 0 12px 30px rgba(140, 140, 150, 0.42);
+  box-shadow: var(--cta-shadow-hover);
   outline: none;
 }
 .home-cta:active { transform: scale(.95); }
