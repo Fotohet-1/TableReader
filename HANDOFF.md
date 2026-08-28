@@ -27,7 +27,7 @@ Vite + React + TS 的本地“剧本围读”应用 + 3 个 Python 本地服务�
 ## ⚠️ 关键“坑”（新对话必读）
 
 1. **Qwen 必须用 venv Python**：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/.venv/bin/python`。若用框架 Python（`/opt/homebrew/Cellar/python@3.11/.../Python`）启动，`/tts` 会 `ModuleNotFoundError: mlx_audio`，前端“生成音色”报 500。
-2. **服务要用“脱离开会话”的方式启动**，否则 exec 结束会被回收。`scripts/start_all.sh` 现在用 `nohup + disown` 处理；若自己用 Python 拉起，仍要 `start_new_session=True`：
+2. **服务要用“脱离开会话”的方式启动**，否则 exec 结束会被回收。`scripts/start_all.sh` 现在调用 `scripts/detach.py`（内部用 `start_new_session=True`）处理；若自己用 Python 拉起，仍要：
    ```python
    subprocess.Popen([py, "scripts/server_qwen_tts.py"],
        stdout=open("/tmp/sr_qwen.log","wb"), stderr=subprocess.STDOUT,

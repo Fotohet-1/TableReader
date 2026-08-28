@@ -23,9 +23,8 @@ start_service() {
     say "$name 已在运行（端口 ${port}），跳过"
     return 0
   fi
-  say "启动 $name（端口 ${port}）..."
-  nohup "$@" >"$log" 2>&1 &
-  disown || true
+  say "启动 ${name}（端口 ${port}）..."
+  "${ARCHIVE_PY:-python3}" "$ROOT/scripts/detach.py" "$log" "$@"
 }
 
 # 优先用文件夹内的 venv/模型，找不到再退回老机器的绝对路径
@@ -89,12 +88,11 @@ if web_health 5174; then
   say "前端已在运行（端口 5174），跳过"
 elif [ -f "$ROOT/dist/index.html" ]; then
   say "启动前端静态服务（端口 5174）..."
-  nohup "$ARCHIVE_PY" "$ROOT/scripts/server_web.py" >"$ROOT/logs/sr_web.log" 2>&1 &
-  disown || true
+  "$ARCHIVE_PY" "$ROOT/scripts/detach.py" "$ROOT/logs/sr_web.log" \
+    "$ARCHIVE_PY" "$ROOT/scripts/server_web.py"
 elif command -v npm >/dev/null 2>&1; then
   say "没有 dist/，退回开发模式：npm run dev"
-  nohup npm run dev >"$ROOT/logs/sr_web.log" 2>&1 &
-  disown || true
+  "$ARCHIVE_PY" "$ROOT/scripts/detach.py" "$ROOT/logs/sr_web.log" npm run dev
 else
   say "没有 dist/，也没有 Node.js，无法启动前端"
   exit 1
