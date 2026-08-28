@@ -149,7 +149,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 1.4;
   color: var(--muted);
@@ -699,7 +699,8 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .settings-body .field { margin-bottom: 0; }
 .settings-body .field label { width: 104px; }
 .settings-body .row { margin-top: 2px; justify-content: flex-end; }
-.settings-hint { font-size: 11px; color: var(--muted); margin: 0; }
+.settings-body .check { margin-top: 12px; }
+.settings-hint { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
 .settings-about {
   margin-top: 14px;
   padding-top: 10px;
