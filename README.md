@@ -20,7 +20,7 @@
 
 ## 启动
 
-### 外发版（给其他 Mac 用户）
+### 从 GitHub 或外发包使用（其他 Mac 用户）
 
 ```bash
 ./setup.command      # 首次安装：装两个 Python venv + 下载 Qwen3 模型（约 4.5GB）
@@ -28,6 +28,8 @@
 ```
 
 对方如果由 AI agent 代装，让它直接读 `AGENT_SETUP_RECIPIENT.md`。
+
+从 GitHub 克隆后同样执行 `setup.command` 即可。仓库已自带 `dist/` 生产构建，普通用户不需要安装 Node；只有要改前端源码的开发模式才需要 `npm install && npm run dev`。
 
 `start.command` 启动：前端静态服务 5174（直接用 `dist/` 构建产物，不需要 Node）、edge-tts 9882、Qwen3 9883、存档服务 9884。日志在 `logs/`，已运行的端口会自动跳过。
 
