@@ -7,7 +7,7 @@
   <img alt="TTS: Qwen3 + edge-tts" src="https://img.shields.io/badge/TTS-Qwen3%20%2B%20edge--tts-blueviolet">
 </p>
 
-产品页：https://fotohet-1.github.io/screenplay-reader-codex/
+产品页：https://fotohet-1.github.io/TableReader/
 
 上传剧本，自动拆出角色、预判性别和年龄段，按角色分配音色后分角色朗读。支持流式合成：满 25 句（或整剧不足 25 句时全部完成）即可提前进入围读，后台继续合成。
 
