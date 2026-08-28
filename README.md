@@ -1,8 +1,25 @@
 # 剧本围读
 
+<p>
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
+  <img alt="Platform: macOS Apple Silicon" src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-lightgrey">
+  <img alt="Python 3.11" src="https://img.shields.io/badge/python-3.11-blue">
+  <img alt="TTS: Qwen3 + edge-tts" src="https://img.shields.io/badge/TTS-Qwen3%20%2B%20edge--tts-blueviolet">
+</p>
+
+产品页：https://fotohet-1.github.io/screenplay-reader-codex/
+
 上传剧本，自动拆出角色、预判性别和年龄段，按角色分配音色后分角色朗读。支持流式合成：满 25 句（或整剧不足 25 句时全部完成）即可提前进入围读，后台继续合成。
 
 每次打开先进入“剧本围读助手”首页；首次使用会走两步引导（选择声音来源、选填 DeepSeek Key），之后进入选择页。选择页提供两条路：`上传新剧本` 进入上传流程，`继续围读` 进入存档选择页、选项目后直接进朗读页。上传页只保留上传卡片，音源切换和设置收在卡片下方；Qwen 模式下不显示音色库。
+
+## 界面
+
+![首页](cover/assets/sr_home_latest.png)
+
+![上传页](cover/assets/sr_upload_latest.png)
+
+![音色库](cover/assets/sr_library_latest.png)
 
 ## 功能
 

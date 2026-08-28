@@ -77,7 +77,7 @@ try {
   await mkdir(OUT_DIR, { recursive: true });
   await shot("sr_home_latest.png");
 
-  await evalJs(`document.querySelector(".home").click(); true`);
+  await evalJs(`document.querySelector(".home-cta").click(); true`);
   await waitFor(`document.querySelector(".choose-card") !== null`);
   await evalJs(`(() => { const b = [...document.querySelectorAll(".choose-card")].find((x) => x.textContent.includes("上传新剧本")); b && b.click(); return !!b; })()`);
   await waitFor(`document.querySelector(".upload-hero") !== null`);
