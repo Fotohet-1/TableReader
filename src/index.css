@@ -19,7 +19,7 @@
   --fill-soft: rgba(0, 0, 0, 0.08);
   --border-line: rgba(0, 0, 0, 0.08);
   --border-sub: rgba(0, 0, 0, 0.12);
-  --card-shadow: none;
+  --card-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
   --shadow-card: rgba(0, 0, 0, 0.3) 4px 6px 34px 0;
   --bar-shadow: 0 -4px 14px rgba(0, 0, 0, 0.05);
   --cta-shadow: none;
