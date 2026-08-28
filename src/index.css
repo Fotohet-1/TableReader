@@ -700,7 +700,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .settings-body .field label { width: 104px; }
 .settings-body .row { margin-top: 2px; justify-content: flex-end; }
 .settings-body .check { margin-top: 12px; }
-.settings-hint { font-size: 11px; color: var(--muted); margin: 2px 0 0; }
+.settings-hint { font-size: 11px; color: var(--muted); margin: 1px 0 0; }
 .settings-about {
   margin-top: 14px;
   padding-top: 10px;
