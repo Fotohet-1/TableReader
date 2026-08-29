@@ -1,46 +1,14 @@
 import { useState } from "react";
 
-function maskKey(k: string): string {
-  const t = k.trim();
-  if (t.length <= 8) return t.slice(0, 2) + "••••" + t.slice(-2);
-  return t.slice(0, 4) + "••••••" + t.slice(-4);
-}
-
 export default function SecretInput({ value, onChange, placeholder = "可选" }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
   const [revealed, setRevealed] = useState(false);
-  const has = value.trim().length > 0;
-
-  if (has) {
-    return (
-      <div className="secret-input">
-        <input
-          className="secret-text"
-          type="text"
-          readOnly
-          value={revealed ? value : maskKey(value)}
-          onFocus={(e) => e.currentTarget.select()}
-          title={revealed ? "已显示" : "已隐藏，点右侧查看"}
-          spellCheck={false}
-          autoComplete="off"
-        />
-        <button type="button" className="secret-btn" onClick={() => setRevealed((r) => !r)}>
-          {revealed ? "隐藏" : "显示"}
-        </button>
-        <button type="button" className="secret-btn" onClick={() => { setRevealed(false); onChange(""); }}>
-          清除
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="secret-input">
       <input
-        className="secret-field"
         type={revealed ? "text" : "password"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -48,8 +16,26 @@ export default function SecretInput({ value, onChange, placeholder = "可选" }:
         spellCheck={false}
         autoComplete="off"
       />
-      <button type="button" className="secret-btn" onClick={() => setRevealed((r) => !r)}>
-        {revealed ? "隐藏" : "显示"}
+      <button
+        type="button"
+        className="secret-eye"
+        onClick={() => setRevealed((r) => !r)}
+        aria-label={revealed ? "隐藏 Key" : "显示 Key"}
+        title={revealed ? "隐藏" : "显示"}
+      >
+        {revealed ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68" />
+            <path d="M6.61 6.61A13.5 13.5 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.39" />
+            <line x1="2" y1="2" x2="22" y2="22" />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        )}
       </button>
     </div>
   );

@@ -554,19 +554,26 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .field { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .field label { width: 118px; flex-shrink: 0; font-size: 14px; color: var(--muted); }
 .field input { flex: 1; padding: 9px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); }
-.secret-input { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-.secret-field, .secret-text { flex: 1; min-width: 0; }
-.secret-text { cursor: default; background: var(--bg); }
-.secret-btn {
-  padding: 6px 10px;
+.secret-input { position: relative; flex: 1; min-width: 0; }
+.secret-input input { width: 100%; padding-right: 46px; }
+.secret-eye {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 0;
   background: transparent;
-  color: var(--accent);
-  font-size: 13px;
-  white-space: nowrap;
-  flex-shrink: 0;
+  color: var(--muted);
   cursor: pointer;
+  border-radius: 8px;
 }
+.secret-eye:hover { color: var(--accent); }
 .check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); cursor: pointer; }
 .check input { width: auto; }
 
