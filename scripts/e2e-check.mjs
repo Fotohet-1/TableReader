@@ -1,6 +1,7 @@
 /* 浏览器端全流程检查：需要本地 dev server 与带远程调试端口的 Chrome */
 const DEBUG = process.env.CDP_URL || "http://127.0.0.1:9223";
 const PAGE_URL = process.env.PAGE_URL || "http://127.0.0.1:5174/";
+const ARCHIVE_DIR = process.env.ARCHIVE_DIR || "";
 
 const targets = await (await fetch(DEBUG + "/json")).json();
 const page = targets.find((t) => t.type === "page");
@@ -33,7 +34,7 @@ await send("Page.enable");
 await send("Runtime.enable");
 await send("Page.navigate", { url: PAGE_URL });
 await new Promise((r) => setTimeout(r, 1500));
-await evalJs(`localStorage.setItem("sr_has_onboarded", "1"); localStorage.setItem("sr_tts_source", "edge")`);
+await evalJs(`localStorage.setItem("sr_has_onboarded", "1"); localStorage.setItem("sr_tts_source", "edge")${ARCHIVE_DIR ? `; localStorage.setItem("sr_archive_dir", ${JSON.stringify(ARCHIVE_DIR)})` : ""}`);
 await send("Page.navigate", { url: PAGE_URL });
 await new Promise((r) => setTimeout(r, 2500));
 
@@ -63,7 +64,7 @@ const clickByText = (text) =>
   })()`);
 
 await waitFor(`document.querySelector(".home") !== null`, 10000);
-await evalJs(`document.querySelector(".home").click()`);
+await clickByText("开始使用");
 await waitFor(`document.querySelector(".choose-card") !== null`, 10000);
 await evalJs(`(() => { const b = [...document.querySelectorAll(".choose-card")].find((x) => x.textContent.includes("上传新剧本")); b && b.click(); return !!b; })()`);
 await waitFor(`document.querySelector(".upload-hero") !== null`, 10000);
