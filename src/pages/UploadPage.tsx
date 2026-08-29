@@ -15,6 +15,7 @@ import {
   type BaseVoiceInfo
 } from "../lib/tts";
 import VoiceLibrary from "../components/VoiceLibrary";
+import SecretInput from "../components/SecretInput";
 import {
   loadVoiceTags,
   saveVoiceTags,
@@ -1299,7 +1300,11 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
               )}
               <div className="field">
                 <label>DeepSeek Key</label>
-                <input value={dsKey} onChange={(e) => { setDsKey(e.target.value); saveDsKey(e.target.value); }} placeholder="可选" />
+                <SecretInput
+                  value={dsKey}
+                  onChange={(v) => { setDsKey(v); saveDsKey(v); }}
+                  placeholder="可选"
+                />
               </div>
               <div className="field">
                 <label>存档目录</label>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { checkDeepSeekKey } from "../lib/llm";
 import type { TtsSource } from "../lib/settings";
+import SecretInput from "../components/SecretInput";
 
 export default function OnboardingPage({ onDone }: {
   onDone: (source: TtsSource, dsKey: string) => void;
@@ -66,7 +67,7 @@ export default function OnboardingPage({ onDone }: {
             </p>
             <div className="ob-key-field">
               <label>DeepSeek API Key（选填）</label>
-              <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-" />
+              <SecretInput value={key} onChange={setKey} placeholder="sk-" />
             </div>
             {err && <div className="err">{err}</div>}
             <div className="onboard-actions">
