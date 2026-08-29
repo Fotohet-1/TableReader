@@ -4,6 +4,7 @@ export interface EpisodeRef {
   id: string;
   name: string;
   order: number;
+  full?: boolean;
 }
 
 export interface SeriesListItem {
@@ -43,6 +44,21 @@ export interface VoiceBankEntry {
 export interface VoiceBank {
   updatedAt?: string;
   roles: Record<string, VoiceBankEntry>;
+}
+
+export interface FullAudioInfo {
+  exists: boolean;
+  path?: string;
+  durationMs?: number;
+}
+
+export interface StitchResult {
+  ok: boolean;
+  durationMs?: number;
+  units?: number;
+  missing?: number;
+  path?: string;
+  error?: string;
 }
 
 const BASE = "http://127.0.0.1:9884";
@@ -221,4 +237,47 @@ export async function saveSeed(dir: string, seriesId: string, role: string, blob
 
 export function seedUrl(dir: string, seriesId: string, role: string): string {
   return BASE + "/seed?dir=" + enc(dir) + "&series=" + enc(seriesId) + "&role=" + enc(role);
+}
+
+export async function fullAudioInfo(dir: string, seriesId: string, episodeId: string): Promise<FullAudioInfo | null> {
+  try {
+    const r = await fetch(BASE + "/full-audio-info?dir=" + enc(dir) + "&series=" + enc(seriesId) + "&id=" + enc(episodeId));
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j as FullAudioInfo;
+  } catch {
+    return null;
+  }
+}
+
+export async function stitchAudio(dir: string, seriesId: string, episodeId: string): Promise<StitchResult | null> {
+  try {
+    const r = await fetch(BASE + "/stitch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dir, series: seriesId, id: episodeId })
+    });
+    const j = await r.json().catch(() => ({}));
+    return (j as StitchResult) || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function revealFullAudio(dir: string, seriesId: string, episodeId: string): Promise<boolean> {
+  try {
+    const r = await fetch(BASE + "/reveal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dir, series: seriesId, id: episodeId })
+    });
+    const j = await r.json().catch(() => ({}));
+    return !!(j && j.ok);
+  } catch {
+    return false;
+  }
+}
+
+export function fullAudioUrl(dir: string, seriesId: string, episodeId: string): string {
+  return BASE + "/full-audio?dir=" + enc(dir) + "&series=" + enc(seriesId) + "&id=" + enc(episodeId);
 }

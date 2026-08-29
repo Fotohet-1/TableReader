@@ -69,7 +69,7 @@ interface Profile {
   merged?: string[];
 }
 
-export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack }: {
+export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack, onFullReady }: {
   theme: Theme;
   onTheme: (t: Theme) => void;
   lastSession: Session | null;
@@ -82,6 +82,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   onArchiveActive: () => void;
   onEnterPlayer: () => void;
   onBack: () => void;
+  onFullReady?: (ctx: ArchiveContext) => void;
 }) {
   const [source, setSourceState] = useState<Source>(loadSource);
   const [edgeUrl, setEdgeUrlState] = useState(loadEdgeUrl);
@@ -965,6 +966,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
         saveStateOnly({ ...archiveAudioRef.current });
       }
       markSynthDone();
+      if (archiveInfo && s.failed === 0) onFullReady?.(archiveInfo);
     });
   };
 

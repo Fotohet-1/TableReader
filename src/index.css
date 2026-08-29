@@ -802,6 +802,11 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .archive-list .resume-item:nth-child(n+6) { animation-delay: .22s; }
 .resume-name { font-size: 17px; font-weight: 600; color: var(--ink); letter-spacing: -0.374px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .resume-time { font-size: 14px; color: var(--muted); flex-shrink: 0; }
+.full-audio-badge {
+  font-size: 12px; color: var(--accent); background: var(--accent-soft);
+  border-radius: 999px; padding: 2px 8px; margin-left: 8px; flex-shrink: 0;
+  white-space: nowrap;
+}
 .lib-top {
   display: flex;
   align-items: center;
@@ -1038,6 +1043,22 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   gap: 5px;
 }
 .tb-info { color: var(--muted); font-size: 14px; letter-spacing: -0.224px; }
+.export-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: var(--muted);
+  font-size: 14px;
+  letter-spacing: -0.224px;
+  text-align: right;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.export-btn.done { color: var(--accent); }
+.export-btn.generate { color: var(--accent); }
+.export-btn.failed { color: #c0392b; }
+.export-btn:disabled { cursor: default; opacity: .7; }
 .tb-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
 .tb-regen { display: flex; align-items: center; gap: 8px; }
 .tb-regen select {

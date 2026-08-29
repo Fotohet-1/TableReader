@@ -54,3 +54,5 @@ export interface Session {
   charVoices: CharacterVoice[];
   source: "edge" | "qwen";
 }
+
+export type FullAudioState = "unknown" | "generate" | "stitching" | "done" | "failed";

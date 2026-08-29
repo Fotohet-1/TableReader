@@ -103,6 +103,7 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
                         onClick={() => resume(s, ep)}
                       >
                         <span className="resume-name">{loadingKey === s.id + ":" + ep.id ? "载入中…" : ep.name}</span>
+                        {ep.full && <span className="full-audio-badge">完整音频</span>}
                       </button>
                     ))}
                   </div>

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Project, Unit, UnitAudio } from "../lib/types";
+import type { ArchiveContext, FullAudioState, Project, Unit, UnitAudio } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
 import { toChineseNumber } from "../lib/parser";
 import { qwenSynthOne, qwenCloneSynthOne } from "../lib/tts";
@@ -105,7 +105,7 @@ function retryPlay(a: HTMLAudioElement) {
   }
 }
 
-export default function PlayerPage({ theme, onTheme, project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems }: {
+export default function PlayerPage({ theme, onTheme, project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems, fullState, onReveal, onGenerate, onExportAfterRegen }: {
   theme: Theme;
   onTheme: (t: Theme) => void;
   project: Project;
@@ -117,6 +117,10 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
   onBack: () => void;
   onPosition?: (currentIdx: number, globalMs: number, rate: number) => void;
   onUpdateItems?: (updates: Record<number, { url: string; durationMs: number }>) => void;
+  fullState?: FullAudioState;
+  onReveal?: () => void;
+  onGenerate?: () => void;
+  onExportAfterRegen?: (ctx: ArchiveContext) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -478,6 +482,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
       await Promise.all([worker(), worker()]);
       if (ar) {
         await saveMeta(ar.dir, ar.series, ar.episode, { id: ar.episode, name: ar.episodeName, source: "qwen", audio: durations });
+        onExportAfterRegen?.(ar);
       }
       setRegenProgress(null);
       setRegenOpen(false);
@@ -512,9 +517,40 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
             </div>
           )}
           <div className="tb-meta">
-            <span className="tb-info">
-              {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
-            </span>
+            {(() => {
+              const label =
+                fullState === "done" ? "整集音频已生成"
+                : fullState === "stitching" ? "正在生成整集音频…"
+                : fullState === "failed" ? "整集音频生成失败"
+                : fullState === "generate" ? "可生成整集音频"
+                : "";
+              const action =
+                fullState === "done" ? onReveal
+                : fullState === "generate" || fullState === "failed" ? onGenerate
+                : undefined;
+              if (label) {
+                return (
+                  <button
+                    className={"tb-info export-btn " + fullState}
+                    onClick={action}
+                    disabled={!action}
+                    title={
+                      fullState === "done" ? "在访达中显示完整音频"
+                      : fullState === "generate" ? "生成整集完整音频"
+                      : fullState === "failed" ? "重新生成整集完整音频"
+                      : undefined
+                    }
+                  >
+                    {label}
+                  </button>
+                );
+              }
+              return (
+                <span className="tb-info">
+                  {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
+                </span>
+              );
+            })()}
             {!synthDone && (
               <div className="tb-progress">
                 <div className="tb-progress-fill" style={{ width: synthPct + "%" }} />

@@ -6,8 +6,8 @@ import ChoosePage from "./pages/ChoosePage";
 import ArchiveContinuePage from "./pages/ArchiveContinuePage";
 import UploadPage from "./pages/UploadPage";
 import PlayerPage from "./pages/PlayerPage";
-import { archiveAudioUrl, loadMeta, savePlayback } from "./lib/archive";
-import type { ArchiveContext } from "./lib/types";
+import { archiveAudioUrl, loadMeta, savePlayback, stitchAudio, revealFullAudio, fullAudioInfo } from "./lib/archive";
+import type { ArchiveContext, FullAudioState } from "./lib/types";
 import { hasOnboarded, markOnboarded, saveDsKey, saveSource, type TtsSource } from "./lib/settings";
 import { loadTheme, saveTheme, applyTheme, subscribeSystem, type Theme } from "./lib/theme";
 
@@ -19,6 +19,8 @@ export default function App() {
   const [lastSession, setLastSession] = useState<Session | null>(null);
   const [playerInit, setPlayerInit] = useState({ idx: -1, ms: 0, rate: 1 });
   const archiveActiveRef = useRef(false);
+  const [fullState, setFullState] = useState<FullAudioState>("unknown");
+  const fullTargetRef = useRef<ArchiveContext | null>(null);
   const projectRef = useRef<Project | null>(null);
   const playerFromRef = useRef<"work" | "archive">("work");
   projectRef.current = project;
@@ -51,6 +53,33 @@ export default function App() {
   }, []);
 
   const markSynthDone = useCallback(() => setSynthDone(true), []);
+
+  const runStitch = useCallback(async () => {
+    const t = fullTargetRef.current;
+    if (!t) return;
+    setFullState("stitching");
+    const res = await stitchAudio(t.dir, t.series, t.episode);
+    setFullState(res && res.ok && res.missing === 0 ? "done" : "failed");
+  }, []);
+
+  const handleFullReady = useCallback((ctx: ArchiveContext) => {
+    fullTargetRef.current = ctx;
+    void runStitch();
+  }, [runStitch]);
+
+  const handleGenerateFull = useCallback(() => {
+    void runStitch();
+  }, [runStitch]);
+
+  const handleRevealFull = useCallback(async () => {
+    const t = fullTargetRef.current;
+    if (t) await revealFullAudio(t.dir, t.series, t.episode);
+  }, []);
+
+  const handleAfterRegen = useCallback((ctx: ArchiveContext) => {
+    fullTargetRef.current = ctx;
+    void runStitch();
+  }, [runStitch]);
 
   const updateItems = useCallback((updates: Record<number, { url: string; durationMs: number }>) => {
     setItems((prev) => prev.map((it) => {
@@ -101,6 +130,15 @@ export default function App() {
     });
     playerFromRef.current = "archive";
     setView("player");
+    fullTargetRef.current = ctx;
+    const completeUnits = (meta.units || []).filter((u) => (u.text || "").trim());
+    const complete = completeUnits.every((u) => meta.audio && meta.audio[u.id]);
+    void (async () => {
+      const info = await fullAudioInfo(ctx.dir, ctx.series, ctx.episode);
+      if (info?.exists) setFullState("done");
+      else if (complete) setFullState("generate");
+      else setFullState("unknown");
+    })();
     return true;
   }, []);
 
@@ -145,8 +183,11 @@ export default function App() {
           setProject={setProject}
           onArchiveNew={() => {
             archiveActiveRef.current = false;
+            setFullState("unknown");
+            fullTargetRef.current = null;
             setPlayerInit({ idx: -1, ms: 0, rate: 1 });
           }}
+          onFullReady={handleFullReady}
           onArchiveActive={() => {
             archiveActiveRef.current = true;
             setPlayerInit({ idx: -1, ms: 0, rate: 1 });
@@ -172,6 +213,10 @@ export default function App() {
             onBack={() => setView(playerFromRef.current === "archive" ? "archive" : "work")}
             onPosition={handlePosition}
             onUpdateItems={updateItems}
+            fullState={fullState}
+            onReveal={handleRevealFull}
+            onGenerate={handleGenerateFull}
+            onExportAfterRegen={handleAfterRegen}
           />
         )
       )}
