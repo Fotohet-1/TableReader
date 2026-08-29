@@ -50,6 +50,9 @@ export interface FullAudioInfo {
   exists: boolean;
   path?: string;
   durationMs?: number;
+  complete?: boolean;
+  stale?: boolean;
+  missing?: number;
 }
 
 export interface StitchResult {

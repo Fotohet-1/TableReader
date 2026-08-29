@@ -332,14 +332,41 @@ class Handler(BaseHTTPRequestHandler):
                 sid = q.get("series", [""])[0]
                 eid = q.get("id", [""])[0]
                 path = full_audio_path(base, sid, eid)
+                ep_folder = safe_child(base, sid, eid)
+                ep_proj = read_json(os.path.join(ep_folder, "project.json")) or {}
+                text_units = [u for u in (ep_proj.get("units") or []) if (u.get("text") or "").strip()]
+                audio_dir = os.path.join(ep_folder, "audio")
+                missing = 0
+                newest_mtime = 0
+                for u in text_units:
+                    p = os.path.join(audio_dir, str(u["id"]) + ".wav")
+                    if os.path.isfile(p):
+                        m = os.path.getmtime(p)
+                        if m > newest_mtime:
+                            newest_mtime = m
+                    else:
+                        missing += 1
+                complete = bool(text_units) and missing == 0
+                exists = os.path.isfile(path)
+                stale = False
                 dur = None
-                if os.path.isfile(path):
+                if exists:
                     try:
                         with wave.open(path, "rb") as w:
                             dur = int(round(w.getnframes() / w.getframerate() * 1000))
                     except Exception:
                         pass
-                self._json({"ok": True, "exists": os.path.isfile(path), "path": path if os.path.isfile(path) else None, "durationMs": dur})
+                    if complete and newest_mtime:
+                        stale = os.path.getmtime(path) < newest_mtime
+                self._json({
+                    "ok": True,
+                    "exists": exists,
+                    "path": path if exists else None,
+                    "durationMs": dur,
+                    "complete": complete,
+                    "stale": stale,
+                    "missing": missing,
+                })
                 return
             if self.path.startswith("/full-audio"):
                 base = self._base(q)

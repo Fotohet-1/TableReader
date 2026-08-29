@@ -132,10 +132,11 @@ export default function App() {
     setView("player");
     fullTargetRef.current = ctx;
     const completeUnits = (meta.units || []).filter((u) => (u.text || "").trim());
-    const complete = completeUnits.every((u) => meta.audio && meta.audio[u.id]);
+    const completeMeta = completeUnits.every((u) => meta.audio && meta.audio[u.id]);
     void (async () => {
       const info = await fullAudioInfo(ctx.dir, ctx.series, ctx.episode);
-      if (info?.exists) setFullState("done");
+      const complete = info?.complete !== undefined ? info.complete : completeMeta;
+      if (info?.exists && complete && !info?.stale) setFullState("done");
       else if (complete) setFullState("generate");
       else setFullState("unknown");
     })();
