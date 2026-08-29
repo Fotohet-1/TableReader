@@ -279,11 +279,17 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 .archive-dir-row input {
   flex: 1;
   min-width: 0;
+  height: 42px;
   padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 11px;
   background: var(--paper);
 }
+.archive-dir-row button {
+  height: 42px;
+  padding: 0 16px;
+}
+.archive-page button:active { transform: none; }
 .archive-empty { font-size: 13px; color: var(--muted); padding: 14px 0; animation: srFadeIn .4s ease; }
 .archive-list {
   display: flex;
