@@ -113,6 +113,46 @@ def full_audio_path(base: str, sid: str, eid: str) -> str:
     return safe_child(base, sid, eid, fn)
 
 
+def full_audio_status(base: str, sid: str, eid: str) -> dict:
+    """完整音频状态：exists/complete/stale/missing/durationMs。
+    complete=整集每个对白都有 wav；stale=完整音频早于最新对白 wav（重生成后旧文件）。"""
+    path = full_audio_path(base, sid, eid)
+    ep_folder = safe_child(base, sid, eid)
+    ep_proj = read_json(os.path.join(ep_folder, "project.json")) or {}
+    text_units = [u for u in (ep_proj.get("units") or []) if (u.get("text") or "").strip()]
+    audio_dir = os.path.join(ep_folder, "audio")
+    missing = 0
+    newest_mtime = 0
+    for u in text_units:
+        p = os.path.join(audio_dir, str(u["id"]) + ".wav")
+        if os.path.isfile(p):
+            m = os.path.getmtime(p)
+            if m > newest_mtime:
+                newest_mtime = m
+        else:
+            missing += 1
+    complete = bool(text_units) and missing == 0
+    exists = os.path.isfile(path)
+    stale = False
+    dur = None
+    if exists:
+        try:
+            with wave.open(path, "rb") as w:
+                dur = int(round(w.getnframes() / w.getframerate() * 1000))
+        except Exception:
+            pass
+        if complete and newest_mtime:
+            stale = os.path.getmtime(path) < newest_mtime
+    return {
+        "exists": exists,
+        "path": path if exists else None,
+        "durationMs": dur,
+        "complete": complete,
+        "stale": stale,
+        "missing": missing,
+    }
+
+
 def _dur_of_uid(infos, audio_map, uid):
     if uid in infos:
         p = infos[uid][0]
@@ -323,50 +363,15 @@ class Handler(BaseHTTPRequestHandler):
                 proj, _ = series_project(base, sid)
                 eps = []
                 for ep in proj.get("episodes") or []:
-                    p = full_audio_path(base, sid, ep.get("id", ""))
-                    eps.append({**ep, "full": os.path.isfile(p)})
+                    st = full_audio_status(base, sid, ep.get("id", ""))
+                    eps.append({**ep, "full": st["exists"] and st["complete"] and not st["stale"]})
                 self._json({"ok": True, "episodes": eps})
                 return
             if self.path.startswith("/full-audio-info"):
                 base = self._base(q)
                 sid = q.get("series", [""])[0]
                 eid = q.get("id", [""])[0]
-                path = full_audio_path(base, sid, eid)
-                ep_folder = safe_child(base, sid, eid)
-                ep_proj = read_json(os.path.join(ep_folder, "project.json")) or {}
-                text_units = [u for u in (ep_proj.get("units") or []) if (u.get("text") or "").strip()]
-                audio_dir = os.path.join(ep_folder, "audio")
-                missing = 0
-                newest_mtime = 0
-                for u in text_units:
-                    p = os.path.join(audio_dir, str(u["id"]) + ".wav")
-                    if os.path.isfile(p):
-                        m = os.path.getmtime(p)
-                        if m > newest_mtime:
-                            newest_mtime = m
-                    else:
-                        missing += 1
-                complete = bool(text_units) and missing == 0
-                exists = os.path.isfile(path)
-                stale = False
-                dur = None
-                if exists:
-                    try:
-                        with wave.open(path, "rb") as w:
-                            dur = int(round(w.getnframes() / w.getframerate() * 1000))
-                    except Exception:
-                        pass
-                    if complete and newest_mtime:
-                        stale = os.path.getmtime(path) < newest_mtime
-                self._json({
-                    "ok": True,
-                    "exists": exists,
-                    "path": path if exists else None,
-                    "durationMs": dur,
-                    "complete": complete,
-                    "stale": stale,
-                    "missing": missing,
-                })
+                self._json({"ok": True, **full_audio_status(base, sid, eid)})
                 return
             if self.path.startswith("/full-audio"):
                 base = self._base(q)

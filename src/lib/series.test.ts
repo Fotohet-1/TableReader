@@ -8,6 +8,7 @@ describe("seriesKeyFromFile", () => {
     expect(seriesKeyFromFile("《沉默之声》七稿第一集0820.docx")).toBe("沉默之声");
     expect(seriesKeyFromFile("《沉默之声》七稿第二集0820.docx")).toBe("沉默之声");
     expect(seriesKeyFromFile("《你到底要去哪》.docx")).toBe("你到底要去哪");
+    expect(seriesKeyFromFile("《火旺》E01-250911.docx")).toBe("火旺");
   });
   it("无标题返回 null", () => {
     expect(seriesKeyFromFile("第1集")).toBeNull();

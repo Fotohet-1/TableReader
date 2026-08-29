@@ -13,6 +13,7 @@ export function seriesKeyFromFile(filename: string): string | null {
   base = base.replace(/第\s*[0-9一二三四五六七八九十百零两]+\s*[集话回]/g, "");
   base = base.replace(/[一二三四五六七八九十]+稿/g, "");
   base = base.replace(/v\d+/gi, "");
+  base = base.replace(/E\d+(?:-\d+)?/gi, "");
   base = base.replace(/\d{4}/g, "");
   base = base.replace(/^\s*0?\d+[\s._-]*/, "");
   base = base.replace(/【.*?】|\[.*?\]|（.*?）|\(.*?\)|〈.*?〉/g, "");
