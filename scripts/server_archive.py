@@ -494,11 +494,13 @@ class Handler(BaseHTTPRequestHandler):
                         meta["playback"] = state["playback"]
                     if isinstance(state.get("audio"), dict) and isinstance(meta.get("audio"), dict):
                         meta["audio"] = {**state["audio"], **meta["audio"]}
-                    project = {}
+                    project = read_json(os.path.join(folder, "project.json")) or {}
+                    project_changed = False
                     for k in PROJECT_FIELDS:
                         if k in meta:
                             project[k] = meta.pop(k)
-                    if project:
+                            project_changed = True
+                    if project_changed:
                         atomic_write(os.path.join(folder, "project.json"), project)
                     state_out = {k: meta[k] for k in STATE_FIELDS if k in meta}
                     state_out["updatedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")

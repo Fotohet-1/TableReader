@@ -1,13 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ArchiveContext, FullAudioState, Project, Unit, UnitAudio } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
-import { toChineseNumber } from "../lib/parser";
+import { toChineseNumber, roleBase } from "../lib/parser";
 import { qwenSynthOne, qwenCloneSynthOne } from "../lib/tts";
 import { describeRoleVoice } from "../lib/llm";
 import { defaultVoiceDescFor } from "../lib/voices";
-import { saveAudio, saveMeta, archiveAudioUrl } from "../lib/archive";
+import { saveAudio, saveMeta, saveSeed, saveVoiceBank, loadVoiceBank, archiveAudioUrl } from "../lib/archive";
 import { loadQwenUrl, loadDsKey, loadAiEnabled, loadSource } from "../lib/settings";
 import { isDark, type Theme } from "../lib/theme";
+import { slugify } from "../lib/series";
 
 const MAX_SIMUL = 3;
 
@@ -484,6 +485,27 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
       await Promise.all([worker(), worker()]);
       if (ar) {
         await saveMeta(ar.dir, ar.series, ar.episode, { id: ar.episode, name: ar.episodeName, source: "qwen", audio: durations });
+        // 把新种子写回音色库/种子文件/项目 voices，后续补缺与跨集都用新音色
+        const roleKey = roleBase(regenRole);
+        await saveSeed(ar.dir, ar.series, roleKey, seed.blob);
+        const bank = await loadVoiceBank(ar.dir, ar.series);
+        bank.roles[roleKey] = {
+          ...(bank.roles[roleKey] || {}),
+          canonical: roleKey,
+          source: "qwen",
+          voiceDesc: regenDesc.trim(),
+          seed: "seeds/" + slugify(roleKey) + ".wav",
+          refText,
+          confirmedIn: ar.episodeName
+        };
+        await saveVoiceBank(ar.dir, ar.series, bank);
+        await saveMeta(ar.dir, ar.series, ar.episode, {
+          voices: project.voices.map((v) =>
+            v.name === regenRole
+              ? { ...v, voiceDesc: regenDesc.trim(), cloneAudioB64: b64, cloneRefText: refText }
+              : v
+          )
+        });
         // 只在整集已完整合成（每个对白都有音频）时才自动重拼，避免中间态误报“生成失败”
         if (items.length === totalUnits && items.every((it) => it.url && it.durationMs > 0)) {
           onExportAfterRegen?.(ar);
