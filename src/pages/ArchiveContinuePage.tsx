@@ -19,6 +19,7 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
   const [openId, setOpenId] = useState("");
   const [episodes, setEpisodes] = useState<EpisodeRef[]>([]);
   const [busy, setBusy] = useState(false);
+  const [episodesBusy, setEpisodesBusy] = useState(false);
   const [err, setErr] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
 
@@ -46,9 +47,9 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
   const openSeries = async (id: string) => {
     setOpenId(id);
     setErr("");
-    setBusy(true);
+    setEpisodesBusy(true);
     setEpisodes(await listEpisodes(dir, id));
-    setBusy(false);
+    setEpisodesBusy(false);
   };
 
   const resume = async (s: SeriesListItem, ep: EpisodeRef) => {
@@ -95,8 +96,11 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
                 </button>
                 {openId === s.id && (
                   <div className="episode-list">
-                    {episodes.length === 0 && <p className="archive-empty">这部剧还没有集</p>}
-                    {episodes.map((ep) => (
+                    {episodesBusy ? (
+                      <p className="archive-empty">载入中…</p>
+                    ) : episodes.length === 0 ? (
+                      <p className="archive-empty">这部剧还没有集</p>
+                    ) : episodes.map((ep) => (
                       <button
                         key={ep.id}
                         className="resume-item episode-item"
