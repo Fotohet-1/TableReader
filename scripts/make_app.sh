@@ -1,5 +1,5 @@
 #!/bin/bash
-# 生成“剧本围读”启动器 .app：双击后拉起四个本地服务并打开前端。
+# 生成“TableReader”启动器 .app：双击后拉起四个本地服务并打开前端。
 # 用法：bash scripts/make_app.sh   （产物：仓库根目录 TableReader.app）
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,8 +22,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>剧本围读</string>
-  <key>CFBundleDisplayName</key><string>剧本围读</string>
+  <key>CFBundleName</key><string>TableReader</string>
+  <key>CFBundleDisplayName</key><string>TableReader</string>
   <key>CFBundleIdentifier</key><string>com.fotohet1.tablereader</string>
   <key>CFBundleVersion</key><string>1.0.0</string>
   <key>CFBundleShortVersionString</key><string>1.0.0</string>

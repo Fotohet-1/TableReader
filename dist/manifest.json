@@ -1,6 +1,6 @@
 {
-  "name": "剧本围读",
-  "short_name": "围读",
+  "name": "TableReader",
+  "short_name": "TableReader",
   "description": "上传剧本，自动拆角色、场次、对白，分角色朗读，多集统一音色，自动合成整集音频。",
   "start_url": "/",
   "scope": "/",
