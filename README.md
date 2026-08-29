@@ -77,7 +77,7 @@ Qwen3 服务默认每种模型只保留 1 个实例以控制内存；内存充�
 1. **无浏览器导航栏（PWA）**：在 Chrome 打开 `http://127.0.0.1:5174/`，点地址栏右侧的“安装”图标；或用 Safari 的「文件 → 添加到 Dock」。装完后是一个带图标、无地址栏的独立窗口。
 2. **一键启动器**：运行 `bash scripts/make_app.sh` 生成 `TableReader.app`，双击它就会拉起四个本地服务并打开前端，可以当 `start.command` 的替代入口。
 
-图标由 `scripts/gen_app_icons.py`（Pillow）生成，`.app` 是构建产物（已 gitignore）；换图标或换机器后重新跑 `make_app.sh` 即可。
+应用图标为 `public/icons/icon-*.png`（当前用自定义设计）；`scripts/gen_app_icons.py` 是内置的备用生成器。`.app` 是构建产物（已 gitignore）；换图标或换机器后重新跑 `make_app.sh` 即可。
 
 ## 存档与续读
 
