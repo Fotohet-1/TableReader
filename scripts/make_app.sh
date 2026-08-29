@@ -25,8 +25,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>TableReader</string>
   <key>CFBundleDisplayName</key><string>TableReader</string>
   <key>CFBundleIdentifier</key><string>com.fotohet1.tablereader</string>
-  <key>CFBundleVersion</key><string>1.0.0</string>
-  <key>CFBundleShortVersionString</key><string>1.0.0</string>
+  <key>CFBundleVersion</key><string>1.1.0</string>
+  <key>CFBundleShortVersionString</key><string>1.1.0</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>TableReader</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>

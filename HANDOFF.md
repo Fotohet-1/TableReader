@@ -8,7 +8,7 @@
 
 - GitHub 仓库：https://github.com/Fotohet-1/TableReader（公开，MIT）
 - 产品页：https://fotohet-1.github.io/TableReader/
-- 正式外发包：`/Users/hetan/Documents/剧本围读外发/TableReader-正式版-v1.0.0.zip`
+- 正式外发包：`/Users/hetan/Documents/剧本围读外发/TableReader-正式版-v1.1.0.zip`
 - 一句话：上传剧本 → 自动拆角色/场次/对白 → 一句话描述音色（Qwen 本地种子）或 edge 在线 → 流式合成 → 分角色围读 → 存档续读
 
 主推路线是 **Qwen 本地部署 + 自然语言描述音色**：全本地、离线可用、跨集声音统一；edge-tts 只是快速试听备选。
@@ -50,7 +50,7 @@ npm run typecheck && npm test && npm run build
 
 - 默认浅色模式；浅色匹配 Codex 浅色（页面 `#fcfcfc`、卡片 `#ffffff`）；深色匹配 Codex 聊天框（`#181818` / 表面 `#222222` / 分割线 `#2a2a2a`）。
 - 首页只能点“开始使用”按钮进入，整页不可点。
-- 首页底部签名 `Made by 河忐`；设置弹窗 `v1.0.0` + `Made by 河忐`；版本常量 `APP_VERSION = "v1.0.0"` 在 `src/lib/settings.ts`，正式外发前保持不变。
+- 首页底部签名 `Made by 河忐`；设置弹窗 `v1.1.0` + `Made by 河忐`；版本常量 `APP_VERSION = "v1.1.0"` 在 `src/lib/settings.ts`。
 - 存档目录 UX：去掉绿点；只读输入框点击唤起文件夹选择；路径失效显示红色“路径丢失，请重新设置”；存档服务有 `/check-dir`、`/pick-dir`。
 - 主推 Qwen：卡片、文案、产品内均以“一句话描述音色 + 本地生成种子”为主线。
 
@@ -83,7 +83,7 @@ npm run typecheck && npm test && npm run build
 
 - 一直在 `main`，每次改动后 `git commit`（用户要求）。
 - 不要 `git add xhs/`；不要 revert 用户已有改动。
-- 外发目录统一用 `TableReader-正式版-v1.0.0.zip`；旧的 `剧本围读助手-*` 包已过时，不要再分发。
+- 外发目录统一用 `TableReader-正式版-v1.1.0.zip`；旧的 `剧本围读助手-*` 包已过时，不要再分发。
 
 ## 待办 / 开放项
 
