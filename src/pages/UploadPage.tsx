@@ -136,6 +136,11 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   const [bank, setBank] = useState<Record<string, VoiceBankEntry>>({});
   const [reusedRoles, setReusedRoles] = useState<Set<string>>(new Set());
   const [seedBusy, setSeedBusy] = useState<Set<string>>(new Set());
+  const [refModalRole, setRefModalRole] = useState<string | null>(null);
+  const [refFile, setRefFile] = useState<{ b64: string; url: string; name: string } | null>(null);
+  const [refText, setRefText] = useState("");
+  const [refBusy, setRefBusy] = useState(false);
+  const [refErr, setRefErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -146,6 +151,9 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   const metaSaveTimerRef = useRef<number | null>(null);
   const metaDirtyRef = useRef(false);
   const archiveCtxRef = useRef<ArchiveContext | null>(null);
+  const refFileInputRef = useRef<HTMLInputElement | null>(null);
+  const refFileAudioRef = useRef<HTMLAudioElement | null>(null);
+  const refCloneAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -789,12 +797,81 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     }
   };
 
+  const openRefModal = (name: string) => {
+    setRefModalRole(name);
+    setRefFile(null);
+    setRefText(seedByRole[name]?.descUsed === "参考音频" ? seedByRole[name].refText : "");
+    setRefErr("");
+    setRefBusy(false);
+  };
+
+  const closeRefModal = () => {
+    setRefModalRole(null);
+    if (refFile && refFile.url.startsWith("blob:")) URL.revokeObjectURL(refFile.url);
+    setRefFile(null);
+    setRefText("");
+    setRefErr("");
+    setRefBusy(false);
+  };
+
+  const onRefFile = async (file: File) => {
+    setRefErr("");
+    try {
+      const b64 = await blobToB64(file);
+      if (refFile && refFile.url.startsWith("blob:")) URL.revokeObjectURL(refFile.url);
+      setRefFile({ b64, url: URL.createObjectURL(file), name: file.name });
+    } catch {
+      setRefErr("读取音频失败，请换一个文件");
+    }
+  };
+
+  const previewRefFile = () => {
+    const a = refFileAudioRef.current;
+    if (!a || !refFile) return;
+    a.src = refFile.url;
+    a.play().catch(() => {});
+  };
+
+  const previewRefClone = async (name: string) => {
+    if (!refFile || !refText.trim()) { setRefErr("请先选择参考音频并填写参考文本"); return; }
+    setRefBusy(true);
+    setRefErr("");
+    try {
+      const demo = demoTextByRole[name] || firstLineFor(name);
+      const r = await qwenCloneSynthOne(qwenUrl, demo, refFile.b64, refText.trim());
+      const a = refCloneAudioRef.current;
+      if (a) {
+        if (a.src.startsWith("blob:")) URL.revokeObjectURL(a.src);
+        a.src = URL.createObjectURL(r.blob);
+        a.play().catch(() => {});
+      }
+    } catch (e) {
+      setRefErr("试听克隆失败：" + String(e));
+    } finally {
+      setRefBusy(false);
+    }
+  };
+
+  const applyRefSeed = (name: string) => {
+    if (!refFile || !refText.trim()) { setRefErr("请先选择参考音频并填写参考文本"); return; }
+    setSeedByRole((prev) => ({ ...prev, [name]: { b64: refFile.b64, refText: refText.trim(), url: refFile.url, descUsed: "参考音频" } }));
+    closeRefModal();
+  };
+
+  const clearRefSeed = (name: string) => {
+    setSeedByRole((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
   const confirmDesign = async () => {
     const seeds = { ...seedByRole };
     const missing = profiles.filter((p) => {
       const desc = descByRole[p.name] || defaultVoiceDescFor(p);
       const seed = seeds[p.name];
-      return !(seed && seed.descUsed === desc);
+      return !(seed && (seed.descUsed === desc || seed.descUsed === "参考音频"));
     });
     if (missing.length) {
       setSeedGen({ total: missing.length, done: 0 });
@@ -1114,8 +1191,15 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
                           ? (previewRole === p.name ? "停止" : "播放试听")
                           : "生成音色")}
                       </button>
+                      <button className="secondary-pill" onClick={() => openRefModal(p.name)}>上传参考音频</button>
                       {seedByRole[p.name] && seedByRole[p.name].descUsed === desc && (
                         <span className="cv-tag">✓ 已生成固定音色</span>
+                      )}
+                      {seedByRole[p.name]?.descUsed === "参考音频" && (
+                        <>
+                          <span className="cv-tag">✓ 使用参考音频</span>
+                          <button className="settings-link" onClick={() => clearRefSeed(p.name)}>清除参考</button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1348,6 +1432,66 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
                 <span>Made by 河忐</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {refModalRole && (
+        <div className="modal-mask" onClick={closeRefModal}>
+          <div className="modal settings-modal ref-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="lib-top">
+              <span className="lib-title">上传参考音频 · {refModalRole}</span>
+              <button className="lib-close" onClick={closeRefModal} aria-label="关闭">✕</button>
+            </header>
+            <div className="regen-body">
+              <label className="regen-label">参考音频文件</label>
+              <div className="ref-file-row">
+                <button className="secondary-pill" onClick={() => refFileInputRef.current?.click()}>
+                  选择音频文件
+                </button>
+                {refFile && (
+                  <>
+                    <span className="cv-tag ref-file-name">{refFile.name}</span>
+                    <button className="secondary-pill" onClick={previewRefFile}>试听原音频</button>
+                  </>
+                )}
+                <input
+                  ref={refFileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files && e.target.files[0];
+                    if (f) void onRefFile(f);
+                  }}
+                />
+              </div>
+              <label className="regen-label">参考文本</label>
+              <input
+                value={refText}
+                onChange={(e) => setRefText(e.target.value)}
+                placeholder="这段音频说了什么"
+              />
+              <p className="regen-hint">建议 5–15 秒干净人声；参考文本需与音频内容一致，否则克隆会漂。</p>
+              <div className="regen-actions">
+                <button
+                  className="secondary-pill"
+                  disabled={refBusy || !refFile || !refText.trim()}
+                  onClick={() => previewRefClone(refModalRole)}
+                >
+                  {refBusy ? "克隆中…" : "试听克隆"}
+                </button>
+                <button
+                  className="primary"
+                  disabled={refBusy || !refFile || !refText.trim()}
+                  onClick={() => applyRefSeed(refModalRole)}
+                >
+                  设为该角色音色
+                </button>
+              </div>
+              {refErr && <div className="err">{refErr}</div>}
+            </div>
+            <audio ref={refFileAudioRef} />
+            <audio ref={refCloneAudioRef} />
           </div>
         </div>
       )}
