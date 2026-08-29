@@ -75,11 +75,11 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
               onChange={(e) => { setDir(e.target.value); saveArchiveDir(e.target.value); }}
               placeholder="~/Documents/剧本围读存档"
             />
-            <button disabled={busy} onClick={refresh}>{busy ? "读取中…" : "刷新"}</button>
             <span
               className={"svc-dot " + (ok === null ? "unknown" : ok ? "ok" : "down")}
               title={"存档服务 " + (ok === null ? "检测中" : ok ? "正常" : "未启动")}
             />
+            <button disabled={busy} onClick={refresh}>{busy ? "读取中…" : "刷新"}</button>
           </div>
           {err && <div className="err">{err}</div>}
           {!busy && !err && series.length === 0 && (
@@ -90,7 +90,8 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
               <div key={s.id} className="series-item">
                 <button className="resume-item" onClick={() => openSeries(s.id)}>
                   <span className="resume-name">{s.name}</span>
-                  <span className="resume-time">{s.episodes} 集 · {s.voices} 音色 · {s.updatedAt}</span>
+                  <span className="resume-meta">{s.episodes}集·{s.voices}音色</span>
+                  <span className="resume-date">{s.updatedAt}</span>
                 </button>
                 {openId === s.id && (
                   <div className="episode-list">
