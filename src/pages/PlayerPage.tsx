@@ -174,7 +174,9 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
   const activeUnitIds = slotIdx >= 0 && slots[slotIdx] ? slots[slotIdx].unitIds : [];
   const activeUnitId = activeUnitIds[0] ?? null;
   const totalUnits = useMemo(() => project.units.filter((u) => u.text.trim()).length, [project]);
-  const synthPct = totalUnits ? Math.min(100, Math.round((items.length / totalUnits) * 100)) : 0;
+  const playableCount = useMemo(() => items.filter((it) => it.url && it.durationMs > 0).length, [items]);
+  const synthPct = totalUnits ? Math.min(100, Math.round((playableCount / totalUnits) * 100)) : 0;
+  const allComplete = synthDone && playableCount >= totalUnits;
 
   const setAudioRef = useCallback((k: number) => (el: HTMLAudioElement | null) => {
     audioElsRef.current[k] = el;
@@ -550,11 +552,15 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
               }
               return (
                 <span className="tb-info">
-                  {synthDone ? "已全部合成" : "后台合成中 · 已合成 " + items.length + " 句"}
+                  {allComplete
+                    ? "已全部合成"
+                    : synthDone
+                      ? "未全部合成 · 已合成 " + playableCount + "/" + totalUnits + " 句"
+                      : "后台合成中 · 已合成 " + playableCount + " 句"}
                 </span>
               );
             })()}
-            {!synthDone && (
+            {playableCount < totalUnits && (
               <div className="tb-progress">
                 <div className="tb-progress-fill" style={{ width: synthPct + "%" }} />
               </div>
