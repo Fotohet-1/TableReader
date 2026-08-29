@@ -482,7 +482,10 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
       await Promise.all([worker(), worker()]);
       if (ar) {
         await saveMeta(ar.dir, ar.series, ar.episode, { id: ar.episode, name: ar.episodeName, source: "qwen", audio: durations });
-        onExportAfterRegen?.(ar);
+        // 只在整集已完整合成（每个对白都有音频）时才自动重拼，避免中间态误报“生成失败”
+        if (items.length === totalUnits && items.every((it) => it.url && it.durationMs > 0)) {
+          onExportAfterRegen?.(ar);
+        }
       }
       setRegenProgress(null);
       setRegenOpen(false);
