@@ -70,6 +70,33 @@ interface Profile {
   merged?: string[];
 }
 
+function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
+  const n = samples.length;
+  const buf = new ArrayBuffer(44 + n * 2);
+  const view = new DataView(buf);
+  const str = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  str(0, "RIFF");
+  view.setUint32(4, 36 + n * 2, true);
+  str(8, "WAVE");
+  str(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  str(36, "data");
+  view.setUint32(40, n * 2, true);
+  let off = 44;
+  for (let i = 0; i < n; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    off += 2;
+  }
+  return buf;
+}
+
 export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack, onFullReady }: {
   theme: Theme;
   onTheme: (t: Theme) => void;
@@ -817,11 +844,28 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   const onRefFile = async (file: File) => {
     setRefErr("");
     try {
-      const b64 = await blobToB64(file);
+      const raw = await file.arrayBuffer();
+      const ctx = new AudioContext();
+      let audio: AudioBuffer;
+      try {
+        audio = await ctx.decodeAudioData(raw);
+      } finally {
+        void ctx.close();
+      }
+      let mono = audio.getChannelData(0);
+      if (audio.numberOfChannels > 1) {
+        mono = new Float32Array(audio.length);
+        for (let c = 0; c < audio.numberOfChannels; c++) {
+          const d = audio.getChannelData(c);
+          for (let i = 0; i < audio.length; i++) mono[i] += d[i] / audio.numberOfChannels;
+        }
+      }
+      const wav = new Blob([encodeWav(mono, audio.sampleRate)], { type: "audio/wav" });
+      const b64 = await blobToB64(wav);
       if (refFile && refFile.url.startsWith("blob:")) URL.revokeObjectURL(refFile.url);
-      setRefFile({ b64, url: URL.createObjectURL(file), name: file.name });
+      setRefFile({ b64, url: URL.createObjectURL(wav), name: file.name });
     } catch {
-      setRefErr("读取音频失败，请换一个文件");
+      setRefErr("无法解析该音频（格式不支持或文件损坏），请换 WAV / MP3 / M4A");
     }
   };
 
