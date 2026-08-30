@@ -213,6 +213,8 @@ export default function App() {
       )}
       {view === "archive" && (
         <ArchiveContinuePage
+          theme={theme}
+          onTheme={setTheme}
           onContinue={resumeArchive}
           onBack={() => setView("choose")}
         />

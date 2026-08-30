@@ -5,19 +5,40 @@ import {
   listEpisodes,
   deleteSeries,
   deleteEpisode,
+  pickArchiveDir,
+  checkArchiveDir,
   type SeriesListItem,
   type EpisodeRef
 } from "../lib/archive";
-import { loadArchiveDir, saveArchiveDir } from "../lib/settings";
+import {
+  loadArchiveDir,
+  saveArchiveDir,
+  loadSource,
+  saveSource,
+  loadEdgeUrl,
+  saveEdgeUrl,
+  loadQwenUrl,
+  saveQwenUrl,
+  loadDsKey,
+  saveDsKey,
+  loadAiEnabled,
+  saveAiEnabled,
+  type TtsSource
+} from "../lib/settings";
+import { checkHealth } from "../lib/tts";
+import SettingsModal from "../components/SettingsModal";
+import type { Theme } from "../lib/theme";
 import type { ArchiveContext } from "../lib/types";
 
 type DeleteTarget =
   | { type: "series"; id: string; name: string }
   | { type: "episode"; seriesId: string; seriesName: string; id: string; name: string };
 
-export default function ArchiveContinuePage({ onContinue, onBack }: {
+export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme }: {
   onContinue: (ctx: ArchiveContext) => Promise<boolean>;
   onBack: () => void;
+  theme: Theme;
+  onTheme: (t: Theme) => void;
 }) {
   const [dir, setDir] = useState(loadArchiveDir);
   const [ok, setOk] = useState<boolean | null>(null);
@@ -31,6 +52,14 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteErr, setDeleteErr] = useState("");
+  const [source, setSource] = useState<TtsSource>(loadSource);
+  const [edgeUrl, setEdgeUrl] = useState(loadEdgeUrl);
+  const [qwenUrl, setQwenUrl] = useState(loadQwenUrl);
+  const [dsKey, setDsKey] = useState(loadDsKey);
+  const [aiEnabled, setAiEnabled] = useState(loadAiEnabled);
+  const [serviceOk, setServiceOk] = useState<boolean | null>(null);
+  const [dirOk, setDirOk] = useState<boolean | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const refresh = async () => {
     setErr("");
@@ -52,6 +81,33 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
   useEffect(() => {
     void refresh();
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      const url = source === "qwen" ? loadQwenUrl() : loadEdgeUrl();
+      const ok = await checkHealth(url).catch(() => false);
+      if (alive) setServiceOk(ok);
+    };
+    void check();
+    const timer = setInterval(check, 30000);
+    return () => { alive = false; clearInterval(timer); };
+  }, [source]);
+
+  useEffect(() => {
+    let alive = true;
+    checkArchiveDir(dir).then((ok) => { if (alive) setDirOk(ok); });
+    return () => { alive = false; };
+  }, [dir]);
+
+  const pickDir = async () => {
+    const picked = await pickArchiveDir();
+    if (picked) {
+      setDir(picked);
+      saveArchiveDir(picked);
+      await refresh();
+    }
+  };
 
   const openSeries = async (id: string) => {
     if (openId === id) {
@@ -99,7 +155,22 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
     <div className="archive-page">
       <header className="archive-top">
         <button className="tb-btn" onClick={onBack}>← 返回</button>
-        <span className="tb-info">继续围读</span>
+        <div className="work-top-tools">
+          <select
+            className="source-select"
+            value={source}
+            onChange={(e) => { const v = e.target.value as TtsSource; setSource(v); saveSource(v); }}
+            title="声音来源"
+          >
+            <option value="qwen">Qwen3 1.7B</option>
+            <option value="edge">edge-tts</option>
+          </select>
+          <span
+            className={"svc-dot " + (serviceOk === null ? "unknown" : serviceOk ? "ok" : "down")}
+            title={source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl)}
+          />
+          <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
+        </div>
       </header>
       <div className="archive-body">
         <section className="card archive-card">
@@ -190,6 +261,25 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
             </div>
           </div>
         </div>
+      )}
+      {showSettings && (
+        <SettingsModal
+          source={source}
+          theme={theme}
+          onTheme={onTheme}
+          edgeUrl={edgeUrl}
+          onEdgeUrl={(v) => { setEdgeUrl(v); saveEdgeUrl(v); }}
+          qwenUrl={qwenUrl}
+          onQwenUrl={(v) => { setQwenUrl(v); saveQwenUrl(v); }}
+          dsKey={dsKey}
+          onDsKey={(v) => { setDsKey(v); saveDsKey(v); }}
+          archiveDir={dir}
+          dirOk={dirOk}
+          onPickDir={pickDir}
+          aiEnabled={aiEnabled}
+          onAiEnabled={(v) => { setAiEnabled(v); saveAiEnabled(v); }}
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </div>
   );

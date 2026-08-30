@@ -15,7 +15,7 @@ import {
   type BaseVoiceInfo
 } from "../lib/tts";
 import VoiceLibrary from "../components/VoiceLibrary";
-import SecretInput from "../components/SecretInput";
+import SettingsModal from "../components/SettingsModal";
 import {
   loadVoiceTags,
   saveVoiceTags,
@@ -23,8 +23,6 @@ import {
   type VoiceTag
 } from "../lib/voiceTags";
 import {
-  APP_VERSION,
-  clearOnboarded,
   loadAiEnabled,
   loadArchiveDir,
   loadDsKey,
@@ -1419,76 +1417,23 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
         />
       )}
       {showSettings && (
-        <div className="modal-mask" onClick={() => setShowSettings(false)}>
-          <div className="modal settings-modal" onClick={(e) => e.stopPropagation()}>
-            <header className="lib-top">
-              <span className="lib-title">设置</span>
-              <button className="lib-close" onClick={() => setShowSettings(false)} aria-label="关闭">✕</button>
-            </header>
-            <div className="settings-body">
-              {source === "edge" ? (
-                <div className="field">
-                  <label>edge-tts 地址</label>
-                  <input value={edgeUrl} onChange={(e) => saveEdgeUrl(e.target.value)} />
-                </div>
-              ) : (
-                <div className="field">
-                  <label>Qwen3 地址</label>
-                  <input value={qwenUrl} onChange={(e) => saveQwenUrl(e.target.value)} />
-                </div>
-              )}
-              <div className="field">
-                <label>DeepSeek Key</label>
-                <SecretInput
-                  value={dsKey}
-                  onChange={(v) => { setDsKey(v); saveDsKey(v); }}
-                  placeholder="可选"
-                />
-              </div>
-              <div className="field">
-                <label>存档目录</label>
-                <input
-                  className={"archive-dir" + (dirOk === false ? " bad" : "")}
-                  value={dirOk === false ? "路径丢失，请重新设置" : archiveDir}
-                  readOnly
-                  onClick={pickDir}
-                  title="点击选择文件夹"
-                />
-              </div>
-              <div className="field">
-                <label>外观</label>
-                <div className="seg" role="group" aria-label="外观">
-                  {([["system", "跟随系统"], ["light", "浅色"], ["dark", "深色"]] as const).map(([v, label]) => (
-                    <button
-                      key={v}
-                      className={"seg-btn" + (theme === v ? " on" : "")}
-                      onClick={() => onTheme(v)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={aiEnabled}
-                  onChange={(e) => { setAiEnabled(e.target.checked); saveAiEnabled(e.target.checked); }}
-                />
-                DeepSeek 角色分析
-              </label>
-              <p className="settings-hint">Key 仅保存在本机浏览器</p>
-              <div className="row">
-                <button className="settings-link" onClick={() => { setDsKey(""); saveDsKey(""); }}>清除 Key</button>
-                <button className="settings-link" onClick={() => { clearOnboarded(); window.location.reload(); }}>重新查看引导</button>
-              </div>
-              <div className="settings-about">
-                <span>{APP_VERSION}</span>
-                <span>Made by 河忐</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SettingsModal
+          source={source}
+          theme={theme}
+          onTheme={onTheme}
+          edgeUrl={edgeUrl}
+          onEdgeUrl={(v) => { setEdgeUrlState(v); saveEdgeUrl(v); }}
+          qwenUrl={qwenUrl}
+          onQwenUrl={(v) => { setQwenUrlState(v); saveQwenUrl(v); }}
+          dsKey={dsKey}
+          onDsKey={(v) => { setDsKey(v); saveDsKey(v); }}
+          archiveDir={archiveDir}
+          dirOk={dirOk}
+          onPickDir={pickDir}
+          aiEnabled={aiEnabled}
+          onAiEnabled={(v) => { setAiEnabled(v); saveAiEnabled(v); }}
+          onClose={() => setShowSettings(false)}
+        />
       )}
       {refModalRole && (
         <div className="modal-mask" onClick={closeRefModal}>
