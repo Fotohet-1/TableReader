@@ -174,7 +174,7 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
       </header>
       <div className="archive-body">
         <section className="card archive-card">
-          <h2 className="archive-title">选择剧集</h2>
+          <h2 className="archive-title">选择项目</h2>
           <div className="archive-dir-row">
             <input
               value={dir}
