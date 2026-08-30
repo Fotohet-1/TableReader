@@ -554,6 +554,9 @@ class Handler(BaseHTTPRequestHandler):
                 body = self._read_json()
                 base = body.get("dir", "") or "~/Documents/剧本围读存档"
                 sid = str(body.get("series", ""))
+                if not sid:
+                    self._json({"ok": False, "error": "项目不能为空"}, 400)
+                    return
                 path = safe_child(base, sid)
                 if not os.path.isdir(path):
                     self._json({"ok": False, "error": "项目不存在"}, 404)
@@ -566,6 +569,9 @@ class Handler(BaseHTTPRequestHandler):
                 base = body.get("dir", "") or "~/Documents/剧本围读存档"
                 sid = str(body.get("series", ""))
                 eid = str(body.get("id", ""))
+                if not sid or not eid:
+                    self._json({"ok": False, "error": "项目/集不能为空"}, 400)
+                    return
                 path = safe_child(base, sid, eid)
                 if not os.path.isdir(path):
                     self._json({"ok": False, "error": "集不存在"}, 404)

@@ -85,14 +85,14 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
   useEffect(() => {
     let alive = true;
     const check = async () => {
-      const url = source === "qwen" ? loadQwenUrl() : loadEdgeUrl();
+      const url = source === "qwen" ? qwenUrl : edgeUrl;
       const ok = await checkHealth(url).catch(() => false);
       if (alive) setServiceOk(ok);
     };
     void check();
     const timer = setInterval(check, 30000);
     return () => { alive = false; clearInterval(timer); };
-  }, [source]);
+  }, [source, qwenUrl, edgeUrl]);
 
   useEffect(() => {
     let alive = true;
@@ -147,7 +147,10 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     setDeleteTarget(null);
     await refresh();
     if (target.type === "episode") {
-      await openSeries(target.seriesId);
+      setOpenId(target.seriesId);
+      setEpisodesBusy(true);
+      setEpisodes(await listEpisodes(dir, target.seriesId));
+      setEpisodesBusy(false);
     }
   };
 
