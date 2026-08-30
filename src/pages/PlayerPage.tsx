@@ -566,14 +566,16 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
         <button onClick={() => { saveNow(); onBack(); }} className="tb-btn">← 返回</button>
         <div className="tb-right">
           <button
-            className={"ios-switch" + (isDark(theme) ? " on" : "")}
+            className="tb-chip theme-toggle"
             onClick={() => onTheme(isDark(theme) ? "light" : "dark")}
             aria-label={isDark(theme) ? "切换到浅色" : "切换到深色"}
             title={isDark(theme) ? "切换到浅色" : "切换到深色"}
-          />
+          >
+            {isDark(theme) ? "浅色" : "深色"}
+          </button>
           <div className="tb-font" ref={fontRef}>
             <button
-              className="tb-btn font-toggle"
+              className="tb-chip font-toggle"
               onClick={() => setFontOpen((v) => !v)}
               aria-label="调整字号"
               title="调整字号"
@@ -611,11 +613,11 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
           </div>
           {source === "qwen" && (
             <div className="tb-regen">
-              <select value={regenRole} onChange={(e) => setRegenRole(e.target.value)} title="选择角色">
+              <select className="tb-chip tb-regen-select" value={regenRole} onChange={(e) => setRegenRole(e.target.value)} title="选择角色">
                 <option value="">角色音色</option>
                 {roleNames.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-              <button className="tb-btn" disabled={!regenRole} onClick={openRegen}>重生成</button>
+              <button className="tb-chip regen-btn" disabled={!regenRole} onClick={openRegen}>重生成</button>
             </div>
           )}
           <div className="tb-meta">
