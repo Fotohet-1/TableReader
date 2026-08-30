@@ -3,7 +3,7 @@
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-VERSION="${1:-1.1.0}"
+VERSION="${1:-1.2.0}"
 OUT_DIR="/Users/hetan/Documents/剧本围读外发"
 OUT="$OUT_DIR/TableReader-正式版-v$VERSION.zip"
 mkdir -p "$OUT_DIR"

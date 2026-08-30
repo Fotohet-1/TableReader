@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { mergeVoiceBanks, type VoiceBankEntry } from "./archive";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mergeVoiceBanks, revealDir, type VoiceBankEntry } from "./archive";
 
 describe("mergeVoiceBanks", () => {
   it("保留前几集角色，本集同名角色覆盖，本集新角色加入，不整库替换", () => {
@@ -17,5 +17,21 @@ describe("mergeVoiceBanks", () => {
     expect(Object.keys(merged).sort()).toEqual(["大头", "炎拓", "聂九罗"]);
     expect(merged.炎拓).toEqual(yanUpdated); // 本集确认覆盖
     expect(merged.聂九罗).toEqual(nie); // 前几集角色保留
+  });
+});
+
+describe("revealDir", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("服务返回成功时结果为 true", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    await expect(revealDir("~/dir")).resolves.toBe(true);
+  });
+
+  it("请求失败时结果为 false", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+    await expect(revealDir("~/dir")).resolves.toBe(false);
   });
 });
