@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   archiveHealth,
   listSeries,
@@ -61,6 +61,8 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
   const [serviceBusy, setServiceBusy] = useState(false);
   const [dirOk, setDirOk] = useState<boolean | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const topRef = useRef<HTMLElement | null>(null);
+  const cardRef = useRef<HTMLElement | null>(null);
 
   const refresh = async () => {
     setErr("");
@@ -117,6 +119,30 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     }
   };
 
+  const positionCard = useCallback(() => {
+    const card = cardRef.current;
+    const top = topRef.current;
+    if (!card || !top) return;
+    const topH = top.getBoundingClientRect().height;
+    const cardH = card.getBoundingClientRect().height;
+    const areaH = window.innerHeight - topH;
+    const y = Math.max(24, 0.45 * areaH - cardH / 2);
+    card.style.transform = `translateY(${y}px)`;
+  }, []);
+
+  useLayoutEffect(() => {
+    positionCard();
+    const card = cardRef.current;
+    if (!card) return;
+    const ro = new ResizeObserver(() => positionCard());
+    ro.observe(card);
+    window.addEventListener("resize", positionCard);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", positionCard);
+    };
+  }, [positionCard]);
+
   const openSeries = async (id: string) => {
     if (openId === id) {
       setOpenId("");
@@ -164,7 +190,7 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
 
   return (
     <div className="archive-page">
-      <header className="archive-top">
+      <header className="archive-top" ref={topRef}>
         <button className="tb-btn" onClick={onBack}>← 返回</button>
         <div className="work-top-tools">
           <select
@@ -184,7 +210,7 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
         </div>
       </header>
       <div className="archive-body">
-        <section className="card archive-card">
+        <section className="card archive-card" ref={cardRef}>
           <h2 className="archive-title">选择项目</h2>
           <div className="archive-dir-row">
             <input
