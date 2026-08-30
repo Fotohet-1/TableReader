@@ -106,7 +106,7 @@ function retryPlay(a: HTMLAudioElement) {
   }
 }
 
-export default function PlayerPage({ theme, onTheme, project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems, fullState, onReveal, onGenerate, onExportAfterRegen, voiceMapRef }: {
+export default function PlayerPage({ theme, onTheme, project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems, fullState, onReveal, onGenerate, onExportAfterRegen, voiceMapRef, regenClaimedRef, regenInProgressRef }: {
   theme: Theme;
   onTheme: (t: Theme) => void;
   project: Project;
@@ -123,6 +123,8 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
   onGenerate?: () => void;
   onExportAfterRegen?: (ctx: ArchiveContext) => void;
   voiceMapRef: { current: Record<string, VoiceSpec> };
+  regenClaimedRef: { current: Map<number, { url: string; durationMs: number }> };
+  regenInProgressRef: { current: boolean };
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -447,6 +449,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
     if (!regenRole || !regenDesc.trim()) { setRegenErr("请先填写声音描述"); return; }
     setRegenBusy(true);
     setRegenErr("");
+    regenInProgressRef.current = true;
     try {
       const refText = regenSample;
       const seed = await qwenSynthOne(qwenUrl, refText, regenDesc.trim());
@@ -474,6 +477,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
             await saveAudio(ar.dir, ar.series, ar.episode, u.id, r.blob);
             url = archiveAudioUrl(ar.dir, ar.series, ar.episode, u.id);
             durations[u.id] = { durationMs: r.durationMs };
+            regenClaimedRef.current.set(u.id, { url, durationMs: r.durationMs });
           } else {
             url = URL.createObjectURL(r.blob);
           }
@@ -508,6 +512,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
               : v
           )
         });
+        regenInProgressRef.current = false;
         // 只在整集已完整合成（每个对白都有音频）时才自动重拼，避免中间态误报“生成失败”
         if (items.length === totalUnits && items.every((it) => it.url && it.durationMs > 0)) {
           onExportAfterRegen?.(ar);
@@ -518,6 +523,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
     } catch (e) {
       setRegenErr("重新生成失败：" + String(e));
     } finally {
+      regenInProgressRef.current = false;
       setRegenBusy(false);
     }
   };

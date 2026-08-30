@@ -25,6 +25,8 @@ export default function App() {
   const fullTargetRef = useRef<ArchiveContext | null>(null);
   const resumeTokenRef = useRef(0);
   const voiceMapRef = useRef<Record<string, VoiceSpec>>({});
+  const regenClaimedRef = useRef<Map<number, { url: string; durationMs: number }>>(new Map());
+  const regenInProgressRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
   const playerFromRef = useRef<"work" | "archive">("work");
   projectRef.current = project;
@@ -59,6 +61,7 @@ export default function App() {
   const markSynthDone = useCallback(() => setSynthDone(true), []);
 
   const runStitch = useCallback(async () => {
+    if (regenInProgressRef.current) return;
     const t = fullTargetRef.current;
     if (!t) return;
     setFullState("stitching");
@@ -116,6 +119,8 @@ export default function App() {
       }
     }
     voiceMapRef.current = resumeSpecs;
+    regenClaimedRef.current.clear();
+    regenInProgressRef.current = false;
     const items: UnitAudio[] = (meta.units || [])
       .filter((u) => meta.audio && meta.audio[u.id])
       .map((u) => ({
@@ -172,6 +177,7 @@ export default function App() {
           qwenUrl: loadQwenUrl(),
           existingAudio,
           voiceMapRef,
+          regenClaimedRef,
           onUnitReady: (item) => {
             if (resumeTokenRef.current !== token) return;
             resumeAudio[item.unitId] = { durationMs: item.durationMs };
@@ -243,6 +249,8 @@ export default function App() {
           onArchiveNew={() => {
             archiveActiveRef.current = false;
             resumeTokenRef.current++;
+            regenClaimedRef.current.clear();
+            regenInProgressRef.current = false;
             setFullState("unknown");
             fullTargetRef.current = null;
             setPlayerInit({ idx: -1, ms: 0, rate: 1 });
@@ -258,6 +266,7 @@ export default function App() {
           }}
           onBack={() => setView("choose")}
           voiceMapRef={voiceMapRef}
+          regenClaimedRef={regenClaimedRef}
         />
       )}
       {view === "player" && (
@@ -279,6 +288,8 @@ export default function App() {
             onGenerate={handleGenerateFull}
             onExportAfterRegen={handleAfterRegen}
             voiceMapRef={voiceMapRef}
+            regenClaimedRef={regenClaimedRef}
+            regenInProgressRef={regenInProgressRef}
           />
         )
       )}

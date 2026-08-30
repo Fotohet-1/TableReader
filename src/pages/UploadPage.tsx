@@ -95,7 +95,7 @@ function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
   return buf;
 }
 
-export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack, onFullReady, voiceMapRef }: {
+export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack, onFullReady, voiceMapRef, regenClaimedRef }: {
   theme: Theme;
   onTheme: (t: Theme) => void;
   lastSession: Session | null;
@@ -110,6 +110,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   onBack: () => void;
   onFullReady?: (ctx: ArchiveContext) => void;
   voiceMapRef: { current: Record<string, VoiceSpec> };
+  regenClaimedRef: { current: Map<number, { url: string; durationMs: number }> };
 }) {
   const [source, setSourceState] = useState<Source>(loadSource);
   const [edgeUrl, setEdgeUrlState] = useState(loadEdgeUrl);
@@ -1073,12 +1074,20 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
       },
       existing: Object.keys(existingAudio).length ? existingAudio : undefined,
       synthFn: async (t, v, idx, unitId) => {
+        if (unitId != null) {
+          const claimed0 = regenClaimedRef.current.get(unitId);
+          if (claimed0) return { blob: new Blob(), durationMs: claimed0.durationMs, url: claimed0.url };
+        }
         const spec = voiceMapRef.current[v];
         const r = source === "qwen"
           ? (spec?.kind === "clone"
               ? await qwenCloneSynthOne(qwenUrl, t, spec.b64, spec.refText)
               : await qwenSynthOne(qwenUrl, t, spec?.kind === "desc" ? spec.desc : ""))
           : await edgeSynthOne(edgeUrl, t, v);
+        if (unitId != null) {
+          const claimed = regenClaimedRef.current.get(unitId);
+          if (claimed) return { blob: new Blob(), durationMs: claimed.durationMs, url: claimed.url };
+        }
         if (archiveInfo && unitId != null) {
           const ok = await saveAudio(archiveInfo.dir, archiveInfo.series, archiveInfo.episode, unitId, r.blob);
           if (ok) {
