@@ -1,5 +1,5 @@
 #!/bin/bash
-# 打包正式外发包：默认 TableReader-正式版-v1.1.0.zip（可传版本号覆盖）
+# 打包正式外发包：默认 TableReader-正式版-v1.2.0.zip（可传版本号覆盖）
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

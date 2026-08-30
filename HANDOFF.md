@@ -9,9 +9,9 @@ TableReader 是一个本地剧本围读工具：上传剧本、拆角色/场次/
 - 工作目录：`/Users/hetan/Documents/ChatGPT/剧本围读Codex`
 - 仓库：`https://github.com/Fotohet-1/TableReader`
 - 产品页：`https://fotohet-1.github.io/TableReader/`
-- 分支：`main`，当前 HEAD：`978821e fix: 存档页进入不闪、展开无载入中闪烁`
-- 当前版本：`v1.1.0`。`package.json` 和 `src/lib/settings.ts` 里的 `APP_VERSION` 都还没升版本，后续功能整理完再统一升版本。
-- 当前工作树：旧 `HANDOFF.md` 已删除待重写；`xhs/` 未跟踪且刻意不提交。
+- 分支：`main`，当前 HEAD：`8b33a77 chore: 升级到 v1.2.0，补充设置与存档回归测试`
+- 当前版本：`v1.2.0`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
+- 当前工作树：干净，仅 `xhs/` 未跟踪且刻意不提交。
 
 ## 启动与端口
 
@@ -43,7 +43,14 @@ Qwen 的启动路径有回退逻辑：优先用仓库内 `models/` 和 venv，�
 
 服务通过 `scripts/detach.py` 脱离当前会话启动，日志在 `logs/sr_*.log`。
 
-## v1.1.0 之后的关键改动
+## v1.2.0 关键改动
+
+- 围读页、上传页、存档页顶栏控件统一为 32px 圆角矩形，颜色遵循 Apple 设计手册。
+- 围读页增加字号调节（13–25px，记忆保存）；上传页和存档页模型选择状态点并入按钮。
+- 存档页支持按目录隐藏项目、访达打开目录、隐藏提示动画；隐藏状态写入本地存储。
+- 合成等待横幅分深浅两套配色，修正左右抖动，并支持渐现渐隐。
+
+## v1.1.0 关键改动
 
 ### 功能
 
