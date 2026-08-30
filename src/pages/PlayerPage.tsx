@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ArchiveContext, FullAudioState, Project, Unit, UnitAudio, VoiceSpec } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
 import { toChineseNumber, roleBase } from "../lib/parser";
@@ -6,7 +6,11 @@ import { qwenSynthOne, qwenCloneSynthOne } from "../lib/tts";
 import { describeRoleVoice } from "../lib/llm";
 import { defaultVoiceDescFor } from "../lib/voices";
 import { saveAudio, saveMeta, saveSeed, saveVoiceBank, loadVoiceBank, archiveAudioUrl } from "../lib/archive";
-import { loadQwenUrl, loadDsKey, loadAiEnabled, loadSource } from "../lib/settings";
+import {
+  loadQwenUrl, loadDsKey, loadAiEnabled, loadSource,
+  loadReaderFontSize, saveReaderFontSize,
+  READER_FONT_MIN, READER_FONT_MAX, READER_FONT_STEP
+} from "../lib/settings";
 import { isDark, type Theme } from "../lib/theme";
 import { slugify } from "../lib/series";
 
@@ -146,6 +150,9 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
   const synthDoneRef = useRef(synthDone);
   synthDoneRef.current = synthDone;
   const regenAudioRef = useRef<HTMLAudioElement | null>(null);
+  const fontRef = useRef<HTMLDivElement | null>(null);
+  const [readerFont, setReaderFont] = useState<number>(loadReaderFontSize);
+  const [fontOpen, setFontOpen] = useState(false);
   const [regenRole, setRegenRole] = useState("");
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenDesc, setRegenDesc] = useState("");
@@ -153,6 +160,28 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
   const [regenBusy, setRegenBusy] = useState(false);
   const [regenProgress, setRegenProgress] = useState<{ done: number; total: number } | null>(null);
   const [regenErr, setRegenErr] = useState("");
+
+  useEffect(() => {
+    saveReaderFontSize(readerFont);
+  }, [readerFont]);
+
+  useEffect(() => {
+    if (!fontOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (fontRef.current && !fontRef.current.contains(e.target as Node)) {
+        setFontOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFontOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [fontOpen]);
 
   const qwenUrl = loadQwenUrl();
   const dsKey = loadDsKey();
@@ -542,6 +571,41 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
             aria-label={isDark(theme) ? "切换到浅色" : "切换到深色"}
             title={isDark(theme) ? "切换到浅色" : "切换到深色"}
           />
+          <div className="tb-font" ref={fontRef}>
+            <button
+              className="tb-btn font-toggle"
+              onClick={() => setFontOpen((v) => !v)}
+              aria-label="调整字号"
+              title="调整字号"
+              aria-expanded={fontOpen}
+              aria-haspopup="dialog"
+            >
+              Aa
+            </button>
+            {fontOpen && (
+              <div className="font-pop" role="dialog" aria-label="调整字号">
+                <button
+                  className="font-step"
+                  disabled={readerFont <= READER_FONT_MIN}
+                  onClick={() => setReaderFont((v) => Math.max(READER_FONT_MIN, v - READER_FONT_STEP))}
+                  aria-label="减小字号"
+                  title="减小字号"
+                >
+                  A−
+                </button>
+                <span className="font-value">{readerFont}px</span>
+                <button
+                  className="font-step"
+                  disabled={readerFont >= READER_FONT_MAX}
+                  onClick={() => setReaderFont((v) => Math.min(READER_FONT_MAX, v + READER_FONT_STEP))}
+                  aria-label="增大字号"
+                  title="增大字号"
+                >
+                  A+
+                </button>
+              </div>
+            )}
+          </div>
           {source === "qwen" && (
             <div className="tb-regen">
               <select value={regenRole} onChange={(e) => setRegenRole(e.target.value)} title="选择角色">
@@ -598,7 +662,13 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
           </div>
         </div>
       </header>
-      <div className="script-scroll" ref={scrollRef} onWheel={onManualScroll} onTouchStart={onManualScroll}>
+      <div
+        className="script-scroll"
+        ref={scrollRef}
+        onWheel={onManualScroll}
+        onTouchStart={onManualScroll}
+        style={{ "--reader-font-size": readerFont + "px" } as CSSProperties}
+      >
         {!hasPlayable && synthDone ? (
           <div className="player-empty">
             {project.units.length === 0

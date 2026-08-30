@@ -1159,6 +1159,45 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
 .export-btn.failed { color: #c0392b; }
 .export-btn:disabled { cursor: default; opacity: .7; }
 .tb-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.tb-font { position: relative; }
+.font-toggle { font-weight: 600; letter-spacing: 0; }
+.font-pop {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--paper);
+  border: 1px solid var(--border-line);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow), 0 10px 30px rgba(0, 0, 0, 0.16);
+  animation: srScaleIn .18s cubic-bezier(.22, .8, .32, 1);
+  z-index: 20;
+}
+.font-step {
+  min-width: 34px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.font-step:hover:not(:disabled) { background: var(--fill-sub); }
+.font-step:disabled { opacity: .35; cursor: default; }
+.font-value {
+  min-width: 44px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
 .tb-regen { display: flex; align-items: center; gap: 8px; }
 .tb-regen select {
   max-width: 150px;
@@ -1201,7 +1240,7 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   max-width: 680px;
   margin: 0 auto;
   padding: 8px 28px 8px 96px;
-  font-size: 17px;
+  font-size: var(--reader-font-size, 17px);
   line-height: 1.9;
   border-left: 3px solid transparent;
   border-radius: 8px;
@@ -1212,7 +1251,6 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   font-weight: 600;
   margin-top: 36px;
   margin-bottom: 20px;
-  font-size: 17px;
   color: var(--ink);
   letter-spacing: -0.374px;
 }
@@ -1246,7 +1284,7 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   margin: 80px auto;
   text-align: center;
   color: var(--muted);
-  font-size: 17px;
+  font-size: var(--reader-font-size, 17px);
 }
 
 .player-bar {
@@ -1364,7 +1402,7 @@ select:not(.pb-rate) { padding-right: 26px; }
 }
 
 @media (max-width: 720px) {
-  .unit { font-size: 15px; padding: 7px 14px; }
+  .unit { font-size: calc(var(--reader-font-size, 17px) - 2px); padding: 7px 14px; }
   .script-scroll { padding: 40px 14px 170px; }
   .unit-dialogue { display: block; position: static; }
   .char-tag {

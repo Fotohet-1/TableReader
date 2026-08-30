@@ -9,8 +9,14 @@ const KEYS = {
   onboarded: "sr_has_onboarded",
   edgeUrl: "sr_edge_url",
   qwenUrl: "sr_qwen_url",
-  archiveDir: "sr_archive_dir"
+  archiveDir: "sr_archive_dir",
+  readerFontSize: "sr_reader_font_size"
 };
+
+export const READER_FONT_MIN = 13;
+export const READER_FONT_MAX = 25;
+export const READER_FONT_STEP = 2;
+export const READER_FONT_DEFAULT = 17;
 
 export function loadSource(): TtsSource {
   return localStorage.getItem(KEYS.source) === "qwen" ? "qwen" : "edge";
@@ -70,4 +76,16 @@ export function loadArchiveDir(): string {
 
 export function saveArchiveDir(v: string): void {
   localStorage.setItem(KEYS.archiveDir, v);
+}
+
+export function loadReaderFontSize(): number {
+  const n = parseInt(localStorage.getItem(KEYS.readerFontSize) || "", 10);
+  if (Number.isFinite(n)) {
+    return Math.min(READER_FONT_MAX, Math.max(READER_FONT_MIN, n));
+  }
+  return READER_FONT_DEFAULT;
+}
+
+export function saveReaderFontSize(v: number): void {
+  localStorage.setItem(KEYS.readerFontSize, String(v));
 }
