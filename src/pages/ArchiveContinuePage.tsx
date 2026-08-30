@@ -193,22 +193,24 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
   return (
     <div className="archive-page">
       <header className="archive-top" ref={topRef}>
-        <button className="tb-btn" onClick={onBack}>← 返回</button>
+        <button className="back-btn" onClick={onBack}>← 返回</button>
         <div className="work-top-tools">
-          <select
-            className="source-select"
-            value={source}
-            onChange={(e) => { const v = e.target.value as TtsSource; setSource(v); saveSource(v); }}
-            title="声音来源"
-          >
-            <option value="qwen">Qwen3 1.7B</option>
-            <option value="edge">edge-tts</option>
-          </select>
-          <span
-            className={"svc-dot " + (serviceOk === null ? "unknown" : serviceBusy ? "busy" : serviceOk ? "ok" : "down")}
+          <div
+            className="model-chip"
             title={serviceOk === false ? "服务未启动" : serviceBusy ? "生成中（可能异常，请稍候）" : (source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl))}
-          />
-          <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
+          >
+            <span className={"svc-dot " + (serviceOk === null ? "unknown" : serviceBusy ? "busy" : serviceOk ? "ok" : "down")} />
+            <select
+              className="model-source-select"
+              value={source}
+              onChange={(e) => { const v = e.target.value as TtsSource; setSource(v); saveSource(v); }}
+              title="声音来源"
+            >
+              <option value="qwen">Qwen3 1.7B</option>
+              <option value="edge">edge-tts</option>
+            </select>
+          </div>
+          <button className="settings-chip" onClick={() => setShowSettings((v) => !v)}>设置</button>
         </div>
       </header>
       <div className="archive-body">
