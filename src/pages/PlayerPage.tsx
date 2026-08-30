@@ -613,11 +613,13 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
           </div>
           {source === "qwen" && (
             <div className="tb-regen">
-              <select className="tb-chip tb-regen-select" value={regenRole} onChange={(e) => setRegenRole(e.target.value)} title="选择角色">
-                <option value="">角色音色</option>
-                {roleNames.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <button className="tb-chip regen-btn" disabled={!regenRole} onClick={openRegen}>重生成</button>
+              <div className="tb-regen-group">
+                <select className="tb-regen-select" value={regenRole} onChange={(e) => setRegenRole(e.target.value)} title="选择角色">
+                  <option value="">角色音色</option>
+                  {roleNames.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <button className="regen-btn" disabled={!regenRole} onClick={openRegen}>重生成</button>
+              </div>
             </div>
           )}
           <div className="tb-meta">
