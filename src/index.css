@@ -862,6 +862,45 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .delete-name { color: var(--ink); font-size: 14px; line-height: 1.6; }
 button.primary.danger { background: #c0392b; border-color: #c0392b; }
 button.primary.danger:hover { background: #a93226; border-color: #a93226; color: #fff; }
+
+/* Apple 设计手册对齐：存档页 */
+.archive-page { background: #f5f5f7; }
+[data-theme="dark"] .archive-page { background: var(--bg); }
+.archive-dir-row input {
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+[data-theme="dark"] .archive-dir-row input { border-color: var(--line); }
+.archive-dir-row button {
+  height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #1d1d1f;
+  color: #fff;
+}
+.archive-dir-row button:hover { background: #3a3a3c; border-color: #3a3a3c; color: #fff; }
+[data-theme="dark"] .archive-dir-row button { background: #f5f5f7; color: #1d1d1f; }
+[data-theme="dark"] .archive-dir-row button:hover { background: #d2d2d7; color: #1d1d1f; }
+.resume-item {
+  border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--paper);
+  padding: 14px 18px;
+}
+[data-theme="dark"] .resume-item { border-color: var(--line); }
+.archive-delete {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(210, 210, 215, 0.64);
+  color: var(--ink);
+  font-size: 15px;
+}
+.archive-delete:hover { background: rgba(255, 59, 48, 0.18); color: #ff3b30; }
 .lib-top {
   display: flex;
   align-items: center;
