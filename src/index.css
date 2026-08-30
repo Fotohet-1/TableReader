@@ -943,20 +943,18 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: var(--fill-soft);
-  color: var(--ink);
+  background: transparent;
+  color: var(--muted);
   flex-shrink: 0;
   cursor: pointer;
   opacity: 0;
   visibility: hidden;
-  transition: background-color .2s, opacity .15s;
+  transition: opacity .15s;
 }
 .series-resume .archive-eye-inline { margin-left: auto; }
 .series-resume .resume-date { margin-left: 0; }
 .series-resume:hover .archive-eye-inline,
 .series-item.hidden-reveal .archive-eye-inline { opacity: 1; visibility: visible; }
-.series-resume .archive-eye-inline:hover { background: var(--fill-sub); }
 .series-resume .archive-eye-inline svg { width: 14px; height: 14px; }
 .series-item.hidden-reveal .resume-name,
 .series-item.hidden-reveal .resume-meta,
