@@ -174,16 +174,6 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   padding: 24px 24px 104px;
   position: relative;
 }
-.choose-back {
-  position: absolute;
-  top: 22px;
-  left: 26px;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font-size: 13px;
-  padding: 6px 10px;
-}
 .choose-inner {
   width: 100%;
   max-width: 620px;
@@ -253,7 +243,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding: 0 28px;
   height: 52px;
   border-bottom: 1px solid var(--border-line);
   background: var(--bar);
@@ -404,17 +394,6 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 .work { min-height: 100vh; min-height: 100dvh; padding-bottom: 40px; }
 .work-top { position: sticky; top: 0; }
 .work-top-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.work-back {
-  position: absolute;
-  top: 22px;
-  left: 26px;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font-size: 13px;
-  padding: 6px 10px;
-  z-index: 2;
-}
 .work.upload-only {
   display: flex;
   flex-direction: column;
@@ -446,17 +425,6 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   to { opacity: 1; transform: none; }
 }
 .card.flow-card { animation: srFadeUp .5s cubic-bezier(.22, .8, .32, 1); }
-.source-select {
-  width: auto;
-  padding: 6px 10px;
-  padding-right: 30px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-}
-.source-select:hover { border-color: var(--line); }
 .svc-dot {
   width: 8px;
   height: 8px;
@@ -498,7 +466,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   cursor: pointer;
 }
 .model-source-select:focus { outline: none; box-shadow: none; }
-.settings-chip {
+.top-chip {
   height: 32px;
   padding: 0 13px;
   border: 0;
@@ -512,9 +480,9 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   cursor: pointer;
   transition: background-color .2s, transform .15s;
 }
-.settings-chip:hover { background: var(--tb-chip-hover); }
-.settings-chip:active { transform: scale(.95); }
-.settings-chip:focus-visible {
+.top-chip:hover { background: var(--tb-chip-hover); }
+.top-chip:active { transform: scale(.95); }
+.top-chip:focus-visible {
   outline: 2px solid var(--accent-light);
   outline-offset: 1px;
 }
@@ -738,7 +706,6 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
 .enter-box span { flex: 1; color: var(--accent); font-size: 14px; }
 
 /* ---------- 音色库 ---------- */
-.lib-entry { padding: 7px 14px; font-size: 14px; flex-shrink: 0; }
 .modal-mask {
   position: fixed;
   inset: 0;

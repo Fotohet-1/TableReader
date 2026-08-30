@@ -210,7 +210,7 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
               <option value="edge">edge-tts</option>
             </select>
           </div>
-          <button className="settings-chip" onClick={() => setShowSettings((v) => !v)}>设置</button>
+          <button className="top-chip" onClick={() => setShowSettings((v) => !v)}>设置</button>
         </div>
       </header>
       <div className="archive-body">
