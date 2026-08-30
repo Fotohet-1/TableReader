@@ -1281,10 +1281,8 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   cursor: pointer;
   transition: background-color .2s, transform .15s;
 }
-.regen-btn:hover:not(:disabled) {
-  background: var(--tb-chip-hover);
-  border-left-color: var(--border-line);
-}
+.regen-btn:hover { border-left-color: var(--border-line); }
+.regen-btn:hover:not(:disabled) { background: var(--tb-chip-hover); }
 .regen-btn:active:not(:disabled) { transform: scale(.95); }
 .regen-btn:focus { outline: none; box-shadow: none; }
 .regen-btn:disabled { opacity: .45; cursor: default; }
