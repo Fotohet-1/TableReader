@@ -934,21 +934,21 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   font-size: 15px;
 }
 .archive-delete:hover { background: var(--danger-soft); color: var(--danger); }
-.series-resume { align-items: center; cursor: pointer; }
+.series-resume { align-items: center; gap: 10px; cursor: pointer; }
 .series-resume .eye-zone {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-left: auto;
-  padding: 5px;
+  padding: 5px 0 5px 5px;
   flex-shrink: 0;
 }
 .series-resume .archive-eye-inline {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -957,12 +957,16 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   cursor: pointer;
   opacity: 0;
   visibility: hidden;
-  transition: opacity .15s;
+  transition: opacity .35s ease-in-out, visibility 0s linear .35s;
 }
 .series-resume .resume-date { margin-left: 0; }
 .series-resume .eye-zone:hover .archive-eye-inline,
-.series-item.hidden-reveal .archive-eye-inline { opacity: 1; visibility: visible; }
-.series-resume .archive-eye-inline svg { width: 14px; height: 14px; }
+.series-item.hidden-reveal .archive-eye-inline {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .35s ease-in-out, visibility 0s;
+}
+.series-resume .archive-eye-inline svg { width: 15px; height: 15px; }
 .series-item.hidden-reveal .resume-name,
 .series-item.hidden-reveal .resume-meta,
 .series-item.hidden-reveal .resume-date { opacity: .55; }
