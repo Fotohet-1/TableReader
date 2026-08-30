@@ -29,6 +29,7 @@
   GET  /seed?dir&series&role        -> audio/wav
   GET  /check-dir?dir               -> { ok, isDir, parentOk }
   POST /pick-dir                    -> { ok, dir }（macOS 系统文件夹选择）
+  POST /reveal-dir {dir}            -> { ok, path }（在访达中打开目录）
   GET  /full-audio-info?dir&series&id -> { ok, exists, path, durationMs }（整集完整音频是否存在）
   GET  /full-audio?dir&series&id     -> audio/wav（整集完整音频）
   POST /stitch {dir,series,id}      -> { ok, durationMs, units, missing, path }（按播放器时间轴拼接整集音频）
@@ -459,6 +460,16 @@ class Handler(BaseHTTPRequestHandler):
                     self._json({"ok": False, "canceled": True})
                     return
                 self._json({"ok": True, "dir": result.stdout.strip()})
+                return
+            if self.path.startswith("/reveal-dir"):
+                body = self._read_json()
+                base = body.get("dir", "") or "~/Documents/剧本围读存档"
+                path = os.path.abspath(os.path.expanduser(base))
+                if not os.path.isdir(path):
+                    self._json({"ok": False, "error": "目录不存在"}, 404)
+                    return
+                subprocess.run(["open", path], check=False)
+                self._json({"ok": True, "path": path})
                 return
             if self.path.startswith("/series"):
                 body = self._read_json()

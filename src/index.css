@@ -268,20 +268,39 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
 }
 .archive-page .archive-card { animation: none; }
 .archive-card .archive-title { font-size: 34px; font-weight: 600; line-height: 1.1; letter-spacing: -0.374px; font-family: var(--serif); color: var(--ink); margin-bottom: 24px; }
-.archive-dir-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.archive-dir-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .archive-dir-row input {
   flex: 1;
   min-width: 0;
-  height: 42px;
-  padding: 10px 14px;
+  height: 44px;
+  padding: 0 20px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: 9999px;
   background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
 }
-.archive-dir-row button {
-  height: 42px;
-  padding: 0 16px;
+.archive-dir-row input:hover { border-color: var(--accent-light); }
+.archive-dir-spacer { width: 44px; height: 44px; flex-shrink: 0; }
+.archive-dir-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fill-soft);
+  color: var(--ink);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background-color .2s, opacity .2s;
 }
+.archive-dir-eye:hover:not(:disabled) { background: var(--fill-sub); }
+.archive-dir-eye:disabled { opacity: .4; cursor: default; }
+.archive-dir-eye svg { width: 20px; height: 20px; }
 .archive-page button:active { transform: none; }
 .archive-empty { font-size: 13px; color: var(--muted); padding: 14px 0; animation: srFadeIn .4s ease; }
 .archive-list {
@@ -872,7 +891,7 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   white-space: nowrap;
 }
 .archive-row { display: flex; align-items: center; gap: 8px; }
-.archive-row .resume-item { flex: 1; }
+.archive-row .resume-item { flex: 1; min-width: 0; width: auto; }
 .archive-delete {
   flex-shrink: 0;
   width: 36px;
@@ -899,15 +918,6 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   border: 1px solid rgba(0, 0, 0, 0.08);
 }
 [data-theme="dark"] .archive-dir-row input { border-color: var(--line); }
-.archive-dir-row button {
-  height: 44px;
-  padding: 0 22px;
-  border: 0;
-  border-radius: 9999px;
-  background: var(--accent);
-  color: #fff;
-}
-.archive-dir-row button:hover { background: var(--accent-light); color: #fff; }
 .resume-item {
   border-radius: 18px;
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -925,6 +935,28 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   font-size: 15px;
 }
 .archive-delete:hover { background: var(--danger-soft); color: var(--danger); }
+.archive-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fill-soft);
+  color: var(--ink);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background-color .2s, opacity .15s;
+}
+.archive-eye:hover { background: var(--fill-sub); }
+.archive-eye svg { width: 18px; height: 18px; }
+.series-item .archive-eye { opacity: 0; visibility: hidden; }
+.series-item:hover .archive-eye,
+.series-item.hidden-reveal .archive-eye { opacity: 1; visibility: visible; }
+.series-item.hidden-reveal .resume-item { opacity: .55; }
+.series-item.hidden-reveal .resume-item:hover:not(:disabled) { border-color: var(--line); }
 .lib-top {
   display: flex;
   align-items: center;

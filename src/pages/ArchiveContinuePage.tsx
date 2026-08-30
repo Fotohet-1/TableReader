@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   archiveHealth,
   listSeries,
@@ -7,6 +7,7 @@ import {
   deleteEpisode,
   pickArchiveDir,
   checkArchiveDir,
+  revealDir,
   type SeriesListItem,
   type EpisodeRef
 } from "../lib/archive";
@@ -23,6 +24,8 @@ import {
   saveDsKey,
   loadAiEnabled,
   saveAiEnabled,
+  loadHiddenSeries,
+  saveHiddenSeries,
   type TtsSource
 } from "../lib/settings";
 import { checkHealth, fetchTtsStatus } from "../lib/tts";
@@ -34,6 +37,36 @@ type DeleteTarget =
   | { type: "series"; id: string; name: string }
   | { type: "episode"; seriesId: string; seriesName: string; id: string; name: string };
 
+function EyeIcon({ closed = false, size = 20 }: { closed?: boolean; size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {closed ? (
+        <>
+          <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+          <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+          <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+          <path d="m2 2 20 20" />
+        </>
+      ) : (
+        <>
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme }: {
   onContinue: (ctx: ArchiveContext) => Promise<boolean>;
   onBack: () => void;
@@ -41,7 +74,6 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
   onTheme: (t: Theme) => void;
 }) {
   const [dir, setDir] = useState(loadArchiveDir);
-  const [ok, setOk] = useState<boolean | null>(null);
   const [series, setSeries] = useState<SeriesListItem[]>([]);
   const [openId, setOpenId] = useState("");
   const [episodes, setEpisodes] = useState<EpisodeRef[]>([]);
@@ -60,6 +92,9 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
   const [serviceBusy, setServiceBusy] = useState(false);
   const [dirOk, setDirOk] = useState<boolean | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [hiddenIds, setHiddenIds] = useState<string[]>(() => loadHiddenSeries(dir));
+  const [revealing, setRevealing] = useState(false);
+  const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
   const topRef = useRef<HTMLElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
 
@@ -67,7 +102,6 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     setErr("");
     setBusy(true);
     const up = await archiveHealth();
-    setOk(up);
     if (!up) {
       setSeries([]);
       setBusy(false);
@@ -109,6 +143,19 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     return () => { alive = false; };
   }, [dir]);
 
+  useEffect(() => {
+    setHiddenIds(loadHiddenSeries(dir));
+    setRevealing(false);
+  }, [dir]);
+
+  useEffect(() => {
+    saveHiddenSeries(dir, hiddenIds);
+  }, [dir, hiddenIds]);
+
+  useEffect(() => {
+    if (hiddenIds.length === 0) setRevealing(false);
+  }, [hiddenIds]);
+
   const pickDir = async () => {
     const picked = await pickArchiveDir();
     if (picked) {
@@ -116,6 +163,21 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
       saveArchiveDir(picked);
       await refresh();
     }
+  };
+
+  const toggleSeriesHidden = (id: string) => {
+    if (!hiddenSet.has(id)) setOpenId((o) => (o === id ? "" : o));
+    setHiddenIds((prev) => prev.includes(id)
+      ? prev.filter((x) => x !== id)
+      : [...prev, id]);
+  };
+
+  const toggleReveal = () => {
+    if (hiddenIds.length > 0) setRevealing((v) => !v);
+  };
+
+  const openDir = async () => {
+    await revealDir(dir);
   };
 
   const positionCard = useCallback((instant = false) => {
@@ -219,61 +281,80 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
           <div className="archive-dir-row">
             <input
               value={dir}
-              onChange={(e) => { setDir(e.target.value); saveArchiveDir(e.target.value); }}
+              readOnly
+              onClick={() => void openDir()}
               placeholder="~/Documents/剧本围读存档"
+              title="在访达中打开该目录"
             />
-            <span
-              className={"svc-dot " + (ok === null ? "unknown" : ok ? "ok" : "down")}
-              title={"存档服务 " + (ok === null ? "检测中" : ok ? "正常" : "未启动")}
-            />
-            <button disabled={busy} onClick={refresh}>{busy ? "读取中…" : "刷新"}</button>
+            <span className="archive-dir-spacer" aria-hidden="true" />
+            <button
+              className="archive-dir-eye"
+              onClick={toggleReveal}
+              disabled={hiddenIds.length === 0}
+              title={hiddenIds.length === 0 ? "没有隐藏项目" : revealing ? "隐藏灰色项目" : "显示隐藏项目"}
+              aria-label={hiddenIds.length === 0 ? "没有隐藏项目" : revealing ? "隐藏灰色项目" : "显示隐藏项目"}
+            >
+              <EyeIcon closed={hiddenIds.length > 0} size={20} />
+            </button>
           </div>
           {err && <div className="err">{err}</div>}
           {!busy && !err && series.length === 0 && (
             <p className="archive-empty">这个工作区里还没有剧集存档</p>
           )}
           <div className="archive-list">
-            {series.map((s) => (
-              <div key={s.id} className="series-item">
-                <div className="archive-row">
-                  <button className="resume-item" onClick={() => openSeries(s.id)}>
-                    <span className="resume-name">{s.name}</span>
-                    <span className="resume-meta">{s.episodes}集·{s.voices}音色</span>
-                    <span className="resume-date">{s.updatedAt}</span>
-                  </button>
-                  <button
-                    className="archive-delete"
-                    onClick={() => setDeleteTarget({ type: "series", id: s.id, name: s.name })}
-                    title="删除项目"
-                    aria-label="删除项目"
-                  >✕</button>
-                </div>
-                {openId === s.id && (
-                  <div className="episode-list">
-                    {episodes.length === 0 ? (
-                      <p className="archive-empty">这部剧还没有集</p>
-                    ) : episodes.map((ep) => (
-                      <div key={ep.id} className="archive-row episode-row">
-                        <button
-                          className="resume-item episode-item"
-                          disabled={loadingKey === s.id + ":" + ep.id}
-                          onClick={() => resume(s, ep)}
-                        >
-                          <span className="resume-name">{loadingKey === s.id + ":" + ep.id ? "载入中…" : ep.name}</span>
-                          {ep.full && <span className="full-audio-badge">完整音频</span>}
-                        </button>
-                        <button
-                          className="archive-delete"
-                          onClick={() => setDeleteTarget({ type: "episode", seriesId: s.id, seriesName: s.name, id: ep.id, name: ep.name })}
-                          title="删除这一集"
-                          aria-label="删除这一集"
-                        >✕</button>
-                      </div>
-                    ))}
+            {series.map((s) => {
+              const hidden = hiddenSet.has(s.id);
+              if (hidden && !revealing) return null;
+              return (
+                <div key={s.id} className={"series-item" + (hidden ? " hidden-reveal" : "")}>
+                  <div className="archive-row">
+                    <button className="resume-item" onClick={() => openSeries(s.id)}>
+                      <span className="resume-name">{s.name}</span>
+                      <span className="resume-meta">{s.episodes}集·{s.voices}音色</span>
+                      <span className="resume-date">{s.updatedAt}</span>
+                    </button>
+                    <button
+                      className="archive-eye"
+                      onClick={(e) => { e.stopPropagation(); toggleSeriesHidden(s.id); }}
+                      title={hidden ? "取消隐藏" : "隐藏项目"}
+                      aria-label={hidden ? "取消隐藏" : "隐藏项目"}
+                    >
+                      <EyeIcon closed={hidden} size={18} />
+                    </button>
+                    <button
+                      className="archive-delete"
+                      onClick={() => setDeleteTarget({ type: "series", id: s.id, name: s.name })}
+                      title="删除项目"
+                      aria-label="删除项目"
+                    >✕</button>
                   </div>
-                )}
-              </div>
-            ))}
+                  {openId === s.id && (
+                    <div className="episode-list">
+                      {episodes.length === 0 ? (
+                        <p className="archive-empty">这部剧还没有集</p>
+                      ) : episodes.map((ep) => (
+                        <div key={ep.id} className="archive-row episode-row">
+                          <button
+                            className="resume-item episode-item"
+                            disabled={loadingKey === s.id + ":" + ep.id}
+                            onClick={() => resume(s, ep)}
+                          >
+                            <span className="resume-name">{loadingKey === s.id + ":" + ep.id ? "载入中…" : ep.name}</span>
+                            {ep.full && <span className="full-audio-badge">完整音频</span>}
+                          </button>
+                          <button
+                            className="archive-delete"
+                            onClick={() => setDeleteTarget({ type: "episode", seriesId: s.id, seriesName: s.name, id: ep.id, name: ep.name })}
+                            title="删除这一集"
+                            aria-label="删除这一集"
+                          >✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>

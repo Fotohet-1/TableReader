@@ -98,6 +98,19 @@ export async function pickArchiveDir(): Promise<string | null> {
   }
 }
 
+export async function revealDir(dir: string): Promise<boolean> {
+  try {
+    const r = await fetch(BASE + "/reveal-dir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dir })
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function listSeries(dir: string): Promise<SeriesListItem[]> {
   try {
     const r = await fetch(BASE + "/list-series?dir=" + enc(dir));

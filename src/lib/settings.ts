@@ -10,7 +10,8 @@ const KEYS = {
   edgeUrl: "sr_edge_url",
   qwenUrl: "sr_qwen_url",
   archiveDir: "sr_archive_dir",
-  readerFontSize: "sr_reader_font_size"
+  readerFontSize: "sr_reader_font_size",
+  hiddenSeries: "sr_hidden_series"
 };
 
 export const READER_FONT_MIN = 13;
@@ -88,4 +89,24 @@ export function loadReaderFontSize(): number {
 
 export function saveReaderFontSize(v: number): void {
   localStorage.setItem(KEYS.readerFontSize, String(v));
+}
+
+export function loadHiddenSeries(dir: string): string[] {
+  try {
+    const j = JSON.parse(localStorage.getItem(KEYS.hiddenSeries) || "{}");
+    const ids = j[dir];
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveHiddenSeries(dir: string, ids: string[]): void {
+  try {
+    const j = JSON.parse(localStorage.getItem(KEYS.hiddenSeries) || "{}");
+    j[dir] = ids;
+    localStorage.setItem(KEYS.hiddenSeries, JSON.stringify(j));
+  } catch {
+    localStorage.setItem(KEYS.hiddenSeries, JSON.stringify({ [dir]: ids }));
+  }
 }
