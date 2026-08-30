@@ -581,8 +581,8 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
               aria-haspopup="dialog"
             >
               <span className="font-logo">
-                <span className="font-big">大</span>
-                <span className="font-small">小</span>
+                <span className="font-big">A</span>
+                <span className="font-small">A</span>
               </span>
             </button>
             {fontOpen && (
@@ -594,7 +594,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
                   aria-label="减小字号"
                   title="减小字号"
                 >
-                  小
+                  −
                 </button>
                 <span className="font-value">{readerFont}px</span>
                 <button
@@ -604,7 +604,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
                   aria-label="增大字号"
                   title="增大字号"
                 >
-                  大
+                  +
                 </button>
               </div>
             )}
