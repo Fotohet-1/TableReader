@@ -275,6 +275,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   transition: transform .32s cubic-bezier(.22, .8, .32, 1);
   will-change: transform;
 }
+.archive-page .archive-card { animation: none; }
 .archive-card .archive-title { font-size: 34px; font-weight: 600; line-height: 1.1; letter-spacing: -0.374px; font-family: var(--serif); color: var(--ink); margin-bottom: 24px; }
 .archive-dir-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .archive-dir-row input {

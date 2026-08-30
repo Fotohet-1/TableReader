@@ -46,7 +46,6 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
   const [openId, setOpenId] = useState("");
   const [episodes, setEpisodes] = useState<EpisodeRef[]>([]);
   const [busy, setBusy] = useState(false);
-  const [episodesBusy, setEpisodesBusy] = useState(false);
   const [err, setErr] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -119,7 +118,7 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     }
   };
 
-  const positionCard = useCallback(() => {
+  const positionCard = useCallback((instant = false) => {
     const card = cardRef.current;
     const top = topRef.current;
     if (!card || !top) return;
@@ -127,19 +126,24 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     const cardH = card.getBoundingClientRect().height;
     const areaH = window.innerHeight - topH;
     const y = Math.max(24, 0.45 * areaH - cardH / 2);
+    if (instant) card.style.transition = "none";
     card.style.transform = `translateY(${y}px)`;
+    if (instant) {
+      requestAnimationFrame(() => { card.style.transition = ""; });
+    }
   }, []);
 
   useLayoutEffect(() => {
-    positionCard();
+    positionCard(true);
     const card = cardRef.current;
     if (!card) return;
     const ro = new ResizeObserver(() => positionCard());
     ro.observe(card);
-    window.addEventListener("resize", positionCard);
+    const onResize = () => positionCard();
+    window.addEventListener("resize", onResize);
     return () => {
       ro.disconnect();
-      window.removeEventListener("resize", positionCard);
+      window.removeEventListener("resize", onResize);
     };
   }, [positionCard]);
 
@@ -149,11 +153,10 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
       setEpisodes([]);
       return;
     }
-    setOpenId(id);
     setErr("");
-    setEpisodesBusy(true);
-    setEpisodes(await listEpisodes(dir, id));
-    setEpisodesBusy(false);
+    const eps = await listEpisodes(dir, id);
+    setOpenId(id);
+    setEpisodes(eps);
   };
 
   const resume = async (s: SeriesListItem, ep: EpisodeRef) => {
@@ -181,10 +184,9 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     setDeleteTarget(null);
     await refresh();
     if (target.type === "episode") {
+      const eps = await listEpisodes(dir, target.seriesId);
       setOpenId(target.seriesId);
-      setEpisodesBusy(true);
-      setEpisodes(await listEpisodes(dir, target.seriesId));
-      setEpisodesBusy(false);
+      setEpisodes(eps);
     }
   };
 
@@ -246,9 +248,7 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
                 </div>
                 {openId === s.id && (
                   <div className="episode-list">
-                    {episodesBusy ? (
-                      <p className="archive-empty">载入中…</p>
-                    ) : episodes.length === 0 ? (
+                    {episodes.length === 0 ? (
                       <p className="archive-empty">这部剧还没有集</p>
                     ) : episodes.map((ep) => (
                       <div key={ep.id} className="archive-row episode-row">
