@@ -935,6 +935,14 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
 }
 .archive-delete:hover { background: var(--danger-soft); color: var(--danger); }
 .series-resume { align-items: center; cursor: pointer; }
+.series-resume .eye-zone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 5px;
+  flex-shrink: 0;
+}
 .series-resume .archive-eye-inline {
   display: inline-flex;
   align-items: center;
@@ -951,15 +959,23 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   visibility: hidden;
   transition: opacity .15s;
 }
-.series-resume .archive-eye-inline { margin-left: auto; }
 .series-resume .resume-date { margin-left: 0; }
-.series-resume:hover .archive-eye-inline,
+.series-resume .eye-zone:hover .archive-eye-inline,
 .series-item.hidden-reveal .archive-eye-inline { opacity: 1; visibility: visible; }
 .series-resume .archive-eye-inline svg { width: 14px; height: 14px; }
 .series-item.hidden-reveal .resume-name,
 .series-item.hidden-reveal .resume-meta,
 .series-item.hidden-reveal .resume-date { opacity: .55; }
 .series-item.hidden-reveal .series-resume:hover { border-color: var(--line); }
+@keyframes eyeHintFade {
+  0% { opacity: 0; visibility: hidden; }
+  28% { opacity: 1; visibility: visible; }
+  61% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+.series-resume .archive-eye-inline.eye-hint {
+  animation: eyeHintFade 1.8s ease-in-out forwards;
+}
 .lib-top {
   display: flex;
   align-items: center;

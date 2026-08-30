@@ -94,6 +94,8 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
   const [showSettings, setShowSettings] = useState(false);
   const [hiddenIds, setHiddenIds] = useState<string[]>(() => loadHiddenSeries(dir));
   const [revealing, setRevealing] = useState(false);
+  const [hintKey, setHintKey] = useState(0);
+  const hintTimerRef = useRef<number | null>(null);
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
   const topRef = useRef<HTMLElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
@@ -176,9 +178,24 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     if (hiddenIds.length > 0) setRevealing((v) => !v);
   };
 
+  const hintAllEyes = () => {
+    setHintKey((k) => k + 1);
+    if (hintTimerRef.current) window.clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = window.setTimeout(() => setHintKey(0), 1900);
+  };
+
+  const onDirEyeClick = () => {
+    if (hiddenIds.length > 0) toggleReveal();
+    else hintAllEyes();
+  };
+
   const openDir = async () => {
     await revealDir(dir);
   };
+
+  useEffect(() => () => {
+    if (hintTimerRef.current) window.clearTimeout(hintTimerRef.current);
+  }, []);
 
   const positionCard = useCallback((instant = false) => {
     const card = cardRef.current;
@@ -288,10 +305,9 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
             />
             <button
               className="archive-dir-eye"
-              onClick={toggleReveal}
-              disabled={hiddenIds.length === 0}
-              title={hiddenIds.length === 0 ? "没有隐藏项目" : revealing ? "隐藏灰色项目" : "显示隐藏项目"}
-              aria-label={hiddenIds.length === 0 ? "没有隐藏项目" : revealing ? "隐藏灰色项目" : "显示隐藏项目"}
+              onClick={onDirEyeClick}
+              title={hiddenIds.length === 0 ? "提示隐藏按钮位置" : revealing ? "隐藏灰色项目" : "显示隐藏项目"}
+              aria-label={hiddenIds.length === 0 ? "提示隐藏按钮位置" : revealing ? "隐藏灰色项目" : "显示隐藏项目"}
             >
               <EyeIcon closed={hiddenIds.length > 0} size={20} />
             </button>
@@ -321,14 +337,17 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
                     >
                       <span className="resume-name">{s.name}</span>
                       <span className="resume-meta">{s.episodes}集·{s.voices}音色</span>
-                      <button
-                        className="archive-eye-inline"
-                        onClick={(e) => { e.stopPropagation(); toggleSeriesHidden(s.id); }}
-                        title={hidden ? "取消隐藏" : "隐藏项目"}
-                        aria-label={hidden ? "取消隐藏" : "隐藏项目"}
-                      >
-                        <EyeIcon closed={hidden} size={14} />
-                      </button>
+                      <span className="eye-zone">
+                        <button
+                          key={`${s.id}-${hintKey}`}
+                          className={"archive-eye-inline" + (hintKey > 0 ? " eye-hint" : "")}
+                          onClick={(e) => { e.stopPropagation(); toggleSeriesHidden(s.id); }}
+                          title={hidden ? "取消隐藏" : "隐藏项目"}
+                          aria-label={hidden ? "取消隐藏" : "隐藏项目"}
+                        >
+                          <EyeIcon closed={hidden} size={14} />
+                        </button>
+                      </span>
                       <span className="resume-date">{s.updatedAt}</span>
                     </div>
                     <button
