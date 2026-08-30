@@ -54,6 +54,11 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
   }, []);
 
   const openSeries = async (id: string) => {
+    if (openId === id) {
+      setOpenId("");
+      setEpisodes([]);
+      return;
+    }
     setOpenId(id);
     setErr("");
     setEpisodesBusy(true);
