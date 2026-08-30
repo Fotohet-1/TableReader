@@ -952,6 +952,8 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   visibility: hidden;
   transition: background-color .2s, opacity .15s;
 }
+.series-resume .archive-eye-inline { margin-left: auto; }
+.series-resume .resume-date { margin-left: 0; }
 .series-resume:hover .archive-eye-inline,
 .series-item.hidden-reveal .archive-eye-inline { opacity: 1; visibility: visible; }
 .series-resume .archive-eye-inline:hover { background: var(--fill-sub); }
