@@ -286,7 +286,6 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
               placeholder="~/Documents/剧本围读存档"
               title="在访达中打开该目录"
             />
-            <span className="archive-dir-spacer" aria-hidden="true" />
             <button
               className="archive-dir-eye"
               onClick={toggleReveal}
@@ -308,19 +307,30 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
               return (
                 <div key={s.id} className={"series-item" + (hidden ? " hidden-reveal" : "")}>
                   <div className="archive-row">
-                    <button className="resume-item" onClick={() => openSeries(s.id)}>
+                    <div
+                      className="resume-item series-resume"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openSeries(s.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openSeries(s.id);
+                        }
+                      }}
+                    >
                       <span className="resume-name">{s.name}</span>
                       <span className="resume-meta">{s.episodes}集·{s.voices}音色</span>
+                      <button
+                        className="archive-eye-inline"
+                        onClick={(e) => { e.stopPropagation(); toggleSeriesHidden(s.id); }}
+                        title={hidden ? "取消隐藏" : "隐藏项目"}
+                        aria-label={hidden ? "取消隐藏" : "隐藏项目"}
+                      >
+                        <EyeIcon closed={hidden} size={14} />
+                      </button>
                       <span className="resume-date">{s.updatedAt}</span>
-                    </button>
-                    <button
-                      className="archive-eye"
-                      onClick={(e) => { e.stopPropagation(); toggleSeriesHidden(s.id); }}
-                      title={hidden ? "取消隐藏" : "隐藏项目"}
-                      aria-label={hidden ? "取消隐藏" : "隐藏项目"}
-                    >
-                      <EyeIcon closed={hidden} size={18} />
-                    </button>
+                    </div>
                     <button
                       className="archive-delete"
                       onClick={() => setDeleteTarget({ type: "series", id: s.id, name: s.name })}
