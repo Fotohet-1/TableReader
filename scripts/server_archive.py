@@ -37,6 +37,7 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -548,6 +549,32 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 subprocess.run(["open", "-R", path], check=False)
                 self._json({"ok": True, "path": path})
+                return
+            if self.path.startswith("/delete-series"):
+                body = self._read_json()
+                base = body.get("dir", "") or "~/Documents/剧本围读存档"
+                sid = str(body.get("series", ""))
+                path = safe_child(base, sid)
+                if not os.path.isdir(path):
+                    self._json({"ok": False, "error": "项目不存在"}, 404)
+                    return
+                shutil.rmtree(path)
+                self._json({"ok": True})
+                return
+            if self.path.startswith("/delete-episode"):
+                body = self._read_json()
+                base = body.get("dir", "") or "~/Documents/剧本围读存档"
+                sid = str(body.get("series", ""))
+                eid = str(body.get("id", ""))
+                path = safe_child(base, sid, eid)
+                if not os.path.isdir(path):
+                    self._json({"ok": False, "error": "集不存在"}, 404)
+                    return
+                shutil.rmtree(path)
+                proj, _ = series_project(base, sid)
+                proj["episodes"] = [e for e in proj.get("episodes") or [] if e.get("id") != eid]
+                atomic_write(os.path.join(safe_child(base, sid), "project.json"), proj)
+                self._json({"ok": True})
                 return
             if self.path.startswith("/audio"):
                 length = int(self.headers.get("Content-Length", 0))

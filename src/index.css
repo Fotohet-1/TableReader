@@ -845,6 +845,23 @@ button.link { border: 0; background: transparent; color: var(--accent); padding:
   border-radius: 999px; padding: 2px 8px; flex-shrink: 0;
   white-space: nowrap;
 }
+.archive-row { display: flex; align-items: center; gap: 8px; }
+.archive-row .resume-item { flex: 1; }
+.archive-delete {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+}
+.archive-delete:hover { color: #c0392b; border-color: #c0392b; }
+.delete-warn { color: #c0392b; font-size: 15px; font-weight: 600; }
+.delete-name { color: var(--ink); font-size: 14px; line-height: 1.6; }
+button.primary.danger { background: #c0392b; border-color: #c0392b; }
+button.primary.danger:hover { background: #a93226; border-color: #a93226; color: #fff; }
 .lib-top {
   display: flex;
   align-items: center;

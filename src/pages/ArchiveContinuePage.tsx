@@ -3,11 +3,17 @@ import {
   archiveHealth,
   listSeries,
   listEpisodes,
+  deleteSeries,
+  deleteEpisode,
   type SeriesListItem,
   type EpisodeRef
 } from "../lib/archive";
 import { loadArchiveDir, saveArchiveDir } from "../lib/settings";
 import type { ArchiveContext } from "../lib/types";
+
+type DeleteTarget =
+  | { type: "series"; id: string; name: string }
+  | { type: "episode"; seriesId: string; seriesName: string; id: string; name: string };
 
 export default function ArchiveContinuePage({ onContinue, onBack }: {
   onContinue: (ctx: ArchiveContext) => Promise<boolean>;
@@ -22,6 +28,9 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
   const [episodesBusy, setEpisodesBusy] = useState(false);
   const [err, setErr] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
 
   const refresh = async () => {
     setErr("");
@@ -61,6 +70,26 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
     if (!ok2) setErr("存档读取失败，请检查目录和存档文件");
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteErr("");
+    const ok = deleteTarget.type === "series"
+      ? await deleteSeries(dir, deleteTarget.id)
+      : await deleteEpisode(dir, deleteTarget.seriesId, deleteTarget.id);
+    setDeleting(false);
+    if (!ok) {
+      setDeleteErr("删除失败，请检查存档服务");
+      return;
+    }
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    await refresh();
+    if (target.type === "episode") {
+      await openSeries(target.seriesId);
+    }
+  };
+
   return (
     <div className="archive-page">
       <header className="archive-top">
@@ -89,11 +118,19 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
           <div className="archive-list">
             {series.map((s) => (
               <div key={s.id} className="series-item">
-                <button className="resume-item" onClick={() => openSeries(s.id)}>
-                  <span className="resume-name">{s.name}</span>
-                  <span className="resume-meta">{s.episodes}集·{s.voices}音色</span>
-                  <span className="resume-date">{s.updatedAt}</span>
-                </button>
+                <div className="archive-row">
+                  <button className="resume-item" onClick={() => openSeries(s.id)}>
+                    <span className="resume-name">{s.name}</span>
+                    <span className="resume-meta">{s.episodes}集·{s.voices}音色</span>
+                    <span className="resume-date">{s.updatedAt}</span>
+                  </button>
+                  <button
+                    className="archive-delete"
+                    onClick={() => setDeleteTarget({ type: "series", id: s.id, name: s.name })}
+                    title="删除项目"
+                    aria-label="删除项目"
+                  >✕</button>
+                </div>
                 {openId === s.id && (
                   <div className="episode-list">
                     {episodesBusy ? (
@@ -101,15 +138,22 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
                     ) : episodes.length === 0 ? (
                       <p className="archive-empty">这部剧还没有集</p>
                     ) : episodes.map((ep) => (
-                      <button
-                        key={ep.id}
-                        className="resume-item episode-item"
-                        disabled={loadingKey === s.id + ":" + ep.id}
-                        onClick={() => resume(s, ep)}
-                      >
-                        <span className="resume-name">{loadingKey === s.id + ":" + ep.id ? "载入中…" : ep.name}</span>
-                        {ep.full && <span className="full-audio-badge">完整音频</span>}
-                      </button>
+                      <div key={ep.id} className="archive-row episode-row">
+                        <button
+                          className="resume-item episode-item"
+                          disabled={loadingKey === s.id + ":" + ep.id}
+                          onClick={() => resume(s, ep)}
+                        >
+                          <span className="resume-name">{loadingKey === s.id + ":" + ep.id ? "载入中…" : ep.name}</span>
+                          {ep.full && <span className="full-audio-badge">完整音频</span>}
+                        </button>
+                        <button
+                          className="archive-delete"
+                          onClick={() => setDeleteTarget({ type: "episode", seriesId: s.id, seriesName: s.name, id: ep.id, name: ep.name })}
+                          title="删除这一集"
+                          aria-label="删除这一集"
+                        >✕</button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -118,6 +162,30 @@ export default function ArchiveContinuePage({ onContinue, onBack }: {
           </div>
         </section>
       </div>
+      {deleteTarget && (
+        <div className="modal-mask" onClick={() => { if (!deleting) setDeleteTarget(null); }}>
+          <div className="modal settings-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="lib-top">
+              <span className="lib-title">删除确认</span>
+              <button className="lib-close" disabled={deleting} onClick={() => setDeleteTarget(null)} aria-label="关闭">✕</button>
+            </header>
+            <div className="regen-body">
+              <p className="delete-warn">该操作不可逆，删除后无法恢复。</p>
+              <p className="delete-name">
+                确定要删除「{deleteTarget.name}」吗？
+                {deleteTarget.type === "series" && "整部剧及其所有集的音频、音色库都会被删除。"}
+              </p>
+              {deleteErr && <div className="err">{deleteErr}</div>}
+              <div className="regen-actions">
+                <button className="secondary-pill" disabled={deleting} onClick={() => setDeleteTarget(null)}>取消</button>
+                <button className="primary danger" disabled={deleting} onClick={confirmDelete}>
+                  {deleting ? "删除中…" : "删除"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

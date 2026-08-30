@@ -1170,7 +1170,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
           {fileInfo && <div className="file-info">✓ {fileInfo}</div>}
           <div className="upload-foot">
             <button onClick={analyze} className="primary big" disabled={aiState === "running"}>
-              {aiState === "running" ? "解析中…" : "解析剧本"}
+              {aiState === "running" ? "解析中…" : (dsKey.trim() ? "AI解析剧本" : "解析剧本")}
             </button>
           </div>
         </section>

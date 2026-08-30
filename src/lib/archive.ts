@@ -284,3 +284,29 @@ export async function revealFullAudio(dir: string, seriesId: string, episodeId: 
 export function fullAudioUrl(dir: string, seriesId: string, episodeId: string): string {
   return BASE + "/full-audio?dir=" + enc(dir) + "&series=" + enc(seriesId) + "&id=" + enc(episodeId);
 }
+
+export async function deleteSeries(dir: string, seriesId: string): Promise<boolean> {
+  try {
+    const r = await fetch(BASE + "/delete-series", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dir, series: seriesId })
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteEpisode(dir: string, seriesId: string, episodeId: string): Promise<boolean> {
+  try {
+    const r = await fetch(BASE + "/delete-episode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dir, series: seriesId, id: episodeId })
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
