@@ -463,6 +463,7 @@ input:focus:not(.pb-range), textarea:focus, select:not(.pb-rate):focus {
   flex-shrink: 0;
 }
 .svc-dot.ok { background: #3d9a5f; }
+.svc-dot.busy { background: #f5a623; }
 .svc-dot.down { background: #c0392b; }
 .svc-dot.unknown { background: #9aa0a6; }
 .work-grid {

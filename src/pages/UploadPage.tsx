@@ -8,6 +8,7 @@ import { synthesizeStream, type Progress, type SynthSummary } from "../lib/synth
 import { seriesKeyFromFile, slugify } from "../lib/series";
 import {
   checkHealth,
+  fetchTtsStatus,
   edgeSynthOne,
   fetchEdgeVoices,
   qwenCloneSynthOne,
@@ -155,6 +156,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   const [previewRole, setPreviewRole] = useState("");
   const [previewErr, setPreviewErr] = useState("");
   const [serviceOk, setServiceOk] = useState<boolean | null>(null);
+  const [serviceBusy, setServiceBusy] = useState(false);
   const [archiveDir, setArchiveDir] = useState(loadArchiveDir);
   const [archiveOk, setArchiveOk] = useState<boolean | null>(null);
   const [dirOk, setDirOk] = useState<boolean | null>(null);
@@ -210,7 +212,14 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     const check = async () => {
       const url = source === "qwen" ? qwenUrl : edgeUrl;
       const ok = await checkHealth(url);
-      if (alive) setServiceOk(ok);
+      let busy = false;
+      if (ok && source === "qwen") {
+        const st = await fetchTtsStatus(qwenUrl);
+        const d = st?.design;
+        const c = st?.clone;
+        busy = !!(d?.busy && d.runningSec > 60) || !!(c?.busy && c.runningSec > 60);
+      }
+      if (alive) { setServiceOk(ok); setServiceBusy(busy); }
     };
     check();
     const timer = setInterval(check, 30000);
@@ -1156,8 +1165,8 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
             <option value="edge">edge-tts</option>
           </select>
           <span
-            className={"svc-dot " + (serviceOk === null ? "unknown" : serviceOk ? "ok" : "down")}
-            title={source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl)}
+            className={"svc-dot " + (serviceOk === null ? "unknown" : serviceBusy ? "busy" : serviceOk ? "ok" : "down")}
+            title={serviceOk === false ? "服务未启动" : serviceBusy ? "生成中（可能异常，请稍候）" : (source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl))}
           />
           {source === "edge" && <button className="lib-entry" onClick={() => setShowLibrary(true)}>音色库</button>}
           <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>

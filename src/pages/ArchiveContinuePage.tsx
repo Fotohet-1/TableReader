@@ -25,7 +25,7 @@ import {
   saveAiEnabled,
   type TtsSource
 } from "../lib/settings";
-import { checkHealth } from "../lib/tts";
+import { checkHealth, fetchTtsStatus } from "../lib/tts";
 import SettingsModal from "../components/SettingsModal";
 import type { Theme } from "../lib/theme";
 import type { ArchiveContext } from "../lib/types";
@@ -58,6 +58,7 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
   const [dsKey, setDsKey] = useState(loadDsKey);
   const [aiEnabled, setAiEnabled] = useState(loadAiEnabled);
   const [serviceOk, setServiceOk] = useState<boolean | null>(null);
+  const [serviceBusy, setServiceBusy] = useState(false);
   const [dirOk, setDirOk] = useState<boolean | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -87,7 +88,14 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
     const check = async () => {
       const url = source === "qwen" ? qwenUrl : edgeUrl;
       const ok = await checkHealth(url).catch(() => false);
-      if (alive) setServiceOk(ok);
+      let busy = false;
+      if (ok && source === "qwen") {
+        const st = await fetchTtsStatus(qwenUrl);
+        const d = st?.design;
+        const c = st?.clone;
+        busy = !!(d?.busy && d.runningSec > 60) || !!(c?.busy && c.runningSec > 60);
+      }
+      if (alive) { setServiceOk(ok); setServiceBusy(busy); }
     };
     void check();
     const timer = setInterval(check, 30000);
@@ -169,8 +177,8 @@ export default function ArchiveContinuePage({ onContinue, onBack, theme, onTheme
             <option value="edge">edge-tts</option>
           </select>
           <span
-            className={"svc-dot " + (serviceOk === null ? "unknown" : serviceOk ? "ok" : "down")}
-            title={source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl)}
+            className={"svc-dot " + (serviceOk === null ? "unknown" : serviceBusy ? "busy" : serviceOk ? "ok" : "down")}
+            title={serviceOk === false ? "服务未启动" : serviceBusy ? "生成中（可能异常，请稍候）" : (source === "qwen" ? ("Qwen3 " + qwenUrl) : ("edge-tts " + edgeUrl))}
           />
           <button className="lib-entry" onClick={() => setShowSettings((v) => !v)}>设置</button>
         </div>

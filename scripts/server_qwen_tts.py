@@ -3,7 +3,8 @@
 POST /tts         {"text": "...", "instruct": "声音描述"} -> audio/wav（VoiceDesign 设计音色）
 POST /tts-clone   {"text": "...", "audio_b64": "...", "ref_text": "..."} -> audio/wav（Base 克隆固定音色）
 POST /health -> {"ok": true}
-模型路径可用 QWEN_VD_MODEL / QWEN_BASE_MODEL 覆盖；生成超时（默认 180 秒）
+GET  /status -> {"ok": true, "design": {...}, "clone": {...}, "timeoutSec": ...}
+模型路径可用 QWEN_VD_MODEL / QWEN_BASE_MODEL 覆盖；生成超时（默认 90 秒）
 用 QWEN_JOB_TIMEOUT 调整（兼容旧名 QWEN_ACQUIRE_TIMEOUT）。默认每类模型
 一个 worker 线程，QWEN_DESIGN_POOL / QWEN_CLONE_POOL 可调大。
 """
@@ -13,6 +14,7 @@ import json
 import os
 import queue
 import threading
+import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -47,7 +49,7 @@ POOL_LOCK = threading.Lock()
 DESIGN_WORKERS = max(1, int(os.environ.get("QWEN_DESIGN_POOL", "1")))
 CLONE_WORKERS = max(1, int(os.environ.get("QWEN_CLONE_POOL", "1")))
 JOB_TIMEOUT = int(
-    os.environ.get("QWEN_JOB_TIMEOUT") or os.environ.get("QWEN_ACQUIRE_TIMEOUT") or "180"
+    os.environ.get("QWEN_JOB_TIMEOUT") or os.environ.get("QWEN_ACQUIRE_TIMEOUT") or "90"
 )
 
 
@@ -125,12 +127,19 @@ class _ModelWorker:
         self.queue: "queue.Queue[_Job]" = queue.Queue()
         self._epoch_lock = threading.Lock()
         self._epoch = 0
+        self._state_lock = threading.Lock()
+        self.busy = False
+        self.started_at = 0.0
+        self.last_error = None
         self._start()
 
     def _start(self):
         with self._epoch_lock:
             self._epoch += 1
             epoch = self._epoch
+        with self._state_lock:
+            self.busy = False
+            self.started_at = 0.0
         thread = threading.Thread(target=self._loop, args=(epoch,), daemon=True)
         thread.start()
 
@@ -147,6 +156,10 @@ class _ModelWorker:
             with self._epoch_lock:
                 if epoch != self._epoch:
                     return
+            with self._state_lock:
+                if epoch == self._epoch:
+                    self.busy = True
+                    self.started_at = time.time()
             try:
                 if model is None:
                     model = _load_model(self.model_dir)
@@ -154,7 +167,13 @@ class _ModelWorker:
             except Exception as e:
                 job.error = e
                 model = None  # 异常后丢弃实例，下次重新加载，避免坏状态复用
+                with self._state_lock:
+                    if epoch == self._epoch:
+                        self.last_error = str(e)
             finally:
+                with self._state_lock:
+                    if epoch == self._epoch:
+                        self.busy = False
                 job.done.set()
 
     def submit(self, job: _Job):
@@ -162,6 +181,19 @@ class _ModelWorker:
 
     def restart(self):
         self._start()
+
+    def status(self) -> dict:
+        with self._state_lock:
+            running = time.time() - self.started_at if self.busy and self.started_at else 0
+            return {
+                "busy": self.busy,
+                "runningSec": round(running, 1),
+                "lastError": self.last_error,
+            }
+
+    def record_error(self, msg: str):
+        with self._state_lock:
+            self.last_error = msg
 
 
 _design_workers = [_ModelWorker(MODEL_DIR) for _ in range(DESIGN_WORKERS)]
@@ -182,6 +214,7 @@ def _run_job(worker: _ModelWorker, params: dict) -> bytes:
     worker.submit(job)
     if not job.done.wait(timeout=JOB_TIMEOUT):
         worker.restart()
+        worker.record_error("生成超时（%d 秒），已重建 worker" % JOB_TIMEOUT)
         raise TimeoutError("合成超时（%d 秒），已重置模型 worker，请重试" % JOB_TIMEOUT)
     if job.error:
         raise job.error
@@ -232,6 +265,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.path == "/health":
                 self._json({"ok": True})
+                return
+            if self.path == "/status":
+                self._json({
+                    "ok": True,
+                    "design": _design_workers[0].status() if _design_workers else None,
+                    "clone": _clone_workers[0].status() if _clone_workers else None,
+                    "timeoutSec": JOB_TIMEOUT,
+                })
                 return
             self.send_error(404)
         except Exception as e:

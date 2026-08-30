@@ -27,6 +27,23 @@ export async function checkHealth(baseUrl: string): Promise<boolean> {
   }
 }
 
+export interface TtsStatus {
+  ok?: boolean;
+  design?: { busy: boolean; runningSec: number; lastError?: string | null };
+  clone?: { busy: boolean; runningSec: number; lastError?: string | null };
+  timeoutSec?: number;
+}
+
+export async function fetchTtsStatus(baseUrl: string): Promise<TtsStatus | null> {
+  try {
+    const resp = await fetch(baseUrl.replace(/\/+$/, "") + "/status");
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchEdgeVoices(baseUrl: string): Promise<Record<string, BaseVoiceInfo>> {
   try {
     const resp = await fetch(baseUrl + "/voices");
