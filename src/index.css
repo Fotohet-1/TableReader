@@ -1265,10 +1265,6 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
 }
 .tb-regen-select:hover { background: var(--tb-chip-hover); }
 .tb-regen-select:focus { outline: none; box-shadow: none; }
-.tb-regen-select:focus-visible {
-  outline: 2px solid var(--accent-light);
-  outline-offset: -2px;
-}
 .regen-btn {
   height: 32px;
   padding: 0 13px;
@@ -1287,10 +1283,7 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
 }
 .regen-btn:hover:not(:disabled) { background: var(--tb-chip-hover); }
 .regen-btn:active:not(:disabled) { transform: scale(.95); }
-.regen-btn:focus-visible {
-  outline: 2px solid var(--accent-light);
-  outline-offset: -2px;
-}
+.regen-btn:focus { outline: none; box-shadow: none; }
 .regen-btn:disabled { opacity: .45; cursor: default; }
 .tb-progress {
   width: 100%;
@@ -1465,6 +1458,7 @@ select {
   background-position: right 10px center !important;
 }
 select:not(.pb-rate) { padding-right: 26px; }
+select.tb-regen-select:focus { outline: none; box-shadow: none; }
 .wait-banner {
   position: fixed;
   bottom: 82px;
