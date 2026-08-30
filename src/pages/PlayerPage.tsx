@@ -686,7 +686,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
           <UnitLine key={u.id} u={u} project={project} isActive={activeUnitIds.includes(u.id)} setLineRef={setLineRef} />
         ))}
       </div>
-      {waiting && <div className="wait-banner">正在合成下一句…</div>}
+      <div className={"wait-banner " + (waiting ? "show" : "hide")}>正在合成下一句…</div>
       <PlayerBar
         playing={playing}
         globalMs={globalMs}
