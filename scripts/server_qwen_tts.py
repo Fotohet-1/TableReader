@@ -53,9 +53,14 @@ JOB_TIMEOUT = int(
 
 def _load_model(model_dir: str):
     from mlx_audio.tts.utils import load_model
+    from pathlib import Path
 
     print("加载模型:", model_dir.split("/")[-1], flush=True)
-    return load_model(model_dir)
+    model = load_model(model_dir)
+    # mlx_audio 在内存压力下可能静默跳过 tokenizer（post_load_hook 只打警告），显式补一次
+    if getattr(model, "tokenizer", None) is None:
+        model.post_load_hook(model, Path(model_dir))
+    return model
 
 
 def _model_generate(model, text: str, *, instruct=None, ref_path=None, ref_text=None) -> bytes:
@@ -78,9 +83,24 @@ def _model_generate(model, text: str, *, instruct=None, ref_path=None, ref_text=
     if not chunks:
         raise RuntimeError("合成失败：模型未返回音频")
     audio = np.concatenate(chunks)
+    # 响度配平：AI 描述种子与参考克隆都归一化到同一目标 RMS（≈ -20dBFS），避免克隆音量偏小
+    audio = _normalize_loudness(audio)
     buf = io.BytesIO()
     sf.write(buf, audio, sample_rate, format="WAV", subtype="PCM_16")
     return buf.getvalue()
+
+
+def _normalize_loudness(audio):
+    import numpy as np
+
+    a = np.asarray(audio, dtype=np.float64)
+    rms = float(np.sqrt(np.mean(a * a))) + 1e-8
+    target = 0.1  # ≈ -20 dBFS
+    gain = target / rms
+    peak = float(np.max(np.abs(a))) * gain
+    if peak > 0.95:
+        gain = 0.95 / peak
+    return (a * gain).astype(np.float32)
 
 
 class _Job:

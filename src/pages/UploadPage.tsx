@@ -860,6 +860,17 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
           for (let i = 0; i < audio.length; i++) mono[i] += d[i] / audio.numberOfChannels;
         }
       }
+      let sum = 0, peak = 0;
+      for (let i = 0; i < mono.length; i++) {
+        const v = mono[i];
+        sum += v * v;
+        const a = Math.abs(v);
+        if (a > peak) peak = a;
+      }
+      const rms = Math.sqrt(sum / mono.length) || 1e-8;
+      let gain = 0.1 / rms;
+      if (peak * gain > 0.95) gain = 0.95 / (peak || 1);
+      for (let i = 0; i < mono.length; i++) mono[i] *= gain;
       const wav = new Blob([encodeWav(mono, audio.sampleRate)], { type: "audio/wav" });
       const b64 = await blobToB64(wav);
       if (refFile && refFile.url.startsWith("blob:")) URL.revokeObjectURL(refFile.url);
