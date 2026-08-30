@@ -875,15 +875,13 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
 [data-theme="dark"] .archive-dir-row input { border-color: var(--line); }
 .archive-dir-row button {
   height: 44px;
-  padding: 0 20px;
+  padding: 0 22px;
   border: 0;
-  border-radius: 8px;
-  background: #1d1d1f;
+  border-radius: 9999px;
+  background: var(--accent);
   color: #fff;
 }
-.archive-dir-row button:hover { background: #3a3a3c; border-color: #3a3a3c; color: #fff; }
-[data-theme="dark"] .archive-dir-row button { background: #f5f5f7; color: #1d1d1f; }
-[data-theme="dark"] .archive-dir-row button:hover { background: #d2d2d7; color: #1d1d1f; }
+.archive-dir-row button:hover { background: var(--accent-light); color: #fff; }
 .resume-item {
   border-radius: 18px;
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -896,11 +894,11 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   height: 44px;
   border: 0;
   border-radius: 50%;
-  background: rgba(210, 210, 215, 0.64);
+  background: var(--fill-soft);
   color: var(--ink);
   font-size: 15px;
 }
-.archive-delete:hover { background: rgba(255, 59, 48, 0.18); color: #ff3b30; }
+.archive-delete:hover { background: var(--danger-soft); color: var(--danger); }
 .lib-top {
   display: flex;
   align-items: center;
