@@ -56,3 +56,7 @@ export interface Session {
 }
 
 export type FullAudioState = "unknown" | "generate" | "stitching" | "done" | "failed";
+
+export type VoiceSpec =
+  | { kind: "clone"; b64: string; refText: string }
+  | { kind: "desc"; desc: string };

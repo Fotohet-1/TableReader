@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ArchiveContext, FullAudioState, Project, Unit, UnitAudio } from "../lib/types";
+import type { ArchiveContext, FullAudioState, Project, Unit, UnitAudio, VoiceSpec } from "../lib/types";
 import PlayerBar from "../components/PlayerBar";
 import { toChineseNumber, roleBase } from "../lib/parser";
 import { qwenSynthOne, qwenCloneSynthOne } from "../lib/tts";
@@ -106,7 +106,7 @@ function retryPlay(a: HTMLAudioElement) {
   }
 }
 
-export default function PlayerPage({ theme, onTheme, project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems, fullState, onReveal, onGenerate, onExportAfterRegen }: {
+export default function PlayerPage({ theme, onTheme, project, items, synthDone, initialIndex = -1, initialMs = 0, initialRate = 1, onBack, onPosition, onUpdateItems, fullState, onReveal, onGenerate, onExportAfterRegen, voiceMapRef }: {
   theme: Theme;
   onTheme: (t: Theme) => void;
   project: Project;
@@ -122,6 +122,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
   onReveal?: () => void;
   onGenerate?: () => void;
   onExportAfterRegen?: (ctx: ArchiveContext) => void;
+  voiceMapRef: { current: Record<string, VoiceSpec> };
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -450,6 +451,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
       const refText = regenSample;
       const seed = await qwenSynthOne(qwenUrl, refText, regenDesc.trim());
       const b64 = await blobToB64(seed.blob);
+      voiceMapRef.current[regenRole] = { kind: "clone", b64, refText };
       const curUnitId = activeUnitIds[0] ?? -1;
       const roleUnits = project.units
         .filter((u) => u.type === "dialogue" && u.character === regenRole)

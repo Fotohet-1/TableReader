@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Project, Session, UnitAudio } from "./lib/types";
+import type { Project, Session, UnitAudio, VoiceSpec } from "./lib/types";
 import HomePage from "./pages/HomePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import ChoosePage from "./pages/ChoosePage";
@@ -24,6 +24,7 @@ export default function App() {
   const [fullState, setFullState] = useState<FullAudioState>("unknown");
   const fullTargetRef = useRef<ArchiveContext | null>(null);
   const resumeTokenRef = useRef(0);
+  const voiceMapRef = useRef<Record<string, VoiceSpec>>({});
   const projectRef = useRef<Project | null>(null);
   const playerFromRef = useRef<"work" | "archive">("work");
   projectRef.current = project;
@@ -106,6 +107,15 @@ export default function App() {
       voices: meta.voices || [],
       archive: { ...ctx }
     };
+    const resumeSpecs: Record<string, VoiceSpec> = {};
+    for (const cv of p.voices) {
+      if (cv.cloneAudioB64 && cv.cloneRefText) {
+        resumeSpecs[cv.name] = { kind: "clone", b64: cv.cloneAudioB64, refText: cv.cloneRefText };
+      } else {
+        resumeSpecs[cv.name] = { kind: "desc", desc: cv.voiceDesc || "" };
+      }
+    }
+    voiceMapRef.current = resumeSpecs;
     const items: UnitAudio[] = (meta.units || [])
       .filter((u) => meta.audio && meta.audio[u.id])
       .map((u) => ({
@@ -161,6 +171,7 @@ export default function App() {
           edgeUrl: loadEdgeUrl(),
           qwenUrl: loadQwenUrl(),
           existingAudio,
+          voiceMapRef,
           onUnitReady: (item) => {
             if (resumeTokenRef.current !== token) return;
             resumeAudio[item.unitId] = { durationMs: item.durationMs };
@@ -246,6 +257,7 @@ export default function App() {
             setView("player");
           }}
           onBack={() => setView("choose")}
+          voiceMapRef={voiceMapRef}
         />
       )}
       {view === "player" && (
@@ -266,6 +278,7 @@ export default function App() {
             onReveal={handleRevealFull}
             onGenerate={handleGenerateFull}
             onExportAfterRegen={handleAfterRegen}
+            voiceMapRef={voiceMapRef}
           />
         )
       )}

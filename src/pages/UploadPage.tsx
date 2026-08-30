@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ArchiveContext, CharacterVoice, Project, Session, Unit, UnitAudio } from "../lib/types";
+import type { ArchiveContext, CharacterVoice, Project, Session, Unit, UnitAudio, VoiceSpec } from "../lib/types";
 import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines, roleBase } from "../lib/parser";
 import { groupRoles, sortRolesForConfirm } from "../lib/roles";
 import { guessGender, defaultEdgeVoiceFor, defaultVoiceDescFor } from "../lib/voices";
@@ -95,7 +95,7 @@ function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
   return buf;
 }
 
-export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack, onFullReady }: {
+export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, resetItems, registerUnit, markSynthDone, setProject, onArchiveNew, onArchiveActive, onEnterPlayer, onBack, onFullReady, voiceMapRef }: {
   theme: Theme;
   onTheme: (t: Theme) => void;
   lastSession: Session | null;
@@ -109,6 +109,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   onEnterPlayer: () => void;
   onBack: () => void;
   onFullReady?: (ctx: ArchiveContext) => void;
+  voiceMapRef: { current: Record<string, VoiceSpec> };
 }) {
   const [source, setSourceState] = useState<Source>(loadSource);
   const [edgeUrl, setEdgeUrlState] = useState(loadEdgeUrl);
@@ -1049,12 +1050,15 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
       }
     }
 
-    const descMap: Record<string, string> = {};
-    const cloneMap: Record<string, { b64: string; refText: string }> = {};
+    const specs: Record<string, VoiceSpec> = {};
     for (const cv of fullVoices) {
-      if (cv.voiceDesc) descMap[cv.name] = cv.voiceDesc;
-      if (cv.cloneAudioB64 && cv.cloneRefText) cloneMap[cv.name] = { b64: cv.cloneAudioB64, refText: cv.cloneRefText };
+      if (cv.cloneAudioB64 && cv.cloneRefText) {
+        specs[cv.name] = { kind: "clone", b64: cv.cloneAudioB64, refText: cv.cloneRefText };
+      } else {
+        specs[cv.name] = { kind: "desc", desc: cv.voiceDesc || defaultVoiceDescFor({ name: cv.name }) };
+      }
     }
+    voiceMapRef.current = specs;
 
     const stream = synthesizeStream(project, {
       firstBatchSize: 25,
@@ -1069,10 +1073,11 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
       },
       existing: Object.keys(existingAudio).length ? existingAudio : undefined,
       synthFn: async (t, v, idx, unitId) => {
+        const spec = voiceMapRef.current[v];
         const r = source === "qwen"
-          ? (cloneMap[v]
-              ? await qwenCloneSynthOne(qwenUrl, t, cloneMap[v].b64, cloneMap[v].refText)
-              : await qwenSynthOne(qwenUrl, t, descMap[v] || ""))
+          ? (spec?.kind === "clone"
+              ? await qwenCloneSynthOne(qwenUrl, t, spec.b64, spec.refText)
+              : await qwenSynthOne(qwenUrl, t, spec?.kind === "desc" ? spec.desc : ""))
           : await edgeSynthOne(edgeUrl, t, v);
         if (archiveInfo && unitId != null) {
           const ok = await saveAudio(archiveInfo.dir, archiveInfo.series, archiveInfo.episode, unitId, r.blob);
