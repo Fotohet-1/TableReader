@@ -1160,7 +1160,23 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
 .export-btn:disabled { cursor: default; opacity: .7; }
 .tb-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
 .tb-font { position: relative; }
-.font-toggle { font-weight: 600; letter-spacing: 0; }
+.font-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 7px;
+  background: var(--fill-sub);
+  color: var(--accent);
+}
+.font-logo {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+}
 .font-pop {
   position: absolute;
   top: calc(100% + 10px);
@@ -1184,7 +1200,7 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   border-radius: 6px;
   background: transparent;
   color: var(--accent);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0;
 }
