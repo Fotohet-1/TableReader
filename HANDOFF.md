@@ -9,7 +9,7 @@ TableReader 是一个本地剧本围读工具：上传剧本、拆角色/场次/
 - 工作目录：`/Users/hetan/Documents/ChatGPT/剧本围读Codex`
 - 仓库：`https://github.com/Fotohet-1/TableReader`
 - 产品页：`https://fotohet-1.github.io/TableReader/`
-- 分支：`main`，当前 HEAD：`ba7516f chore: 升级到 v1.2.1，修复外发包 README 截图路径`
+- 分支：`main`，当前 HEAD：`880bcc9 docs: 更新 v1.2.1 交接文档与打包说明`
 - 当前版本：`v1.2.1`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
 - 当前工作树：干净，仅 `xhs/` 未跟踪且刻意不提交。
 
