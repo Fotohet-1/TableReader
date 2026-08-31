@@ -1148,7 +1148,15 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   const enabledVoiceCount = Object.keys(edgeVoices).filter((k) => voiceTags[k]?.enabled !== false).length;
   const sceneUnits = units ? units.filter((u) => u.type === "scene") : [];
   const sceneRaws = new Set(sceneUnits.map((u) => u.raw || u.text));
-  const unrecognizedScenes = likelyLines.filter((l) => !sceneRaws.has(l) && !ignoredLines.has(l));
+  const coveredByScene = (l: string) => {
+    for (const s of sceneRaws) {
+      if (s === l || s.startsWith(l + " ")) return true;
+      const header = s.replace(/^\d{1,3}-\d{1,3}[A-Za-z]?\s+/, "");
+      if (header === l || header.startsWith(l + " ")) return true;
+    }
+    return false;
+  };
+  const unrecognizedScenes = likelyLines.filter((l) => !sceneRaws.has(l) && !ignoredLines.has(l) && !coveredByScene(l));
 
   return (
     <div className={"work" + (phase === "upload" ? " upload-only" : "")}>

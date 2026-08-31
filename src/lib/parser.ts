@@ -1,8 +1,14 @@
 import type { Unit } from "./types";
 
 const SCENE_RE = /^(内景|外景|内景\/外景)\s*[^\n]{0,40}$/;
-const SCENE_NO_RE = /^(\d+[A-Za-z]?[.、．]?\s*|第\s*\d+\s*场[：:、\s]*)/;
-const SCENE_RE2 = /^[^\n：△]{1,40}(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)\s*(?:内|外|内\/外|外\/内)(?:\s*[（(][^）)]*[)）])?$/;
+const TIME_WORD = "(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏|日夜)";
+const INOUT_WORD = "(?:内|外|内景|外景|内\\/外|外\\/内|内景\\/外景|外景\\/内景|内外|外内)";
+const SCENE_RE2 = new RegExp(`^[^\\n：△]{1,40}${TIME_WORD}(?:/${TIME_WORD})*\\s*${INOUT_WORD}(?:\\s*[（(][^）)]*[)）])?$`);
+const SCENE_TIME_RE = new RegExp(`^${TIME_WORD}(?:/${TIME_WORD})*$`);
+const SPLIT_INOUT_RE = new RegExp(`^${INOUT_WORD}$`);
+const SPLIT_SCENE_NO_RE = /^\d{1,3}-\d{1,3}[A-Za-z]?$/;
+const STANDALONE_TIME_INOUT_RE = new RegExp(`^${TIME_WORD}(?:/${TIME_WORD})*\\s*${INOUT_WORD}$`);
+const INOUT_TIME_RE = new RegExp(`^${INOUT_WORD}\\s*${TIME_WORD}(?:/${TIME_WORD})*`);
 const SCENE_EMPTY_RE = /^[^\n：△]{0,24}空镜$/;
 const DIALOGUE_RE = /^([^：\n]{1,14}?)[:：](.*)$/;
 const PAREN_LINE_RE = /^[（(][\s\S]*[)）]$/;
@@ -133,23 +139,71 @@ function mk(id: number, type: Unit["type"], character: string, text: string, sta
   return { id, type, character, text, start, end: start + text.length };
 }
 
+interface NormLine {
+  text: string;
+  start: number;
+  end: number;
+}
+
+function isSplitLocation(t: string): boolean {
+  if (!t || t.length > 40) return false;
+  if (t.startsWith("△") || t.includes("：") || t.includes(":")) return false;
+  if (EPISODE_LINE_RE.test(t) || SCENE_TIME_RE.test(t) || SPLIT_INOUT_RE.test(t) || SPLIT_SCENE_NO_RE.test(t)) return false;
+  return true;
+}
+
+/** 把「可选编号 + 地点 + 时间 + 内外」拆成多行的场标合并成一行，保留原始跨度 */
+function normalizeSceneLines(rawLines: string[]): NormLine[] {
+  const all: NormLine[] = [];
+  let rawOffset = 0;
+  for (const raw of rawLines) {
+    const rawStart = rawOffset;
+    rawOffset += raw.length + 1;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const start = rawStart + raw.indexOf(trimmed);
+    all.push({ text: trimmed, start, end: start + trimmed.length });
+  }
+  const out: NormLine[] = [];
+  for (let i = 0; i < all.length; i++) {
+    const cur = all[i];
+    const next1 = all[i + 1];
+    const next2 = all[i + 2];
+    if (
+      isSplitLocation(cur.text) &&
+      next1 && next2 &&
+      SCENE_TIME_RE.test(next1.text) &&
+      SPLIT_INOUT_RE.test(next2.text)
+    ) {
+      let num: NormLine | null = null;
+      const last = out[out.length - 1];
+      if (last && SPLIT_SCENE_NO_RE.test(last.text)) {
+        num = out.pop()!;
+      }
+      const text = [num?.text, cur.text, next1.text, next2.text].filter(Boolean).join(" ");
+      out.push({ text, start: num ? num.start : cur.start, end: next2.end });
+      i += 2;
+      continue;
+    }
+    out.push(cur);
+  }
+  return out;
+}
+
 export function parseScript(
   text: string,
   opts?: { episode?: number; idStart?: number; forcedSceneLines?: Set<string> }
 ): Unit[] {
   const clean = text.replace(/\r/g, "");
-  const lines = clean.split("\n");
+  const lines = normalizeSceneLines(clean.split("\n"));
   const units: Unit[] = [];
-  let offset = 0;
   let id = opts?.idStart || 0;
   let sceneCounter = 0;
   let episode = opts?.episode || 1;
   let episodeFirstScene = true;
-  for (const raw of lines) {
-    const lineStart = offset;
-    offset += raw.length + 1;
-    const trimmed = raw.trim();
-    const tStart = lineStart + raw.indexOf(trimmed);
+  for (const line of lines) {
+    const trimmed = line.text;
+    const tStart = line.start;
     if (!trimmed) continue;
 
     const epMatch = trimmed.match(EPISODE_LINE_RE);
@@ -185,7 +239,8 @@ export function parseScript(
       u.sceneNo = sceneNo;
       u.episode = episode;
       u.raw = trimmed;
-      u.text = prefix + "第" + cnSc + "场，" + trimmed;
+      u.text = prefix + "第" + cnSc + "场，" + trimmed.replace(/^\d{1,3}-\d{1,3}[A-Za-z]?\s+/, "");
+      u.end = line.end;
       units.push(u);
       continue;
     }
@@ -201,7 +256,8 @@ export function parseScript(
       u.sceneNo = sceneNo;
       u.episode = episode;
       u.raw = trimmed;
-      u.text = prefix + "第" + cnSc + "场，" + trimmed;
+      u.text = prefix + "第" + cnSc + "场，" + trimmed.replace(/^\d{1,3}-\d{1,3}[A-Za-z]?\s+/, "");
+      u.end = line.end;
       units.push(u);
       continue;
     }
@@ -305,24 +361,24 @@ function splitCombinedSpeakers(name: string, singleNames: string[]): string[] | 
 /** 找出疑似场标但可能未被规则识别的短行（含时间+内外，或空镜） */
 export function findLikelySceneLines(text: string): string[] {
   const out: string[] = [];
-  for (const raw of text.split(/\r?\n/)) {
-    const trimmed = raw.trim();
+  for (const line of normalizeSceneLines(text.split(/\r?\n/))) {
+    const trimmed = line.text;
     if (!trimmed || trimmed.startsWith("△") || trimmed.includes("：")) continue;
     if (INSERT_RE.test(trimmed)) continue;
     if (SCENE_EMPTY_RE.test(trimmed)) {
       out.push(trimmed);
       continue;
     }
-    if (/^[^\n：△]{1,40}(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)\s*(?:内|外|内\/外|外\/内)(?:\s*[（(][^）)]*[)）])?$/.test(trimmed)) {
+    if (SCENE_RE2.test(trimmed)) {
       out.push(trimmed);
       continue;
     }
     // 规则外的疑似写法：独立时间行、内外在前、含空镜的短行
-    if (/^(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)\s*(?:内|外|内\/外|外\/内)$/.test(trimmed)) {
+    if (STANDALONE_TIME_INOUT_RE.test(trimmed)) {
       out.push(trimmed);
       continue;
     }
-    if (/^(?:内|外|内\/外|外\/内)\s*(?:日|夜|晨|昏|清晨|傍晚|夜晚|白天|早上|中午|下午|晚上|黄昏)/.test(trimmed)) {
+    if (INOUT_TIME_RE.test(trimmed)) {
       out.push(trimmed);
       continue;
     }

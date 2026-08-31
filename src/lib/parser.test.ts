@@ -118,6 +118,60 @@ describe("parseScript", () => {
   });
 });
 
+describe("拆行场标", () => {
+  it("地点/时间/内外拆成多行也能识别", () => {
+    const text = [
+      "火旺",
+      "第一集",
+      "清风山-药引库",
+      "日",
+      "内",
+      "矿洞里潮湿闷热。",
+      "3-2",
+      "清风山-地火洞",
+      "日",
+      "内",
+      "李火旺想起人丹。"
+    ].join("\n");
+    const units = parseScript(text);
+    const scenes = units.filter((u) => u.type === "scene");
+    expect(scenes).toHaveLength(2);
+    expect(scenes[0].sceneNo).toBe("第1场");
+    expect(scenes[0].raw).toBe("清风山-药引库 日 内");
+    expect(scenes[1].sceneNo).toBe("第2场");
+    expect(scenes[1].raw).toBe("3-2 清风山-地火洞 日 内");
+    expect(scenes[1].text).toContain("清风山-地火洞");
+    expect(scenes[1].text).not.toContain("3-2");
+    // 原始跨度仍能切回原文三行
+    expect(text.slice(scenes[0].start, scenes[0].end)).toBe("清风山-药引库\n日\n内");
+    expect(text.slice(scenes[1].start, scenes[1].end)).toBe("3-2\n清风山-地火洞\n日\n内");
+    // 拆行场标不再散成旁白
+    expect(units.filter((u) => u.raw === "日" || u.raw === "内" || u.raw === "3-2")).toHaveLength(0);
+  });
+
+  it("时间/内外组合写法也能识别", () => {
+    const units = parseScript("6-2\n清风山-密室/正德门-祭坛\n夜/日\n内/外\n【闪回】");
+    const scenes = units.filter((u) => u.type === "scene");
+    expect(scenes).toHaveLength(1);
+    expect(scenes[0].raw).toBe("6-2 清风山-密室/正德门-祭坛 夜/日 内/外");
+  });
+
+  it("日夜/内外无斜杠组合也能识别", () => {
+    const units = parseScript("蒙太奇段落「闪回」\n日夜\n内外\n闪回3-25");
+    const scenes = units.filter((u) => u.type === "scene");
+    expect(scenes).toHaveLength(1);
+    expect(scenes[0].raw).toBe("蒙太奇段落「闪回」 日夜 内外");
+  });
+
+  it("findLikelySceneLines 返回合并后的拆行场标", () => {
+    const likely = findLikelySceneLines("清风山-药引库\n日\n内\n矿洞里潮湿闷热。\n山丘\n昏\n外\n晨光亮起。");
+    expect(likely).toContain("清风山-药引库 日 内");
+    expect(likely).toContain("山丘 昏 外");
+    expect(likely).not.toContain("日");
+    expect(likely).not.toContain("内");
+  });
+});
+
 describe("collectCharacters", () => {
   it("收集对白与旁白角色", () => {
     const units = parseScript("1. 咖啡店 日 内\n炎拓：走。\n熊黑：好。\n旁白：结束。");

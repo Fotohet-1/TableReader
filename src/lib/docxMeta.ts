@@ -21,6 +21,8 @@ export async function extractSceneCandidates(buf: ArrayBuffer): Promise<string[]
     if (!r.text || !r.bold) continue;
     const prevEmpty = i === 0 || rows[i - 1].text === "";
     if (!prevEmpty) continue;
+    const nextText = rows.slice(i + 1).find((x) => x.text)?.text || "";
+    if (/(第\s*[0-9一二三四五六七八九十]+\s*(?:集|话|回))/.test(nextText)) continue;
     if (/(第\s*[0-9一二三四五六七八九十]+\s*集|完|待续|出片名)/.test(r.text)) continue;
     out.push(r.text);
   }
