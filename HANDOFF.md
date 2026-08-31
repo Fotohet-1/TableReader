@@ -9,8 +9,8 @@ TableReader 是一个本地剧本围读工具：上传剧本、拆角色/场次/
 - 工作目录：`/Users/hetan/Documents/ChatGPT/剧本围读Codex`
 - 仓库：`https://github.com/Fotohet-1/TableReader`
 - 产品页：`https://fotohet-1.github.io/TableReader/`
-- 分支：`main`，当前 HEAD：`8b33a77 chore: 升级到 v1.2.0，补充设置与存档回归测试`
-- 当前版本：`v1.2.0`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
+- 分支：`main`，当前 HEAD：`ba7516f chore: 升级到 v1.2.1，修复外发包 README 截图路径`
+- 当前版本：`v1.2.1`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
 - 当前工作树：干净，仅 `xhs/` 未跟踪且刻意不提交。
 
 ## 启动与端口
@@ -42,6 +42,11 @@ Qwen 的启动路径有回退逻辑：优先用仓库内 `models/` 和 venv，�
 - Base 模型：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/models/Qwen3-TTS-12Hz-1.7B-Base-4bit`
 
 服务通过 `scripts/detach.py` 脱离当前会话启动，日志在 `logs/sr_*.log`。
+
+## v1.2.1 关键改动
+
+- 修复外发包里 README 截图路径：从被排除的 `cover/assets/` 改为包内已有的 `docs/assets/`。
+- 版本号同步到 v1.2.1，`dist/` 与 `TableReader.app` 已重建。
 
 ## v1.2.0 关键改动
 
