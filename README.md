@@ -15,11 +15,11 @@
 
 ## 界面
 
-![首页](cover/assets/sr_home_latest.png)
+![首页](docs/assets/sr_home_latest.png)
 
-![上传页](cover/assets/sr_upload_latest.png)
+![上传页](docs/assets/sr_upload_latest.png)
 
-![音色库](cover/assets/sr_library_latest.png)
+![音色库](docs/assets/sr_library_latest.png)
 
 ## 功能
 
