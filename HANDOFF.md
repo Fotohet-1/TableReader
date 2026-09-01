@@ -9,7 +9,7 @@ TableReader 是一个本地剧本围读工具：上传剧本、拆角色/场次/
 - 工作目录：`/Users/hetan/Documents/ChatGPT/剧本围读Codex`
 - 仓库：`https://github.com/Fotohet-1/TableReader`
 - 产品页：`https://fotohet-1.github.io/TableReader/`
-- 分支：`main`，当前 HEAD：`a01fe43 docs: 交接文档同步拆行场标识别进度`
+- 分支：`main`，当前 HEAD：`9e3f9a5 fix: 多文件上传按集拆成独立存档，修复 parseScript idStart 失效`
 - 当前版本：`v1.2.1`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
 - 当前工作树：干净，仅 `xhs/` 未跟踪且刻意不提交。
 
@@ -113,6 +113,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5174/
 
 ## 待办与观察
 
+- 多文件上传已改为逐集独立存档：每个文件一个存档条目、各自整条音频，不再整批并成一个集；`parseScript` 的 `idStart` 失效已修复。火旺 E04/E05 旧合并存档已拆开。
 - Windows 版开发包已出，交接见 `WIN版交接文档.md`；由 Windows 电脑上的 Codex 接手移植。
 - 拆行场标规则已实现（可选编号 + 地点/时间/内外三行），火旺 23 集真实文本验证 607 场全识别；尚未升版本号打包。
 - Qwen 偶发挂起已用子进程超时重建缓解，仍需在真实长剧集里观察日志 `logs/sr_qwen.log`。
