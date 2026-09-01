@@ -331,7 +331,8 @@ export function parseScript(
     }
     resolved.push(u);
   }
-  resolved.forEach((u, i) => { u.id = i; });
+  const baseId = opts?.idStart || 0;
+  resolved.forEach((u, i) => { u.id = baseId + i; });
   return resolved;
 }
 

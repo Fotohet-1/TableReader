@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ArchiveContext, CharacterVoice, Project, Session, Unit, UnitAudio, VoiceSpec } from "../lib/types";
 import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines, roleBase } from "../lib/parser";
+import { splitMultiEpisodeArchive, type EpisodeSegment } from "../lib/episodes";
 import { groupRoles, sortRolesForConfirm } from "../lib/roles";
 import { guessGender, defaultEdgeVoiceFor, defaultVoiceDescFor } from "../lib/voices";
 import { analyzeRolesWithLLM, describeRoleVoice } from "../lib/llm";
@@ -124,7 +125,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
   const [fileInfo, setFileInfo] = useState("");
   const [fileName, setFileName] = useState("");
   const [text, setText] = useState(() => (lastSession && lastSession.source === source ? lastSession.text : ""));
-  const [segments, setSegments] = useState<Array<{ episode: number; text: string }> | null>(null);
+  const [segments, setSegments] = useState<EpisodeSegment[] | null>(null);
   const [units, setUnits] = useState<Unit[] | null>(() => (lastSession && lastSession.source === source ? lastSession.units : null));
   const [charVoices, setCharVoices] = useState<CharacterVoice[]>(() => (lastSession && lastSession.source === source ? lastSession.charVoices : []));
   const [phase, setPhase] = useState<"upload" | "scenes" | "gender" | "design" | "voices">("upload");
@@ -298,6 +299,15 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     return first;
   };
 
+  const restoreSession = (ncv: CharacterVoice[]) => {
+    if (segments && segments.length > 1 && segments[0]) {
+      const s0 = segments[0];
+      onAnalyzed({ text: s0.text, units: s0.units || [], charVoices: ncv, source });
+    } else if (units) {
+      onAnalyzed({ text, units, charVoices: ncv, source });
+    }
+  };
+
   const episodeIdFor = () => slugify(episodeNameFor());
 
   const ctxFor = (): ArchiveContext => ({
@@ -307,19 +317,6 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     episode: episodeIdFor(),
     episodeName: episodeNameFor()
   });
-
-  const saveProjectBase = () => {
-    const eid = episodeIdFor();
-    void saveMeta(archiveDir, seriesId, eid, {
-      id: eid,
-      name: episodeNameFor(),
-      source,
-      scriptText: text,
-      units: units || [],
-      voices: charVoices,
-      audio: {}
-    });
-  };
 
   const saveStateOnly = (audio: Record<number, { durationMs: number }>) => {
     const eid = episodeIdFor();
@@ -399,7 +396,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
       return { file: c.file, episode };
     });
     const parts: string[] = [];
-    const segs: Array<{ episode: number; text: string }> = [];
+    const segs: Array<{ episode: number; text: string; name: string }> = [];
     const structCands: string[] = [];
     for (const { file: f, episode } of ordered) {
       try {
@@ -411,13 +408,13 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
           const v = (result.value || "").trim();
           if (!v) throw new Error(f.name + " 未提取到文本");
           parts.push(v);
-          segs.push({ episode, text: v });
+          segs.push({ episode, text: v, name: f.name.replace(/\.(docx|txt|md)$/i, "") });
           const { extractSceneCandidates } = await import("../lib/docxMeta");
           structCands.push(...(await extractSceneCandidates(buf)));
         } else if (f.name.toLowerCase().endsWith(".txt") || f.name.toLowerCase().endsWith(".md")) {
           const v = (await f.text()).trim();
           parts.push(v);
-          segs.push({ episode, text: v });
+          segs.push({ episode, text: v, name: f.name.replace(/\.(docx|txt|md)$/i, "") });
         }
       } catch (e) {
         setErr(f.name + " 读取失败: " + (e instanceof Error ? e.message : String(e)));
@@ -530,7 +527,13 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
       let idStart = 0;
       let us: Unit[] = [];
       for (const seg of segments) {
-        us = us.concat(parseScript(seg.text, { episode: seg.episode, idStart, forcedSceneLines: forced }));
+        const segUnits = parseScript(seg.text, { episode: seg.episode, idStart, forcedSceneLines: forced });
+        seg.units = segUnits.map((u) => ({
+          ...u,
+          id: u.id - idStart,
+          group: u.group != null ? u.group - idStart : undefined
+        }));
+        us = us.concat(segUnits);
         idStart = us.length;
       }
       return us;
@@ -719,7 +722,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     }
     const ncv = assignVoicesFor(confirmed);
     setCharVoices(ncv);
-    if (units) onAnalyzed({ text, units, charVoices: ncv, source });
+    restoreSession(ncv);
     setPhase("voices");
   };
 
@@ -977,7 +980,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
       };
     });
     setCharVoices(ncv);
-    if (units) onAnalyzed({ text, units, charVoices: ncv, source });
+    restoreSession(ncv);
     setPhase("voices");
   };
 
@@ -1018,7 +1021,21 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
         }
       }
     }
-    const project: Project = { scriptText: text, units, voices: fullVoices };
+    const buildSegUnits = (seg: EpisodeSegment): Unit[] => {
+      if (seg.units && seg.units.length) return seg.units;
+      return parseScript(seg.text, { episode: seg.episode, forcedSceneLines: forcedLines });
+    };
+    const projects = segments && segments.length > 1
+      ? splitMultiEpisodeArchive(
+          segments.map((seg) => ({ ...seg, units: buildSegUnits(seg) })),
+          fullVoices,
+          archiveDir,
+          seriesId,
+          seriesName
+        )
+      : [{ project: { scriptText: text, units: units || [], voices: fullVoices }, ctx: ctxFor() }];
+    const project = projects[0].project;
+    const archiveCtx = projects[0].ctx;
 
     let archiveInfo: ArchiveContext | null = null;
     let existingAudio: Record<number, { url: string; durationMs: number }> = {};
@@ -1027,19 +1044,28 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     const archiveUp = archiveOk === true || await archiveHealth();
     setArchiveOk(archiveUp);
     if (archiveUp) {
-      const ctx = ctxFor();
-      archiveInfo = ctx;
-      archiveCtxRef.current = ctx;
-      project.archive = ctx;
+      archiveInfo = archiveCtx;
+      archiveCtxRef.current = archiveCtx;
+      project.archive = archiveCtx;
       onArchiveActive();
-      const order = episodeFromName(fileName) || (segments && segments.length ? segments[segments.length - 1].episode : 1);
-      await saveSeries(archiveDir, seriesId, seriesName, source, { id: ctx.episode, name: ctx.episodeName, order });
-      saveProjectBase();
-      const meta = await loadMeta(archiveDir, seriesId, ctx.episode);
+      for (const item of projects) {
+        const order = item.project.units.find((u) => u.episode != null)?.episode ?? 1;
+        await saveSeries(archiveDir, seriesId, seriesName, source, { id: item.ctx.episode, name: item.ctx.episodeName, order });
+        await saveMeta(archiveDir, seriesId, item.ctx.episode, {
+          id: item.ctx.episode,
+          name: item.ctx.episodeName,
+          source,
+          scriptText: item.project.scriptText,
+          units: item.project.units,
+          voices: item.project.voices,
+          audio: {}
+        });
+      }
+      const meta = await loadMeta(archiveDir, seriesId, archiveCtx.episode);
       if (meta && meta.audio) {
         for (const [uid, a] of Object.entries(meta.audio)) {
           const n = Number(uid);
-          existingAudio[n] = { url: archiveAudioUrl(archiveDir, seriesId, ctx.episode, n), durationMs: a.durationMs };
+          existingAudio[n] = { url: archiveAudioUrl(archiveDir, seriesId, archiveCtx.episode, n), durationMs: a.durationMs };
           archiveAudioRef.current[n] = { durationMs: a.durationMs };
         }
       }

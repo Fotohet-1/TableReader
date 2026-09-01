@@ -116,6 +116,13 @@ describe("parseScript", () => {
     expect(scenes[1].episode).toBe(2);
     expect(scenes[1].sceneNo).toBe("第1场");
   });
+
+  it("idStart 使多段拼接后的 id 连续不重复", () => {
+    const a = parseScript("第一集\n1. 咖啡店 日 内\n旁白：甲。", { episode: 1, idStart: 0 });
+    const b = parseScript("第二集\n2. 办公室 夜 内\n旁白：乙。", { episode: 2, idStart: a.length });
+    const ids = [...a, ...b].map((u) => u.id);
+    expect(ids).toEqual(ids.map((_, i) => i));
+  });
 });
 
 describe("拆行场标", () => {
