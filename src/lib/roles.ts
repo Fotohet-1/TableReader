@@ -68,4 +68,23 @@ export function sortRolesForConfirm<T extends { name: string; lines?: number }>(
   });
 }
 
+const SEED_CHARS_TARGET = 33;
+const SEED_CHARS_MIN = 25;
+const SEED_CHARS_MAX = 40;
+const FALLBACK_SEED_LINE = "夜色渐深，街角的咖啡店还亮着灯。";
+
+/** 挑一句约 8-10 秒的台词作种子文本基底，避免首句过短或语气太特殊 */
+export function pickStableSeedLine(lines: string[]): string {
+  const scored = lines
+    .filter((l) => l && l.trim())
+    .map((l) => {
+      const chars = l.replace(/\s+/g, "").length;
+      return { line: l.trim(), chars, dist: Math.abs(chars - SEED_CHARS_TARGET) };
+    });
+  if (!scored.length) return FALLBACK_SEED_LINE;
+  const inRange = scored.filter((x) => x.chars >= SEED_CHARS_MIN && x.chars <= SEED_CHARS_MAX);
+  const pool = inRange.length ? inRange : scored;
+  return pool.sort((a, b) => a.dist - b.dist || a.line.localeCompare(b.line, "zh-Hans-CN"))[0].line;
+}
+
 export { normalizeRoleName };

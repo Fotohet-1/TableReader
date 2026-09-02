@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ArchiveContext, CharacterVoice, Project, Session, Unit, UnitAudio, VoiceSpec } from "../lib/types";
 import { parseScript, collectCharacters, episodeFromName, findLikelySceneLines, roleBase } from "../lib/parser";
 import { splitMultiEpisodeArchive, type EpisodeSegment } from "../lib/episodes";
-import { groupRoles, sortRolesForConfirm } from "../lib/roles";
+import { groupRoles, sortRolesForConfirm, pickStableSeedLine } from "../lib/roles";
 import { guessGender, defaultEdgeVoiceFor, defaultVoiceDescFor } from "../lib/voices";
 import { analyzeRolesWithLLM, describeRoleVoice } from "../lib/llm";
 import { synthesizeStream, type Progress, type SynthSummary } from "../lib/synth";
@@ -712,7 +712,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
       const demos: Record<string, string> = {};
       for (const p of confirmed) {
         descs[p.name] = seedByRole[p.name]?.descUsed || defaultVoiceDescFor(p);
-        demos[p.name] = seedByRole[p.name]?.refText || firstLineFor(p.name);
+        demos[p.name] = seedByRole[p.name]?.refText || pickStableSeedLine(dialogueLinesFor(p.name));
       }
       setDescByRole(descs);
       setDemoTextByRole(demos);
@@ -726,9 +726,15 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     setPhase("voices");
   };
 
-  const firstLineFor = (name: string): string => {
-    const u = units?.find((x) => x.type === "dialogue" && x.character === name);
-    return u ? u.text : "夜色渐深，街角的咖啡店还亮着灯。";
+  const dialogueLinesFor = (name: string): string[] => {
+    return (units || [])
+      .filter((u) => u.type === "dialogue" && u.character === name)
+      .map((u) => u.text);
+  };
+
+  const seedLineFor = (name: string): string => {
+    const manual = demoTextByRole[name]?.trim();
+    return manual || pickStableSeedLine(dialogueLinesFor(name));
   };
 
   const generateDesc = async (p: Profile) => {
@@ -904,7 +910,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
     setRefBusy(true);
     setRefErr("");
     try {
-      const demo = demoTextByRole[name] || firstLineFor(name);
+      const demo = seedLineFor(name);
       const r = await qwenCloneSynthOne(qwenUrl, demo, refFile.b64, refText.trim());
       const a = refCloneAudioRef.current;
       if (a) {
@@ -947,7 +953,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
           const p = missing.pop();
           if (!p) break;
           const desc = descByRole[p.name] || defaultVoiceDescFor(p);
-          const text = demoTextByRole[p.name] || firstLineFor(p.name);
+          const text = seedLineFor(p.name);
           try {
             const r = await qwenSynthOne(qwenUrl, text, desc);
             const b64 = await blobToB64(r.blob);
@@ -1273,7 +1279,7 @@ export default function UploadPage({ theme, onTheme, lastSession, onAnalyzed, re
               {err && <div className="err">{err}</div>}
               {profiles.map((p) => {
                 const desc = descByRole[p.name] || defaultVoiceDescFor(p);
-                const demo = demoTextByRole[p.name] || firstLineFor(p.name);
+                const demo = seedLineFor(p.name);
                 return (
                   <div className="design-row" key={p.name}>
                     <div className="design-head">

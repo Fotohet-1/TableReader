@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupRoles } from "./roles";
+import { groupRoles, pickStableSeedLine } from "./roles";
 import { sortRolesForConfirm } from "./roles";
 import { roleBase } from "./parser";
 
@@ -36,6 +36,24 @@ describe("groupRoles", () => {
   it("按出现次数降序", () => {
     const g = groupRoles(["炎拓", "熊黑", "炎拓", "林晚"]);
     expect(g.map((x) => x.canonical)).toEqual(["炎拓", "熊黑", "林晚"]);
+  });
+});
+
+describe("pickStableSeedLine", () => {
+  it("优先选 25-40 字里最接近 33 字的一句", () => {
+    const short = "早。";
+    const target = "字".repeat(33);
+    const tooLong = "字".repeat(60);
+    expect(pickStableSeedLine([short, target, tooLong])).toBe(target);
+  });
+
+  it("没有合适长度时退回最接近 33 字的一句", () => {
+    const only = "字".repeat(12);
+    expect(pickStableSeedLine([only])).toBe(only);
+  });
+
+  it("空列表给兜底句", () => {
+    expect(pickStableSeedLine([])).toBe("夜色渐深，街角的咖啡店还亮着灯。");
   });
 });
 
