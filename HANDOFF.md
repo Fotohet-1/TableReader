@@ -9,8 +9,8 @@ TableReader 是一个本地剧本围读工具：上传剧本、拆角色/场次/
 - 工作目录：`/Users/hetan/Documents/ChatGPT/剧本围读Codex`
 - 仓库：`https://github.com/Fotohet-1/TableReader`
 - 产品页：`https://fotohet-1.github.io/TableReader/`
-- 分支：`main`，当前 HEAD：`d790acf feat: 种子文本自动挑选约 8-10 秒的稳定台词`
-- 当前版本：`v1.2.1`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
+- 分支：`main`，当前 HEAD：`b1218c9 chore: 升级到 v1.2.2，发布拆行场标与逐集存档改动`
+- 当前版本：`v1.2.2`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
 - 当前工作树：干净，仅 `xhs/` 未跟踪且刻意不提交。
 
 ## 启动与端口
@@ -42,6 +42,13 @@ Qwen 的启动路径有回退逻辑：优先用仓库内 `models/` 和 venv，�
 - Base 模型：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/models/Qwen3-TTS-12Hz-1.7B-Base-4bit`
 
 服务通过 `scripts/detach.py` 脱离当前会话启动，日志在 `logs/sr_*.log`。
+
+## v1.2.2 关键改动
+
+- 拆行场标识别：支持"可选编号 + 地点 + 时间 + 内外"分多行，以及 `夜/日`、`日夜`、`内外` 等组合。
+- 多文件上传逐集独立存档，修复 `parseScript` 忽略 `idStart` 导致跨集 id 重复。
+- Qwen 种子文本自动挑选约 8-10 秒的稳定台词，不再默认取首句。
+- 已打包 `TableReader-正式版-v1.2.2.zip`。
 
 ## v1.2.1 关键改动
 
