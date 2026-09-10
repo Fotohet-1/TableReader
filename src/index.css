@@ -1239,6 +1239,18 @@ button.primary.danger:hover { background: #a93226; border-color: #a93226; color:
   outline: 2px solid var(--accent-light);
   outline-offset: 1px;
 }
+.tb-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: min(38vw, 360px);
+  font-size: 13px;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+.tb-file-label { color: var(--muted); flex-shrink: 0; }
+.tb-file-name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
 .tb-meta {
   flex-shrink: 0;
   height: 32px;
@@ -1594,6 +1606,8 @@ select.model-source-select:focus { outline: none; box-shadow: none; }
     scrollbar-width: none;
   }
   .player-page .topbar::-webkit-scrollbar { display: none; }
+  .tb-file { max-width: 52vw; }
+  .tb-file-label { display: none; }
   .unit { font-size: calc(var(--reader-font-size, 17px) - 2px); padding: 7px 14px; }
   .script-scroll { padding: 40px 14px 170px; }
   .unit-dialogue { display: block; position: static; }

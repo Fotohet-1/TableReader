@@ -187,6 +187,10 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
   const dsKey = loadDsKey();
   const aiEnabled = loadAiEnabled();
   const source = loadSource();
+  const readerTitle = project.archive?.episodeName
+    || project.archive?.seriesName
+    || project.scriptText.split("\n").map((s) => s.trim()).find(Boolean)
+    || "剧本围读";
   const roleNames = useMemo(
     () => Array.from(new Set(project.units.filter((u) => u.type === "dialogue").map((u) => u.character).filter(Boolean))),
     [project]
@@ -564,6 +568,10 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
       </div>
       <header className="topbar">
         <button onClick={() => { saveNow(); onBack(); }} className="back-btn">← 返回</button>
+        <div className="tb-file" title={readerTitle}>
+          <span className="tb-file-label">正在围读</span>
+          <span className="tb-file-name">{readerTitle}</span>
+        </div>
         <div className="tb-right">
           <button
             className="tb-chip theme-toggle"
