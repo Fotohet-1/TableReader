@@ -1,6 +1,6 @@
 export type TtsSource = "edge" | "qwen";
 
-export const APP_VERSION = "v1.2.2";
+export const APP_VERSION = "v1.2.3";
 
 const KEYS = {
   source: "sr_tts_source",
