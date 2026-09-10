@@ -9,8 +9,8 @@ TableReader 是一个本地剧本围读工具：上传剧本、拆角色/场次/
 - 工作目录：`/Users/hetan/Documents/ChatGPT/剧本围读Codex`
 - 仓库：`https://github.com/Fotohet-1/TableReader`
 - 产品页：`https://fotohet-1.github.io/TableReader/`
-- 分支：`main`，当前 HEAD：`5c397d5 feat: 围读页顶栏显示当前文件名称`
-- 当前版本：`v1.2.2`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
+- 分支：`main`，当前 HEAD：`0fe9afd chore: 升级到 v1.2.3，围读页显示当前文件名称`
+- 当前版本：`v1.2.3`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
 - 当前工作树：干净，仅 `xhs/` 未跟踪且刻意不提交。
 
 ## 启动与端口
@@ -42,6 +42,11 @@ Qwen 的启动路径有回退逻辑：优先用仓库内 `models/` 和 venv，�
 - Base 模型：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/models/Qwen3-TTS-12Hz-1.7B-Base-4bit`
 
 服务通过 `scripts/detach.py` 脱离当前会话启动，日志在 `logs/sr_*.log`。
+
+## v1.2.3 关键改动
+
+- 围读页顶栏返回键右侧显示当前围读的文件名称，长名称省略、悬停可看全名。
+- 已打包 `TableReader-正式版-v1.2.3.zip`。
 
 ## v1.2.2 关键改动
 
@@ -120,7 +125,6 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5174/
 
 ## 待办与观察
 
-- 围读页顶栏已加当前围读文件名称（本地已实现，尚未随外发包发布）。
 - Qwen 种子文本已从"首句台词"改为自动挑选 25-40 字、最接近 33 字的台词，约对应 8-10 秒，避免首句过短导致音色不稳。
 - 多文件上传已改为逐集独立存档：每个文件一个存档条目、各自整条音频，不再整批并成一个集；`parseScript` 的 `idStart` 失效已修复。火旺 E04/E05 旧合并存档已拆开。
 - Windows 版开发包已出，交接见 `WIN版交接文档.md`；由 Windows 电脑上的 Codex 接手移植。
