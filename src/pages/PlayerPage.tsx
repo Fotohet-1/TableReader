@@ -383,6 +383,8 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
       if (t < ss[i].endMs) { si = i; break; }
       si = i;
     }
+    setGlobalMs(t);
+    posRef.current = t;
     jumpMode.current = true;
     playFromSlot(si, t - ss[si].startMs);
   };
@@ -393,6 +395,12 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
   }, []);
 
   const jump = (sec: number) => seekTo(globalMs + sec * 1000);
+  const getLiveMs = useCallback(() => {
+    const slot = slotsRef.current[slotIdxRef.current];
+    const master = masterElRef.current;
+    if (!slot || !master) return posRef.current;
+    return Math.min(slot.endMs, slot.startMs + master.currentTime * 1000);
+  }, []);
 
   const setPlaybackRate = (r: number) => {
     setRate(r);
@@ -700,6 +708,7 @@ export default function PlayerPage({ theme, onTheme, project, items, synthDone, 
         globalMs={globalMs}
         totalMs={totalMs}
         rate={rate}
+        getLiveMs={getLiveMs}
         onToggle={toggle}
         onSeek={seekTo}
         onJump={jump}

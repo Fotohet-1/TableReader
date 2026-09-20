@@ -192,6 +192,40 @@ export function archiveAudioUrl(dir: string, seriesId: string, episodeId: string
   return BASE + "/audio?dir=" + enc(dir) + "&series=" + enc(seriesId) + "&id=" + enc(episodeId) + "&unit=" + unitId;
 }
 
+/** 从媒体文件本身读取时长，用于修复存档里缺失或为 0 的 durationMs。 */
+export async function probeAudioDurationMs(url: string, timeoutMs = 8000): Promise<number> {
+  if (typeof Audio === "undefined") return 0;
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    let settled = false;
+    let timer = 0;
+
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      audio.onloadedmetadata = null;
+      audio.onerror = null;
+      audio.removeAttribute("src");
+      audio.load();
+    };
+    const done = (value: number) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      const durationSec = audio.duration;
+      done(Number.isFinite(durationSec) && durationSec > 0 ? Math.round(durationSec * 1000) : 0);
+    };
+    audio.onerror = () => done(0);
+    timer = window.setTimeout(() => done(0), timeoutMs);
+    audio.src = url;
+    audio.load();
+  });
+}
+
 /**
  * 合并整部剧的音色库：保留前几集已有角色，用本集角色覆盖同名项。
  * 纯函数，便于单元测试（防止回退成"整库替换"导致跨集角色丢失）。

@@ -114,6 +114,6 @@ if [ "$QWEN_READY" = "1" ]; then
   fi
 fi
 
-if command -v open >/dev/null 2>&1; then
+if [ "${SKIP_OPEN:-0}" != "1" ] && command -v open >/dev/null 2>&1; then
   ( sleep 1; open "http://127.0.0.1:5174/" 2>/dev/null ) &
 fi

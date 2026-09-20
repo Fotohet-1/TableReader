@@ -6,7 +6,7 @@ import ChoosePage from "./pages/ChoosePage";
 import ArchiveContinuePage from "./pages/ArchiveContinuePage";
 import UploadPage from "./pages/UploadPage";
 import PlayerPage from "./pages/PlayerPage";
-import { archiveAudioUrl, loadMeta, saveMeta, savePlayback, stitchAudio, revealFullAudio, fullAudioInfo } from "./lib/archive";
+import { archiveAudioUrl, loadMeta, saveMeta, savePlayback, stitchAudio, revealFullAudio, fullAudioInfo, probeAudioDurationMs } from "./lib/archive";
 import type { ArchiveContext, FullAudioState } from "./lib/types";
 import { hasOnboarded, markOnboarded, saveDsKey, saveSource, loadEdgeUrl, loadQwenUrl, loadSource, type TtsSource } from "./lib/settings";
 import { loadTheme, saveTheme, applyTheme, subscribeSystem, type Theme } from "./lib/theme";
@@ -121,7 +121,7 @@ export default function App() {
     voiceMapRef.current = resumeSpecs;
     regenClaimedRef.current.clear();
     regenInProgressRef.current = false;
-    const items: UnitAudio[] = (meta.units || [])
+    const rawItems: UnitAudio[] = (meta.units || [])
       .filter((u) => meta.audio && meta.audio[u.id])
       .map((u) => ({
         unitId: u.id,
@@ -130,6 +130,17 @@ export default function App() {
         startMs: 0,
         endMs: 0
       }));
+    const fixedAudio: Record<number, { durationMs: number }> = {};
+    const items = await Promise.all(rawItems.map(async (it) => {
+      if (Number.isFinite(it.durationMs) && it.durationMs > 0) return it;
+      const durationMs = await probeAudioDurationMs(it.url);
+      if (durationMs <= 0) return it;
+      fixedAudio[it.unitId] = { durationMs };
+      return { ...it, durationMs };
+    }));
+    if (Object.keys(fixedAudio).length) {
+      void saveMeta(ctx.dir, ctx.series, ctx.episode, { audio: fixedAudio });
+    }
     setProject(p);
     setItems(items);
     archiveActiveRef.current = true;
@@ -147,7 +158,10 @@ export default function App() {
     const existingAudio: Record<number, { url: string; durationMs: number }> = {};
     for (const [uid, a] of Object.entries(meta.audio || {})) {
       const n = Number(uid);
-      existingAudio[n] = { url: archiveAudioUrl(ctx.dir, ctx.series, ctx.episode, n), durationMs: a.durationMs };
+      existingAudio[n] = {
+        url: archiveAudioUrl(ctx.dir, ctx.series, ctx.episode, n),
+        durationMs: fixedAudio[n]?.durationMs ?? a.durationMs
+      };
     }
     void (async () => {
       const info = await fullAudioInfo(ctx.dir, ctx.series, ctx.episode);
