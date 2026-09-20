@@ -9,8 +9,8 @@ TableReader 是一个本地剧本围读工具：上传剧本、拆角色/场次/
 - 工作目录：`/Users/hetan/Documents/ChatGPT/剧本围读Codex`
 - 仓库：`https://github.com/Fotohet-1/TableReader`
 - 产品页：`https://fotohet-1.github.io/TableReader/`
-- 分支：`main`，当前 HEAD：`0fe9afd chore: 升级到 v1.2.3，围读页显示当前文件名称`
-- 当前版本：`v1.2.3`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
+- 分支：`main`，当前 HEAD：`d87e35c feat: 升级到 v1.2.4，优化围读播放体验`
+- 当前版本：`v1.2.4`，`package.json`、`src/lib/settings.ts`、产品页和桌面打包脚本均已同步。
 - 当前工作树：干净，仅 `xhs/` 未跟踪且刻意不提交。
 
 ## 启动与端口
@@ -42,6 +42,13 @@ Qwen 的启动路径有回退逻辑：优先用仓库内 `models/` 和 venv，�
 - Base 模型：`/Users/hetan/Documents/剧本围读/qwen3-tts-test/models/Qwen3-TTS-12Hz-1.7B-Base-4bit`
 
 服务通过 `scripts/detach.py` 脱离当前会话启动，日志在 `logs/sr_*.log`。
+
+## v1.2.4 关键改动
+
+- 围读播放器时码改为逐字符固定宽度，快速播放时数字变化不再引起宽度抖动。
+- 进度填充与圆球共用同一条内缩轨道，改为逐帧跟随真实播放时间，并增加轻微蓝色光晕。
+- 继续围读旧存档时自动补全音频缺失或为 `0` 的时长。
+- 已打包 `TableReader-正式版-v1.2.4.zip`。
 
 ## v1.2.3 关键改动
 
